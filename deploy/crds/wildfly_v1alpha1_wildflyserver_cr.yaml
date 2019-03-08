@@ -1,0 +1,7 @@
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: myapp-wildflyserver
+spec:
+  size: 2
+  image: "banzaicloud/wildfly-jee-petstore:0.1.17"
