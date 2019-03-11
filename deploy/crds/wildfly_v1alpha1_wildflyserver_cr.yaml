@@ -3,5 +3,5 @@ kind: WildFlyServer
 metadata:
   name: myapp-wildflyserver
 spec:
-  size: 2
-  image: "banzaicloud/wildfly-jee-petstore:0.1.17"
+  size: 3
+  image: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"

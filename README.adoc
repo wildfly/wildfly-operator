@@ -1,0 +1,146 @@
+# WildFly Operator for Kubernetes/OpenShift
+
+The WildFly Operator for Kubernetes provides easy monitoring and configuration for Java applications deployed on http://wildfly.org[WildFly application server].
+
+Once installed, the WildFly Operator provides the following features:
+
+* Create/Destroy: Easily launch an application deployed on WildFly
+
+* Simple Configuration: Configure the fundamentals of WildFly-based application including number of nodes, application image, etc.
+
+## Custom Resource Definitions
+
+The operator acts on the following Custom Resource Definitions (CRDs):
+
+* `WildFlyServer`, which defines a WildFly deployment.
+
+## Quickstart
+
+### Install the Operator and associate resources:
+
+[source,shell]
+----
+$ kubectl create -f deploy/
+
+deployment.apps "wildfly-operator" created
+role.rbac.authorization.k8s.io "wildfly-operator" created
+rolebinding.rbac.authorization.k8s.io "wildfly-operator" created
+serviceaccount "wildfly-operator" created
+----
+
+### Install the `WildFlyServer` CRD:
+
+[source,shell]
+----
+$ kubectl create -f deploy/crds/wildfly_v1alpha1_wildflyserver_crd.yaml
+
+customresourcedefinition.apiextensions.k8s.io "wildflyservers.wildfly.org" created
+----
+
+### Install a custom resource
+
+An example of a custom resource of `WildFlyServer` is described in http://deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml[wildfly_v1alpha1_wildflyserver_cr.yaml]:
+
+[source,yaml]
+----
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: myapp-wildflyserver
+spec:
+  size: 3
+  image: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
+----
+
+It is based on the application image https://quay.io/repository/jmesnil/wildfly-helloworld-rs[wildfly-helloworld-rs] that provides the WildFly https://github.com/wildfly/quickstart/tree/master/helloworld-rs[helloword-rs Quickstart] on top of WildFly 16.0.0.Final.
+
+[source,shell]
+----
+$ kubectl create -f deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml
+
+wildflyserver.wildfly.org "myapp-wildflyserver" created
+----
+
+Once the application is deployed, it can be accessed through a load balancer:
+
+[source,shell]
+----
+$ curl $(minikube service myapp-wildflyserver-loadbalancer --url)/helloworld-rs/
+----
+
+The WildFly operator describes the deployed application with `$ kubectl describe wildflyserver myapp-wildflyserver`:
+
+[source,yaml]
+----
+Name:         myapp-wildflyserver
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+API Version:  wildfly.org/v1alpha1
+Kind:         WildFlyServer
+Metadata:
+  Creation Timestamp:  2019-03-09T18:28:47Z
+  Generation:          1
+  Resource Version:    127032
+  Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/myapp-wildflyserver
+  UID:                 2de63f56-4299-11e9-a9e2-ee8c8192f3c7
+Spec:
+  Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
+  Size:   3
+Status:
+  Nodes:
+    myapp-wildflyserver-79ffc5f49-6qhxc
+    myapp-wildflyserver-79ffc5f49-ch65v
+    myapp-wildflyserver-79ffc5f49-h59x6
+Events:  <none>
+----
+
+The `Status` section is updated with the 3 pods names containing the application image.
+
+You can modify this custom resource spec to scale down its size from `3` to `2`:
+
+[source,shell]
+----
+$ kubectl edit wildflyserver myapp-wildflyserver
+# Change the `size: 3` spec to `size: 2` and save
+----
+
+The deployment will be updated to scale down to 2 Pods and the resource `Status` will be updated accordingly:
+
+[source,shell]
+----
+$ kubectl describe wildflyserver myapp-wildflyserver
+----
+
+[source,yaml]
+----
+Name:         myapp-wildflyserver
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+API Version:  wildfly.org/v1alpha1
+Kind:         WildFlyServer
+Metadata:
+  Creation Timestamp:  2019-03-09T18:51:30Z
+  Generation:          2
+  Resource Version:    129050
+  Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/myapp-wildflyserver
+  UID:                 59e8fff3-429c-11e9-a9e2-ee8c8192f3c7
+Spec:
+  Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
+  Size:   2
+Status:
+  Nodes:
+    myapp-wildflyserver-79ffc5f49-5blpr
+    myapp-wildflyserver-79ffc5f49-jqpmc
+Events:  <none>
+----
+
+You can then remove this custom resource and its assocated resources:
+
+[source,shell]
+----
+$ kubectl delete wildflyserver myapp-wildflyserver
+
+wildflyserver.wildfly.org "myapp-wildflyserver" deleted
+----
