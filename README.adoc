@@ -48,8 +48,8 @@ kind: WildFlyServer
 metadata:
   name: myapp-wildflyserver
 spec:
+  applicationImage: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
   size: 3
-  image: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
 ----
 
 It is based on the application image https://quay.io/repository/jmesnil/wildfly-helloworld-rs[wildfly-helloworld-rs] that provides the WildFly https://github.com/wildfly/quickstart/tree/master/helloworld-rs[helloword-rs Quickstart] on top of WildFly 16.0.0.Final.
@@ -85,7 +85,7 @@ Metadata:
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/myapp-wildflyserver
   UID:                 2de63f56-4299-11e9-a9e2-ee8c8192f3c7
 Spec:
-  Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
+  Application Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
   Size:   3
 Status:
   Nodes:
@@ -127,7 +127,7 @@ Metadata:
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/myapp-wildflyserver
   UID:                 59e8fff3-429c-11e9-a9e2-ee8c8192f3c7
 Spec:
-  Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
+  Application Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
   Size:   2
 Status:
   Nodes:

@@ -3,5 +3,5 @@ kind: WildFlyServer
 metadata:
   name: myapp-wildflyserver
 spec:
+  applicationImage: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
   size: 3
-  image: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
