@@ -107,7 +107,7 @@ func main() {
 		log.Error(err, "")
 		os.Exit(1)
 	}
-
+	
 	ctx := context.TODO()
 
 	// Become the leader before proceeding
@@ -121,7 +121,7 @@ func main() {
 	mgr, err := manager.New(cfg, manager.Options{
 		Namespace:          namespace,
 		MetricsBindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
-	})
+	})	
 	if err != nil {
 		log.Error(err, "")
 		os.Exit(1)
