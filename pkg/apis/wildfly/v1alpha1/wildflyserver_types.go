@@ -12,6 +12,7 @@ import (
 type WildFlyServerSpec struct {
 	ApplicationImage string `json:"applicationImage"`
 	Size             int32  `json:"size"`
+	Stateful         bool   `json:"stateful"`
 }
 
 // WildFlyServerStatus defines the observed state of WildFlyServer

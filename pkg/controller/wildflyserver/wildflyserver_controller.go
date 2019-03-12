@@ -27,6 +27,8 @@ import (
 
 var log = logf.Log.WithName("controller_wildflyserver")
 
+const httpApplicationPort int32 = 8080
+
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
 * business logic.  Delete these comments after modifying this file.*
@@ -218,7 +220,7 @@ func (r *ReconcileWildFlyServer) deploymentForWildFly(w *wildflyv1alpha1.WildFly
 						Name:  w.Name,
 						Image: applicationImage,
 						Ports: []corev1.ContainerPort{{
-							ContainerPort: 8080,
+							ContainerPort: httpApplicationPort,
 							Name:          "http",
 						}},
 					}},
@@ -246,7 +248,7 @@ func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildF
 			Ports: []corev1.ServicePort{
 				{
 					Name: "http",
-					Port: 8080,
+					Port: httpApplicationPort,
 				},
 			},
 		},
