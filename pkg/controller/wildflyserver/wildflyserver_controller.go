@@ -11,6 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -107,38 +108,75 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	// Check if the deployment already exists, if not create a new one
-	foundDeployment := &appsv1.Deployment{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, foundDeployment)
-	if err != nil && errors.IsNotFound(err) {
-		// Define a new deployment
-		dep := r.deploymentForWildFly(wildflyServer)
-		reqLogger.Info("Creating a new Deployment.", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
-		err = r.client.Create(context.TODO(), dep)
-		if err != nil {
-			reqLogger.Error(err, "Failed to create new Deployment.", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
-			return reconcile.Result{}, err
-		}
-		// Deployment created successfully - return and requeue
-		return reconcile.Result{Requeue: true}, nil
-	} else if err != nil {
-		reqLogger.Error(err, "Failed to get Deployment.")
-		return reconcile.Result{}, err
-	}
-
-	// Ensure the deployment size is the same as the spec
+	stateful := wildflyServer.Spec.Stateful
 	size := wildflyServer.Spec.Size
-	if *foundDeployment.Spec.Replicas != size {
-		reqLogger.Info("Updating replica size to "+strconv.Itoa(int(size)), "Deployment.Namespace", foundDeployment.Namespace, "Deployment.Name", foundDeployment.Name)
-		foundDeployment.Spec.Replicas = &size
-		err = r.client.Update(context.TODO(), foundDeployment)
-		if err != nil {
-			reqLogger.Error(err, "Failed to update Deployment.", "Deployment.Namespace", foundDeployment.Namespace, "Deployment.Name", foundDeployment.Name)
+
+	if stateful {
+		// Check if the statefulSet already exists, if not create a new one
+		foundStatefulSet := &appsv1.StatefulSet{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, foundStatefulSet)
+		if err != nil && errors.IsNotFound(err) {
+			// Define a new statefulSet
+			statefulSet := r.statefulSetForWildFly(wildflyServer)
+			reqLogger.Info("Creating a new StatefulSet.", "StatefulSet.Namespace", statefulSet.Namespace, "StatefulSet.Name", statefulSet.Name)
+			err = r.client.Create(context.TODO(), statefulSet)
+			if err != nil {
+				reqLogger.Error(err, "Failed to create new StatefulSet.", "StatefulSet.Namespace", statefulSet.Namespace, "StatefulSet.Name", statefulSet.Name)
+				return reconcile.Result{}, err
+			}
+			// StatefulSet created successfully - return and requeue
+			return reconcile.Result{Requeue: true}, nil
+		} else if err != nil {
+			reqLogger.Error(err, "Failed to get StatefulSet.")
 			return reconcile.Result{}, err
 		}
 
-		// Spec updated - return and requeue
-		return reconcile.Result{Requeue: true}, nil
+		// Ensure the deployment size is the same as the spec
+		if *foundStatefulSet.Spec.Replicas != size {
+			reqLogger.Info("Updating replica size to "+strconv.Itoa(int(size)), "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			foundStatefulSet.Spec.Replicas = &size
+			err = r.client.Update(context.TODO(), foundStatefulSet)
+			if err != nil {
+				reqLogger.Error(err, "Failed to update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+				return reconcile.Result{}, err
+			}
+
+			// Spec updated - return and requeue
+			return reconcile.Result{Requeue: true}, nil
+		}
+	} else {
+		// Check if the deployment already exists, if not create a new one
+		foundDeployment := &appsv1.Deployment{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, foundDeployment)
+		if err != nil && errors.IsNotFound(err) {
+			// Define a new deployment
+			dep := r.deploymentForWildFly(wildflyServer)
+			reqLogger.Info("Creating a new Deployment.", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
+			err = r.client.Create(context.TODO(), dep)
+			if err != nil {
+				reqLogger.Error(err, "Failed to create new Deployment.", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
+				return reconcile.Result{}, err
+			}
+			// Deployment created successfully - return and requeue
+			return reconcile.Result{Requeue: true}, nil
+		} else if err != nil {
+			reqLogger.Error(err, "Failed to get Deployment.")
+			return reconcile.Result{}, err
+		}
+
+		// Ensure the deployment size is the same as the spec
+		if *foundDeployment.Spec.Replicas != size {
+			reqLogger.Info("Updating replica size to "+strconv.Itoa(int(size)), "Deployment.Namespace", foundDeployment.Namespace, "Deployment.Name", foundDeployment.Name)
+			foundDeployment.Spec.Replicas = &size
+			err = r.client.Update(context.TODO(), foundDeployment)
+			if err != nil {
+				reqLogger.Error(err, "Failed to update Deployment.", "Deployment.Namespace", foundDeployment.Namespace, "Deployment.Name", foundDeployment.Name)
+				return reconcile.Result{}, err
+			}
+
+			// Spec updated - return and requeue
+			return reconcile.Result{Requeue: true}, nil
+		}
 	}
 
 	// Update the WildFlyServer status with the pod names
@@ -231,6 +269,70 @@ func (r *ReconcileWildFlyServer) deploymentForWildFly(w *wildflyv1alpha1.WildFly
 	// Set WildFlyServer instance as the owner and controller
 	controllerutil.SetControllerReference(w, dep, r.scheme)
 	return dep
+}
+
+// statefulSetForWildFly returns a wildfly StatefulSet object
+func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFlyServer) *appsv1.StatefulSet {
+	ls := labelsForWildFly(w)
+	replicas := w.Spec.Size
+	applicationImage := w.Spec.ApplicationImage
+	storageName := "standard"
+	volumeName := w.Name + "-volume"
+
+	statefulSet := &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "StatefulSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      w.Name,
+			Namespace: w.Namespace,
+		},
+		Spec: appsv1.StatefulSetSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: ls,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: ls,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  w.Name,
+						Image: applicationImage,
+						Ports: []corev1.ContainerPort{{
+							ContainerPort: httpApplicationPort,
+							Name:          "http",
+						}},
+						VolumeMounts: []corev1.VolumeMount{{
+							Name:      volumeName,
+							MountPath: "/opt/jboss/wildfly/foo",
+						}},
+					}},
+			},
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   volumeName,
+					Labels: ls,
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					StorageClassName: &storageName,
+					AccessModes: []corev1.PersistentVolumeAccessMode{
+						corev1.ReadWriteOnce,
+					},
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: resource.MustParse("3Gi"),
+						},
+					},
+				},
+			}},
+		},
+	}
+	// Set WildFlyServer instance as the owner and controller
+	controllerutil.SetControllerReference(w, statefulSet, r.scheme)
+	return statefulSet
 }
 
 // loadBalancerForWildFly returns a loadBalancer service
