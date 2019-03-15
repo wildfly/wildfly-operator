@@ -20,21 +20,16 @@ The operator acts on the following Custom Resource Definitions (CRDs):
 
 [source,shell]
 ----
-$ kubectl create -f deploy/
+# Install resource for the WildFly Operator
+$ kubectl create -f deploy/service_account.yaml
+$ kubectl create -f deploy/role.yaml
+$ kubectl create -f deploy/role_binding.yaml
 
-deployment.apps "wildfly-operator" created
-role.rbac.authorization.k8s.io "wildfly-operator" created
-rolebinding.rbac.authorization.k8s.io "wildfly-operator" created
-serviceaccount "wildfly-operator" created
-----
-
-### Install the `WildFlyServer` CRD:
-
-[source,shell]
-----
+# install the WildFlyServer CRD that the Operator manages
 $ kubectl create -f deploy/crds/wildfly_v1alpha1_wildflyserver_crd.yaml
 
-customresourcedefinition.apiextensions.k8s.io "wildflyservers.wildfly.org" created
+# install WildFly Operator
+$ kubectl create -f deploy/operator.yaml
 ----
 
 ### Install a custom resource
@@ -49,6 +44,7 @@ metadata:
   name: myapp-wildflyserver
 spec:
   applicationImage: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
+  stateful: true
   size: 3
 ----
 
@@ -72,6 +68,7 @@ The WildFly operator describes the deployed application with `$ kubectl describe
 
 [source,yaml]
 ----
+kubectl describe wildflyserver
 Name:         myapp-wildflyserver
 Namespace:    default
 Labels:       <none>
@@ -79,19 +76,20 @@ Annotations:  <none>
 API Version:  wildfly.org/v1alpha1
 Kind:         WildFlyServer
 Metadata:
-  Creation Timestamp:  2019-03-09T18:28:47Z
+  Creation Timestamp:  2019-03-11T17:25:25Z
   Generation:          1
-  Resource Version:    127032
+  Resource Version:    330444
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/myapp-wildflyserver
-  UID:                 2de63f56-4299-11e9-a9e2-ee8c8192f3c7
+  UID:                 a88933a0-4422-11e9-a9e2-ee8c8192f3c7
 Spec:
   Application Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
-  Size:   3
+  Size:               3
+  Stateful:           true
 Status:
   Nodes:
-    myapp-wildflyserver-79ffc5f49-6qhxc
-    myapp-wildflyserver-79ffc5f49-ch65v
-    myapp-wildflyserver-79ffc5f49-h59x6
+    myapp-wildflyserver-0
+    myapp-wildflyserver-1
+    myapp-wildflyserver-2
 Events:  <none>
 ----
 
@@ -114,6 +112,7 @@ $ kubectl describe wildflyserver myapp-wildflyserver
 
 [source,yaml]
 ----
+kubectl describe wildflyserver
 Name:         myapp-wildflyserver
 Namespace:    default
 Labels:       <none>
@@ -121,18 +120,19 @@ Annotations:  <none>
 API Version:  wildfly.org/v1alpha1
 Kind:         WildFlyServer
 Metadata:
-  Creation Timestamp:  2019-03-09T18:51:30Z
+  Creation Timestamp:  2019-03-11T17:25:25Z
   Generation:          2
-  Resource Version:    129050
+  Resource Version:    330865
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/myapp-wildflyserver
-  UID:                 59e8fff3-429c-11e9-a9e2-ee8c8192f3c7
+  UID:                 a88933a0-4422-11e9-a9e2-ee8c8192f3c7
 Spec:
   Application Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
-  Size:   2
+  Size:               2
+  Stateful:           true
 Status:
   Nodes:
-    myapp-wildflyserver-79ffc5f49-5blpr
-    myapp-wildflyserver-79ffc5f49-jqpmc
+    myapp-wildflyserver-0
+    myapp-wildflyserver-1
 Events:  <none>
 ----
 
