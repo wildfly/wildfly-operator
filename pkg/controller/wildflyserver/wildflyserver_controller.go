@@ -310,6 +310,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 							MountPath: "/opt/jboss/wildfly/foo",
 						}},
 					}},
+				},
 			},
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
 				ObjectMeta: metav1.ObjectMeta{
@@ -330,6 +331,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 			}},
 		},
 	}
+
 	// Set WildFlyServer instance as the owner and controller
 	controllerutil.SetControllerReference(w, statefulSet, r.scheme)
 	return statefulSet
