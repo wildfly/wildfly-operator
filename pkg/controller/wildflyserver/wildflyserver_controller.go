@@ -28,7 +28,17 @@ import (
 
 var log = logf.Log.WithName("controller_wildflyserver")
 
-const httpApplicationPort int32 = 8080
+const (
+	httpApplicationPort    int32 = 8080
+	jbossServerDataDirPath       = "/opt/jboss/wildfly/standalone/data"
+)
+
+var (
+	// JBossUserID is the UID for jboss user
+	JBossUserID int64 = 1000
+	// JBossGroupID is GID for jboss user
+	JBossGroupID int64 = 1000
+)
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -200,6 +210,16 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 	applicationImage := w.Spec.ApplicationImage
 	volumeName := w.Name + "-volume"
 
+	var securityContext *v1.PodSecurityContext
+	if w.Spec.SecurityContext != nil {
+		securityContext = w.Spec.SecurityContext
+	} else {
+		securityContext = &v1.PodSecurityContext{
+			RunAsUser:  &JBossUserID,
+			RunAsGroup: &JBossGroupID,
+		}
+	}
+
 	statefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -219,6 +239,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 					Labels: ls,
 				},
 				Spec: corev1.PodSpec{
+					SecurityContext: securityContext,
 					Containers: []corev1.Container{{
 						Name:  w.Name,
 						Image: applicationImage,
@@ -228,7 +249,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 						}},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      volumeName,
-							MountPath: "/opt/jboss/wildfly/foo",
+							MountPath: jbossServerDataDirPath,
 						}},
 					}},
 				},

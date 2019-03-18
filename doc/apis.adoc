@@ -32,7 +32,9 @@ This document describes the types introduced by the WildFly Operator to be consu
 [[wildflyserverspec]]
 ## `WildFlyServerSpec`
 
-`WildFlyServerSpec` is a specification of the desired behavior of the WildFly resource. It uses a `StatefulSet`.
+`WildFlyServerSpec` is a specification of the desired behavior of the WildFly resource.
+
+It uses a `StatefulSet` with a pod spec that mounts the volume specified by `storage` on `/opt/jboss/wildfly/standalone/data`.
 
 [options="header,footer"]
 |=======================
@@ -40,6 +42,7 @@ This document describes the types introduced by the WildFly Operator to be consu
 | `applicationImage` | Name of the application image to be deployed | string | true
 | `size` | Number of instances for a `WildFlyServer` resource | int32 | true
 | `storage` | Storage spec to specify how storage should be used | *<<storagespec>> |false
+| `securityContext` | SecurityContext holds pod-level security context attributes. It defaults to the `jboss` user (with uid/gid set to `1000`/`1000`). | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#podsecuritycontext-v1-core[*corev1.PodSecurityContext] |false
 |=======================
 
 

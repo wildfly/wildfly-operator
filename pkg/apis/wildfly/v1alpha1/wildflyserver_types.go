@@ -11,9 +11,10 @@ import (
 // WildFlyServerSpec defines the desired state of WildFlyServer
 // +k8s:openapi-gen=true
 type WildFlyServerSpec struct {
-	ApplicationImage string       `json:"applicationImage"`
-	Size             int32        `json:"size"`
-	Storage          *StorageSpec `json:"storage,omitempty"`
+	ApplicationImage string                     `json:"applicationImage"`
+	Size             int32                      `json:"size"`
+	Storage          *StorageSpec               `json:"storage,omitempty"`
+	SecurityContext  *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 }
 
 // StorageSpec defines the desired storage for WildFlyServer
