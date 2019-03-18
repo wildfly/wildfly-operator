@@ -32,14 +32,28 @@ This document describes the types introduced by the WildFly Operator to be consu
 [[wildflyserverspec]]
 ## `WildFyServerSpec`
 
-`WildFyServerSpec` is a specification of the desired behavior of the WildFly deployments.
+`WildFyServerSpec` is a specification of the desired behavior of the WildFly resource. It uses a `StatefulSet`.
 
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
 | `applicationImage` | Name of the application image to be deployed | string | true
-| `size` | Number of instances for a `WildFlyServer` ressource | int32 | true
-| `stateful` | Whether the `WildFlyServer` is stateful or not. If it is stateful, it will be deployed as a https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#replicaset-v1-apps[`StatefulSet`], otherwise as a https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#deployment-v1beta1-apps[`Deployment`] | bool | true
+| `size` | Number of instances for a `WildFlyServer` resource | int32 | true
+| `storage` | Storage spec to specify how storage should be used | *<<storagespec>> | true
+|=======================
+
+
+[[storagespec]]
+## `StorageSpec`
+
+`StorageSpec` defines the configured storage for a `WildFlyServer` resource. If neither an `emptyDir` nor a `volumeClaimTemplate` is defined,
+a default `EmptyDir` will be used.
+
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+| `emptyDir` | EmptyDirVolumeSource to be used by the WildFly `StatefulSet` | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#emptydirvolumesource-v1-core[*corev1.EmptyDirVolumeSource] | false
+| `volumeClaimTemplate` | A PersistentVolumeClaim spec to be used by the WildFly `StatefulSet` | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#persistentvolumeclaim-v1-core[corev1.PersistentVolumeClaim] | false
 |=======================
 
 

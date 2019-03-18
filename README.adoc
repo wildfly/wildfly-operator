@@ -45,7 +45,12 @@ metadata:
 spec:
   applicationImage: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
   stateful: true
-  size: 3
+  storage:
+    volumeClaimTemplate:
+      spec:
+        resources:
+          requests:
+            storage: 3Gi
 ----
 
 It is based on the application image https://quay.io/repository/jmesnil/wildfly-helloworld-rs[wildfly-helloworld-rs] that provides the WildFly https://github.com/wildfly/quickstart/tree/master/helloworld-rs[helloword-rs Quickstart] on top of WildFly 16.0.0.Final.
@@ -84,7 +89,12 @@ Metadata:
 Spec:
   Application Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
   Size:               3
-  Stateful:           true
+  Storage:
+    Volume Claim Template:
+      Spec:
+        Resources:
+          Requests:
+            Storage:  3Gi
 Status:
   Nodes:
     myapp-wildflyserver-0
@@ -112,7 +122,6 @@ $ kubectl describe wildflyserver myapp-wildflyserver
 
 [source,yaml]
 ----
-kubectl describe wildflyserver
 Name:         myapp-wildflyserver
 Namespace:    default
 Labels:       <none>
@@ -120,15 +129,20 @@ Annotations:  <none>
 API Version:  wildfly.org/v1alpha1
 Kind:         WildFlyServer
 Metadata:
-  Creation Timestamp:  2019-03-11T17:25:25Z
+  Creation Timestamp:  2019-03-18T11:17:02Z
   Generation:          2
-  Resource Version:    330865
+  Resource Version:    2704
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/myapp-wildflyserver
-  UID:                 a88933a0-4422-11e9-a9e2-ee8c8192f3c7
+  UID:                 5b103c16-496f-11e9-83fc-2ec30bcb3dcf
 Spec:
   Application Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
   Size:               2
-  Stateful:           true
+  Storage:
+    Volume Claim Template:
+      Spec:
+        Resources:
+          Requests:
+            Storage:  3Gi
 Status:
   Nodes:
     myapp-wildflyserver-0

@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -10,9 +11,16 @@ import (
 // WildFlyServerSpec defines the desired state of WildFlyServer
 // +k8s:openapi-gen=true
 type WildFlyServerSpec struct {
-	ApplicationImage string `json:"applicationImage"`
-	Size             int32  `json:"size"`
-	Stateful         bool   `json:"stateful"`
+	ApplicationImage string       `json:"applicationImage"`
+	Size             int32        `json:"size"`
+	Storage          *StorageSpec `json:"storage,omitempty"`
+}
+
+// StorageSpec defines the desired storage for WildFlyServer
+// +k8s:openapi-gen=true
+type StorageSpec struct {
+	EmptyDir            *corev1.EmptyDirVolumeSource `json:"emptyDir,omitempty"`
+	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
 
 // WildFlyServerStatus defines the observed state of WildFlyServer

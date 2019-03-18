@@ -4,5 +4,11 @@ metadata:
   name: myapp-wildflyserver
 spec:
   applicationImage: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
-  stateful: true
   size: 3
+  storage:
+    volumeClaimTemplate:
+      spec:
+        resources:
+          requests:
+            storage: 3Gi
+
