@@ -8,6 +8,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -27,6 +29,7 @@ var (
 func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 	// Set the logger to development mode for verbose logs.
 	logf.SetLogger(logf.ZapLogger(true))
+	assert := assert.New(t)
 
 	// A WildFlyServer resource with metadata and spec.
 	wildflyServer := &wildflyv1alpha1.WildFlyServer{
@@ -61,9 +64,8 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 		},
 	}
 	res, err := r.Reconcile(req)
-	if err != nil {
-		t.Fatalf("reconcile: (%v)", err)
-	}
+	require.NoError(t, err)
+
 	// Check the result of reconciliation to make sure it has the desired state.
 	if !res.Requeue {
 		t.Error("reconcile did not requeue request as expected")
@@ -72,15 +74,8 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 	// Check if stateful set has been created and has the correct size.
 	statefulSet := &appsv1.StatefulSet{}
 	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
-	if err != nil {
-		t.Fatalf("get deployment: (%v)", err)
-	}
-	setSize := *statefulSet.Spec.Replicas
-	if setSize != replicas {
-		t.Errorf("dep size (%d) is not the expected size (%d)", setSize, replicas)
-	}
-	setAppImage := statefulSet.Spec.Template.Spec.Containers[0].Image
-	if setAppImage != applicationImage {
-		t.Errorf("applicatiom image (%s) is not the expected image (%s)", setAppImage, applicationImage)
-	}
+	require.NoError(t, err)
+
+	assert.Equal(replicas, *statefulSet.Spec.Replicas)
+	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
 }
