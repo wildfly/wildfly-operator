@@ -6,7 +6,7 @@ This document describes the types introduced by the WildFly Operator to be consu
 [[wildflyserver]]
 ## `WildFlyServer`
 
-`WildFlyServer` defines a WildFly custom resource.
+`WildFlyServer` defines a custom WildFly resource.
 
 [options="header,footer"]
 |=======================
@@ -30,16 +30,16 @@ This document describes the types introduced by the WildFly Operator to be consu
 
 
 [[wildflyserverspec]]
-## `WildFyServerSpec`
+## `WildFlyServerSpec`
 
-`WildFyServerSpec` is a specification of the desired behavior of the WildFly resource. It uses a `StatefulSet`.
+`WildFlyServerSpec` is a specification of the desired behavior of the WildFly resource. It uses a `StatefulSet`.
 
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
 | `applicationImage` | Name of the application image to be deployed | string | true
 | `size` | Number of instances for a `WildFlyServer` resource | int32 | true
-| `storage` | Storage spec to specify how storage should be used | *<<storagespec>> | true
+| `storage` | Storage spec to specify how storage should be used | *<<storagespec>> |false
 |=======================
 
 
