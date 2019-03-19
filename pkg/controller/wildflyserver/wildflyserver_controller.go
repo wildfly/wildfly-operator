@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -30,6 +31,7 @@ var log = logf.Log.WithName("controller_wildflyserver")
 
 const (
 	httpApplicationPort    int32 = 8080
+	httpManagementPort     int32 = 9990
 	jbossServerDataDirPath       = "/opt/jboss/wildfly/standalone/data"
 )
 
@@ -243,10 +245,25 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 					Containers: []corev1.Container{{
 						Name:  w.Name,
 						Image: applicationImage,
-						Ports: []corev1.ContainerPort{{
-							ContainerPort: httpApplicationPort,
-							Name:          "http",
-						}},
+						Ports: []corev1.ContainerPort{
+							{
+								ContainerPort: httpApplicationPort,
+								Name:          "http",
+							},
+							{
+								ContainerPort: httpManagementPort,
+								Name:          "admin",
+							},
+						},
+						LivenessProbe: &corev1.Probe{
+							Handler: corev1.Handler{
+								HTTPGet: &v1.HTTPGetAction{
+									Path: "/health",
+									Port: intstr.FromString("admin"),
+								},
+							},
+							InitialDelaySeconds: 60,
+						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      volumeName,
 							MountPath: jbossServerDataDirPath,
