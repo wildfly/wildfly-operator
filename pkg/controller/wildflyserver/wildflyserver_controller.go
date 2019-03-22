@@ -269,6 +269,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 							MountPath: jbossServerDataDirPath,
 						}},
 					}},
+					ServiceAccountName: "wildfly-operator",
 				},
 			},
 		},
