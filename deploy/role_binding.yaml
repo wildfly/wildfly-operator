@@ -8,4 +8,5 @@ subjects:
 roleRef:
   kind: Role
   name: wildfly-operator
+  namespace: myproject
   apiGroup: rbac.authorization.k8s.io

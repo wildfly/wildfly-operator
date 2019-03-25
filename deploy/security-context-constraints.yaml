@@ -2,8 +2,9 @@ apiVersion: v1
 kind: SecurityContextConstraints
 metadata:
   name: wildfly-operator
+  namespace: myproject
 users:
-- system:serviceaccount:default:wildfly-operator
+- system:serviceaccount:myproject:wildfly-operator
 requiredDropCapabilities:
 - MKNOD
 - SYS_CHROOT

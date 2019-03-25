@@ -216,10 +216,12 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 	if w.Spec.SecurityContext != nil {
 		securityContext = w.Spec.SecurityContext
 	} else {
-		securityContext = &v1.PodSecurityContext{
-			RunAsUser:  &JBossUserID,
-			RunAsGroup: &JBossGroupID,
-		}
+		/*
+			securityContext = &v1.PodSecurityContext{
+				RunAsUser:  &JBossUserID,
+				RunAsGroup: &JBossGroupID,
+			}
+		*/
 	}
 
 	statefulSet := &appsv1.StatefulSet{
@@ -245,6 +247,12 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 					Containers: []corev1.Container{{
 						Name:  w.Name,
 						Image: applicationImage,
+						Command: []string{
+							"/opt/jboss/wildfly/bin/standalone.sh",
+						},
+						Args: []string{
+							"-b", "0.0.0.0", "-bmanagement", "0.0.0.0",
+						},
 						Ports: []corev1.ContainerPort{
 							{
 								ContainerPort: httpApplicationPort,
@@ -269,7 +277,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 							MountPath: jbossServerDataDirPath,
 						}},
 					}},
-					ServiceAccountName: "wildfly-operator",
+					//ServiceAccountName: "wildfly-operator",
 				},
 			},
 		},
