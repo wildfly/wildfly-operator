@@ -13,9 +13,34 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec":         schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
 		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServer":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
 		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":   schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
 		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerStatus": schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
+	}
+}
+
+func schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "StorageSpec defines the desired storage for WildFlyServer",
+				Properties: map[string]spec.Schema{
+					"emptyDir": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.EmptyDirVolumeSource"),
+						},
+					},
+					"volumeClaimTemplate": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.PersistentVolumeClaim"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.EmptyDirVolumeSource", "k8s.io/api/core/v1.PersistentVolumeClaim"},
 	}
 }
 
@@ -67,10 +92,36 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServerSpec defines the desired state of WildFlyServer",
-				Properties:  map[string]spec.Schema{},
+				Properties: map[string]spec.Schema{
+					"applicationImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApplicationImage is the name of the application image to be deployed",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"size": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"storage": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"),
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
+				},
+				Required: []string{"applicationImage", "size"},
 			},
 		},
-		Dependencies: []string{},
+		Dependencies: []string{
+			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.PodSecurityContext"},
 	}
 }
 
@@ -79,7 +130,22 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServerStatus defines the observed state of WildFlyServer",
-				Properties:  map[string]spec.Schema{},
+				Properties: map[string]spec.Schema{
+					"nodes": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"nodes"},
 			},
 		},
 		Dependencies: []string{},

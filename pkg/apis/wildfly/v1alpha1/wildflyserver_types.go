@@ -11,6 +11,7 @@ import (
 // WildFlyServerSpec defines the desired state of WildFlyServer
 // +k8s:openapi-gen=true
 type WildFlyServerSpec struct {
+	// ApplicationImage is the name of the application image to be deployed
 	ApplicationImage string                     `json:"applicationImage"`
 	Size             int32                      `json:"size"`
 	Storage          *StorageSpec               `json:"storage,omitempty"`

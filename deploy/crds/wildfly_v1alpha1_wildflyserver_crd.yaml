@@ -22,8 +22,33 @@ spec:
         metadata:
           type: object
         spec:
+          properties:
+            applicationImage:
+              type: string
+            securityContext:
+              type: object
+            size:
+              format: int32
+              type: integer
+            storage:
+              properties:
+                emptyDir:
+                  type: object
+                volumeClaimTemplate:
+                  type: object
+              type: object
+          required:
+          - applicationImage
+          - size
           type: object
         status:
+          properties:
+            nodes:
+              items:
+                type: string
+              type: array
+          required:
+          - nodes
           type: object
   version: v1alpha1
   versions:
