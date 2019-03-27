@@ -1,0 +1,3 @@
+cr-manifest: "deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml"
+init-timeout: 30
+olm-tests: false
