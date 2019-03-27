@@ -25,4 +25,4 @@ oc expose svc/myapp-wildflyserver-loadbalancer
 
 echo
 echo
-echo "application is accessible from http://$(oc get route myapp-wildflyserver-loadbalancer --template='{{ .spec.host }}')/helloworld-rs/rest/json"
+echo "application is accessible from http://$(oc get route myapp-wildflyserver-loadbalancer --template='{{ .spec.host }}')"

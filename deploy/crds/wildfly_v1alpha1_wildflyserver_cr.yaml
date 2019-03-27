@@ -3,7 +3,7 @@ kind: WildFlyServer
 metadata:
   name: myapp-wildflyserver
 spec:
-  applicationImage: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
+  applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart"
   size: 3
   storage:
     volumeClaimTemplate:

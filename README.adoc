@@ -55,7 +55,18 @@ spec:
             storage: 3Gi
 ----
 
-It is based on the application image https://quay.io/repository/jmesnil/wildfly-helloworld-rs[wildfly-helloworld-rs] that provides the WildFly https://github.com/wildfly/quickstart/tree/master/helloworld-rs[helloword-rs Quickstart] on top of WildFly 16.0.0.Final.
+[NOTE]
+=====
+It is based on the application image https://quay.io/repository/jmesnil/wildfly-operator-quickstart[jmesnil/wildfly-operator-quickstart] that provides a simple Java Web application https://github.com/jmesnil/wildfly-operator-quickstart[wildfly-operator-quickstart] on top of WildFly 16.0.0.Final which returns the IP address of its host:
+
+[source,shell]
+----
+$ curl http://localhost:8080/
+{"ip":"172.17.0.3"}
+----
+
+This simple application illustrates that successive calls will be load balanced across the various pods that runs the application
+=====
 
 [source,shell]
 ----
@@ -68,8 +79,15 @@ Once the application is deployed, it can be accessed through a load balancer:
 
 [source,shell]
 ----
-$ curl $(minikube service myapp-wildflyserver-loadbalancer --url)/helloworld-rs/
+$ curl $(minikube service myapp-wildflyserver-loadbalancer --url)
+{"ip":"172.17.0.9"}
+$ curl $(minikube service myapp-wildflyserver-loadbalancer --url)
+{"ip":"172.17.0.10"}
+$ curl $(minikube service myapp-wildflyserver-loadbalancer --url)
+{"ip":"172.17.0.11"}
 ----
+
+As illustrated above, calls to the application are load balanced across the pods that runs the application image (as we can see from the different IP addresses).
 
 The WildFly operator describes the deployed application with `$ kubectl describe wildflyserver myapp-wildflyserver`:
 
@@ -200,5 +218,6 @@ The application can then be accessed by running:
 
 [source,shell]
 ----
-$ curl "http://$(oc get route myapp-wildflyserver-loadbalancer --template='{{ .spec.host }}')/helloworld-rs/rest/json"
+$ curl "http://$(oc get route myapp-wildflyserver-loadbalancer --template='{{ .spec.host }}')"
+{"ip":"172.17.0.9"}
 ----

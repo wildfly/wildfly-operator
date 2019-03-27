@@ -12,5 +12,5 @@ kubectl create -f deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml
 
 echo
 echo
-echo "application is accessible from $(minikube service myapp-wildflyserver-loadbalancer --url)/helloworld-rs/rest/json"
+echo "application is accessible from $(minikube service myapp-wildflyserver-loadbalancer --url)"
 
