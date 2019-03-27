@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: wildfly-operator
-  namespace: myproject
 spec:
   replicas: 1
   selector:

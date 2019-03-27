@@ -116,11 +116,6 @@ func (in *WildFlyServerSpec) DeepCopyInto(out *WildFlyServerSpec) {
 		*out = new(StorageSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.SecurityContext != nil {
-		in, out := &in.SecurityContext, &out.SecurityContext
-		*out = new(v1.PodSecurityContext)
-		(*in).DeepCopyInto(*out)
-	}
 	return
 }
 

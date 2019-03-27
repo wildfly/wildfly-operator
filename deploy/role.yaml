@@ -3,7 +3,6 @@ kind: Role
 metadata:
   creationTimestamp: null
   name: wildfly-operator
-  namespace: myproject
 rules:
 - apiGroups:
   - ""

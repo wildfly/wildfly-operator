@@ -79,6 +79,4 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 
 	assert.Equal(replicas, *statefulSet.Spec.Replicas)
 	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
-	assert.Equal(JBossUserID, *statefulSet.Spec.Template.Spec.SecurityContext.RunAsUser)
-	assert.Equal(JBossGroupID, *statefulSet.Spec.Template.Spec.SecurityContext.RunAsGroup)
 }

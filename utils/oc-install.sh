@@ -19,4 +19,4 @@ oc apply -f deploy/operator.yaml
 
 oc apply -f deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml
 oc get all
-oc describe statefulset myapp-wildflyserver
+oc describe wildlfyserver myapp-wildflyserver

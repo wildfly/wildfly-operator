@@ -111,17 +111,12 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"),
 						},
 					},
-					"securityContext": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/api/core/v1.PodSecurityContext"),
-						},
-					},
 				},
 				Required: []string{"applicationImage", "size"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.PodSecurityContext"},
+			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"},
 	}
 }
 
