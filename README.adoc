@@ -12,11 +12,13 @@ Once installed, the WildFly Operator provides the following features:
 
 The operator acts on the following Custom Resource Definitions (CRDs):
 
-* `WildFlyServer`, which defines a WildFly deployment.
+* `WildFlyServer`, which defines a WildFly deployment. The `Spec` and `Status` of this resources are defined in the https://github.com/jmesnil/wildfly-operator/blob/master/doc/apis.adoc[API documentation].
 
 ## Quickstart
 
 ### Install the Operator and associate resources:
+
+The examples require that https://kubernetes.io/docs/setup/minikube/[Minikube] is installed and running.
 
 [source,shell]
 ----
@@ -157,4 +159,46 @@ You can then remove this custom resource and its assocated resources:
 $ kubectl delete wildflyserver myapp-wildflyserver
 
 wildflyserver.wildfly.org "myapp-wildflyserver" deleted
+----
+
+#### OpenShift
+
+The examples can also be installed in OpenShift and requires a few additional steps.
+
+The instructions requires that https://github.com/minishift/minishift[Minishift] is installed and running.
+
+Before deploying the operator and its resources, execute the following commands:
+
+[source,shell]
+----
+$ oc login -u system:admin
+$ oc adm policy add-cluster-role-to-user cluster-admin developer
+
+$ oc login -u developer
+$ oc project myproject
+$ oc adm policy add-scc-to-user privileged -n myproject -z wildfly-operator
+$ oc adm policy add-scc-to-user privileged -n myproject -z wildflyserver
+----
+
+After installing the `WildFlyServer` resource from `deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml`, you have to create a route to expose it from OpenShift:
+
+[source,shell]
+----
+$ oc expose svc/myapp-wildflyserver-loadbalancer
+----
+
+This will expose the service from OpenShift. To know the URL of the exposed service, run:
+
+[source,shell]
+----
+$ oc get route myapp-wildflyserver-loadbalancer --template='{{ .spec.host }}'
+----
+
+This will display the host of the route (on my local machin, it displays `myapp-wildflyserver-loadbalancer-myproject.192.168.64.11.nip.io`).
+
+The application can then be accessed by running:
+
+[source,shell]
+----
+$ curl "http://$(oc get route myapp-wildflyserver-loadbalancer --template='{{ .spec.host }}')/helloworld-rs/rest/json"
 ----
