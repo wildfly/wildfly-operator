@@ -4,7 +4,6 @@ import (
 	"context"
 	"reflect"
 	"strconv"
-	"strings"
 
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 
@@ -168,14 +167,16 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		reqLogger.Error(err, "Failed to list pods.", "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
 		return reconcile.Result{}, err
 	}
-	podNames := getPodNames(podList.Items)
-	if len(podNames) != int(size) {
-		reqLogger.Info("Updating pod names: " + strings.Join(podNames, ", "))
+	reqLogger.Info("List of pods", "Items", podList.Items)
+	if len(podList.Items) != int(size) {
+		reqLogger.Info("Number of pods does not match the desired size", "PodList.Size", len(podList.Items), "Size", size)
 		return reconcile.Result{Requeue: true}, nil
 	}
-	// Update status.Nodes if needed
-	if !reflect.DeepEqual(podNames, wildflyServer.Status.Nodes) {
-		wildflyServer.Status.Nodes = podNames
+
+	// Update status.Pods if needed
+	podsStatus := getPodStatus(podList.Items)
+	if !reflect.DeepEqual(podsStatus, wildflyServer.Status.Pods) {
+		wildflyServer.Status.Pods = podsStatus
 		err := r.client.Status().Update(context.TODO(), wildflyServer)
 		if err != nil {
 			reqLogger.Error(err, "Failed to update WildFlyServer status.")
@@ -361,13 +362,16 @@ func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildF
 	return loadBalancer
 }
 
-// getPodNames returns the pod names of the array of pods passed in
-func getPodNames(pods []corev1.Pod) []string {
-	var podNames []string
+// getPodStatus returns the pod names of the array of pods passed in
+func getPodStatus(pods []corev1.Pod) []wildflyv1alpha1.PodStatus {
+	var podStatus []wildflyv1alpha1.PodStatus
 	for _, pod := range pods {
-		podNames = append(podNames, pod.Name)
+		podStatus = append(podStatus, wildflyv1alpha1.PodStatus{
+			Name:  pod.Name,
+			PodIP: pod.Status.PodIP,
+		})
 	}
-	return podNames
+	return podStatus
 }
 
 func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {

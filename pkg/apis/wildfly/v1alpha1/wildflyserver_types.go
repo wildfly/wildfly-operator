@@ -35,7 +35,14 @@ type StorageSpec struct {
 // WildFlyServerStatus defines the observed state of WildFlyServer
 // +k8s:openapi-gen=true
 type WildFlyServerStatus struct {
-	Nodes []string `json:"nodes"`
+	Pods []PodStatus `json:"pods"`
+}
+
+// PodStatus defines the observed state of pods running the WildFlyServer application
+// +k8s:openapi-gen=true
+type PodStatus struct {
+	Name  string `json:"name"`
+	PodIP string `json:"podIP"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

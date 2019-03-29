@@ -28,6 +28,15 @@ spec:
             size:
               format: int32
               type: integer
+            standaloneConfigMap:
+              properties:
+                key:
+                  type: string
+                name:
+                  type: string
+              required:
+              - name
+              type: object
             storage:
               properties:
                 emptyDir:
@@ -41,12 +50,20 @@ spec:
           type: object
         status:
           properties:
-            nodes:
+            pods:
               items:
-                type: string
+                properties:
+                  name:
+                    type: string
+                  podIP:
+                    type: string
+                required:
+                - name
+                - podIP
+                type: object
               type: array
           required:
-          - nodes
+          - pods
           type: object
   version: v1alpha1
   versions:

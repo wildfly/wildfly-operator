@@ -80,5 +80,17 @@ a default `EmptyDir` will be used.
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `nodes` | The name of the pods | []string | true
+| `pods` | Status of the pods | []<<podstatus>> | true
+|=======================
+
+[[podstatus]]
+## `PodStatus`
+
+`PodStatus` is the most recent observed status of a pod running the WildFly application.
+
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+| `name` | Name of the Pod | string | true
+| `podIP` | IP address allocated to the pod | string | true
 |=======================

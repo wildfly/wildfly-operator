@@ -13,10 +13,64 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec":         schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServer":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":   schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerStatus": schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.PodStatus":               schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec": schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec":             schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServer":           schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerStatus":     schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
+	}
+}
+
+func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PodStatus defines the observed state of pods running the WildFlyServer application",
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"podIP": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"name", "podIP"},
+			},
+		},
+		Dependencies: []string{},
+	}
+}
+
+func schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer",
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"key": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{},
 	}
 }
 
@@ -106,6 +160,11 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 							Format: "int32",
 						},
 					},
+					"standaloneConfigMap": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec"),
+						},
+					},
 					"storage": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"),
@@ -116,7 +175,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"},
+			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"},
 	}
 }
 
@@ -126,23 +185,23 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServerStatus defines the observed state of WildFlyServer",
 				Properties: map[string]spec.Schema{
-					"nodes": {
+					"pods": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.PodStatus"),
 									},
 								},
 							},
 						},
 					},
 				},
-				Required: []string{"nodes"},
+				Required: []string{"pods"},
 			},
 		},
-		Dependencies: []string{},
+		Dependencies: []string{
+			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.PodStatus"},
 	}
 }
