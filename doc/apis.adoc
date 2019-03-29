@@ -42,6 +42,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | `applicationImage` | Name of the application image to be deployed | string | true
 | `size` | Number of instances for a `WildFlyServer` resource | int32 | true
 | `storage` | Storage spec to specify how storage should be used | *<<storagespec>> |false
+| `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
 |=======================
 
 
@@ -56,6 +57,18 @@ a default `EmptyDir` will be used.
 | Field  | Description |Scheme| Required
 | `emptyDir` | EmptyDirVolumeSource to be used by the WildFly `StatefulSet` | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#emptydirvolumesource-v1-core[*corev1.EmptyDirVolumeSource] | false
 | `volumeClaimTemplate` | A PersistentVolumeClaim spec to be used by the WildFly `StatefulSet` | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#persistentvolumeclaim-v1-core[corev1.PersistentVolumeClaim] | false
+|=======================
+
+[[standaloneconfigmapspec]]
+## `StandaloneConfigMapSpec`
+
+`StandaloneConfigMapSpec` defines how WildFly standalone configuration can be read from a `ConfigMap`. If omitted, WildFly uses its `standalone.xml` configuration from its image.
+
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+| `name` | Name of the `ConfigMap` containing the standalone configuration XML file. | string | true
+| `key` | Key of the ConfigMap whose value is the standalone configuration XML file. If omitted, the spec will look for the `standalone.xml` key. | string |false
 |=======================
 
 

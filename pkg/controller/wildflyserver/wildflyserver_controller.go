@@ -207,6 +207,8 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 // statefulSetForWildFly returns a wildfly StatefulSet object
 func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFlyServer) *appsv1.StatefulSet {
+	logger := log.WithValues("Request.Namespace", w.Namespace, "Request.Name", w.Name)
+
 	ls := labelsForWildFly(w)
 	replicas := w.Spec.Size
 	applicationImage := w.Spec.ApplicationImage
@@ -295,6 +297,38 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 		pvcTemplate.Spec.Resources = storageSpec.VolumeClaimTemplate.Spec.Resources
 		pvcTemplate.Spec.Selector = storageSpec.VolumeClaimTemplate.Spec.Selector
 		statefulSet.Spec.VolumeClaimTemplates = append(statefulSet.Spec.VolumeClaimTemplates, pvcTemplate)
+	}
+
+	standaloneConfigMap := w.Spec.StandaloneConfigMap
+	if standaloneConfigMap != nil {
+		configMapName := standaloneConfigMap.Name
+		configMapKey := standaloneConfigMap.Key
+		if configMapKey == "" {
+			configMapKey = "standalone.xml"
+		}
+		logger.Info("Reading standalone configuration from configmap", "StandaloneConfigMap.Name", configMapName, "StandaloneConfigMap.Key", configMapKey)
+
+		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "standalone-config-volume",
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: configMapName,
+					},
+					Items: []v1.KeyToPath{
+						{
+							Key:  configMapKey,
+							Path: "standalone.xml",
+						},
+					},
+				},
+			},
+		})
+		statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      "standalone-config-volume",
+			MountPath: "/opt/jboss/wildfly/standalone/configuration/standalone.xml",
+			SubPath:   "standalone.xml",
+		})
 	}
 
 	// Set WildFlyServer instance as the owner and controller

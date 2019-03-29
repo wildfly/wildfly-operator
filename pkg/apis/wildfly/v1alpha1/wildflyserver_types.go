@@ -12,9 +12,17 @@ import (
 // +k8s:openapi-gen=true
 type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
-	ApplicationImage string       `json:"applicationImage"`
-	Size             int32        `json:"size"`
-	Storage          *StorageSpec `json:"storage,omitempty"`
+	ApplicationImage    string                   `json:"applicationImage"`
+	Size                int32                    `json:"size"`
+	StandaloneConfigMap *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
+	Storage             *StorageSpec             `json:"storage,omitempty"`
+}
+
+// StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer
+// +k8s:openapi-gen=true
+type StandaloneConfigMapSpec struct {
+	Name string `json:"name"`
+	Key  string `json:"key,omitempty"`
 }
 
 // StorageSpec defines the desired storage for WildFlyServer

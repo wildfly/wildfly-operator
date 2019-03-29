@@ -5,6 +5,9 @@ metadata:
 spec:
   applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart"
   size: 3
+  standaloneConfigMap:
+    name: my-config-map
+    key: standalone.xml
   storage:
     volumeClaimTemplate:
       spec:
