@@ -153,6 +153,13 @@ func (in *WildFlyServerSpec) DeepCopyInto(out *WildFlyServerSpec) {
 		*out = new(StorageSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make([]v1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 

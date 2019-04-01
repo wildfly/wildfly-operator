@@ -170,12 +170,25 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"),
 						},
 					},
+					"env": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Env contains environment variables for the containers running the WildFlyServer application",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"applicationImage", "size"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"},
+			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvVar"},
 	}
 }
 

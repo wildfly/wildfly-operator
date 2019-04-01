@@ -1,0 +1,18 @@
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: taskrs-wildfly-app
+spec:
+  applicationImage: "quay.io/jfdenise/taskrs-app"
+  size: 2
+  env:
+  - name: POSTGRESQL_DATABASE
+    value: demo
+  - name: POSTGRESQL_SERVICE_PORT
+    value: '5432'
+  - name: POSTGRESQL_SERVICE_HOST
+    value: postgresql
+  - name: POSTGRESQL_PASSWORD
+    value: demo
+  - name: POSTGRESQL_USER
+    value: demo

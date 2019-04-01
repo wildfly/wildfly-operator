@@ -16,6 +16,8 @@ type WildFlyServerSpec struct {
 	Size                int32                    `json:"size"`
 	StandaloneConfigMap *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
 	Storage             *StorageSpec             `json:"storage,omitempty"`
+	// Env contains environment variables for the containers running the WildFlyServer application
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer

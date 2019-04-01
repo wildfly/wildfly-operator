@@ -25,6 +25,10 @@ spec:
           properties:
             applicationImage:
               type: string
+            env:
+              items:
+                type: object
+              type: array
             size:
               format: int32
               type: integer
