@@ -41,8 +41,10 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | Field  | Description |Scheme| Required
 | `applicationImage` | Name of the application image to be deployed | string | true
 | `size` | Number of instances for a `WildFlyServer` resource | int32 | true
-| `storage` | Storage spec to specify how storage should be used | *<<storagespec>> |false
 | `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
+| `storage` | Storage spec to specify how storage should be used | *<<storagespec>> |false
+| `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envfromsource-v1-core[corev1.EnvFromSource] |false
+| `env` | List of environment variable present in the containers | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envvar-v1-core[corev1.EnvVar] | false
 |=======================
 
 

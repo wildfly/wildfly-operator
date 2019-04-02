@@ -29,6 +29,10 @@ spec:
               items:
                 type: object
               type: array
+            envFrom:
+              items:
+                type: object
+              type: array
             size:
               format: int32
               type: integer
