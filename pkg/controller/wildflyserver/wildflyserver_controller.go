@@ -119,8 +119,6 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	size := wildflyServer.Spec.Size
-
 	// Check if the statefulSet already exists, if not create a new one
 	foundStatefulSet := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, foundStatefulSet)
@@ -140,13 +138,29 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	// Ensure the deployment size is the same as the spec
+	// Ensure the application image is up to date
+	applicationImage := wildflyServer.Spec.ApplicationImage
+	if foundStatefulSet.Spec.Template.Spec.Containers[0].Image != applicationImage {
+		reqLogger.Info("Updating application image to "+applicationImage, "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+		foundStatefulSet.Spec.Template.Spec.Containers[0].Image = applicationImage
+		err = r.client.Update(context.TODO(), foundStatefulSet)
+		if err != nil {
+			reqLogger.Error(err, "Failed to update application image in StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			return reconcile.Result{}, err
+		}
+
+		// Spec updated - return and requeue
+		return reconcile.Result{Requeue: true}, nil
+	}
+
+	// Ensure the statefulset replicas is up to date
+	size := wildflyServer.Spec.Size
 	if *foundStatefulSet.Spec.Replicas != size {
 		reqLogger.Info("Updating replica size to "+strconv.Itoa(int(size)), "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 		foundStatefulSet.Spec.Replicas = &size
 		err = r.client.Update(context.TODO(), foundStatefulSet)
 		if err != nil {
-			reqLogger.Error(err, "Failed to update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			reqLogger.Error(err, "Failed to update size in StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			return reconcile.Result{}, err
 		}
 
