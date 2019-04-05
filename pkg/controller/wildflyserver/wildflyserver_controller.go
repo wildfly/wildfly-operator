@@ -168,6 +168,36 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{Requeue: true}, nil
 	}
 
+	// Ensure the env variables are up to date
+	env := wildflyServer.Spec.Env
+	if !reflect.DeepEqual(foundStatefulSet.Spec.Template.Spec.Containers[0].Env, env) {
+		reqLogger.Info("Updating env", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+		foundStatefulSet.Spec.Template.Spec.Containers[0].Env = env
+		err = r.client.Update(context.TODO(), foundStatefulSet)
+		if err != nil {
+			reqLogger.Error(err, "Failed to update env in StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			return reconcile.Result{}, err
+		}
+
+		// Spec updated - return and requeue
+		return reconcile.Result{Requeue: true}, nil
+	}
+
+	// Ensure the envFrom variables are up to date
+	envFrom := wildflyServer.Spec.EnvFrom
+	if !reflect.DeepEqual(foundStatefulSet.Spec.Template.Spec.Containers[0].EnvFrom, envFrom) {
+		reqLogger.Info("Updating envFrom", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+		foundStatefulSet.Spec.Template.Spec.Containers[0].EnvFrom = envFrom
+		err = r.client.Update(context.TODO(), foundStatefulSet)
+		if err != nil {
+			reqLogger.Error(err, "Failed to update envFrom in StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			return reconcile.Result{}, err
+		}
+
+		// Spec updated - return and requeue
+		return reconcile.Result{Requeue: true}, nil
+	}
+
 	// Update the WildFlyServer status with the pod names
 	// List the pods for this WildFlyServer's deployment
 	podList := &corev1.PodList{}
