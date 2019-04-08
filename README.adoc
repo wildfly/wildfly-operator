@@ -12,7 +12,7 @@ Once installed, the WildFly Operator provides the following features:
 
 The operator acts on the following Custom Resource Definitions (CRDs):
 
-* `WildFlyServer`, which defines a WildFly deployment. The `Spec` and `Status` of this resources are defined in the https://github.com/jmesnil/wildfly-operator/blob/master/doc/apis.adoc[API documentation].
+* `WildFlyServer`, which defines a WildFly deployment. The `Spec` and `Status` of this resources are defined in the https://github.com/wildfly/wildfly-operator/blob/master/doc/apis.adoc[API documentation].
 
 ## Quickstart
 
@@ -36,7 +36,7 @@ $ kubectl create -f deploy/operator.yaml
 
 ### Install a custom resource
 
-An example of a custom resource of `WildFlyServer` is described in http://deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml[wildfly_v1alpha1_wildflyserver_cr.yaml]:
+An example of a custom resource of `WildFlyServer` is described in https://github.com/wildfly/wildfly-operator/blob/master/deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml[wildfly_v1alpha1_wildflyserver_cr.yaml]:
 
 [source,yaml]
 ----

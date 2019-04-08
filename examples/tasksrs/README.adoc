@@ -32,11 +32,11 @@ database-name:      8 bytes
 database-password:  16 bytes
 ----
 
-* Install the WildFly Operator as explained in the https://github.com/jmesnil/wildfly-operator/blob/master/README.adoc#install-the-operator-and-associate-resources[README].
+* Install the WildFly Operator as explained in the https://github.com/wildfly/wildfly-operator#install-the-operator-and-associate-resources[README].
 
 # Deploy the application
 
-The application is defined in the https://github.com/jmesnil/wildfly-operator/blob/master/examples/tasksrs/crds/taskrs-app.yaml[taksrs-app.yaml file]:
+The application is defined in the https://github.com/wildfly/wildfly-operator/blob/master/examples/tasksrs/crds/taskrs-app.yaml[taksrs-app.yaml file]:
 
 [source,yaml]
 ----
