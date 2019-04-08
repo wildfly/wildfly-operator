@@ -138,59 +138,10 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	// Ensure the application image is up to date
-	applicationImage := wildflyServer.Spec.ApplicationImage
-	if foundStatefulSet.Spec.Template.Spec.Containers[0].Image != applicationImage {
-		reqLogger.Info("Updating application image to "+applicationImage, "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-		foundStatefulSet.Spec.Template.Spec.Containers[0].Image = applicationImage
+	if checkUpdate(&wildflyServer.Spec, foundStatefulSet) {
 		err = r.client.Update(context.TODO(), foundStatefulSet)
 		if err != nil {
-			reqLogger.Error(err, "Failed to update application image in StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-			return reconcile.Result{}, err
-		}
-
-		// Spec updated - return and requeue
-		return reconcile.Result{Requeue: true}, nil
-	}
-
-	// Ensure the statefulset replicas is up to date
-	size := wildflyServer.Spec.Size
-	if *foundStatefulSet.Spec.Replicas != size {
-		reqLogger.Info("Updating replica size to "+strconv.Itoa(int(size)), "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-		foundStatefulSet.Spec.Replicas = &size
-		err = r.client.Update(context.TODO(), foundStatefulSet)
-		if err != nil {
-			reqLogger.Error(err, "Failed to update size in StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-			return reconcile.Result{}, err
-		}
-
-		// Spec updated - return and requeue
-		return reconcile.Result{Requeue: true}, nil
-	}
-
-	// Ensure the env variables are up to date
-	env := wildflyServer.Spec.Env
-	if !reflect.DeepEqual(foundStatefulSet.Spec.Template.Spec.Containers[0].Env, env) {
-		reqLogger.Info("Updating env", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-		foundStatefulSet.Spec.Template.Spec.Containers[0].Env = env
-		err = r.client.Update(context.TODO(), foundStatefulSet)
-		if err != nil {
-			reqLogger.Error(err, "Failed to update env in StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-			return reconcile.Result{}, err
-		}
-
-		// Spec updated - return and requeue
-		return reconcile.Result{Requeue: true}, nil
-	}
-
-	// Ensure the envFrom variables are up to date
-	envFrom := wildflyServer.Spec.EnvFrom
-	if !reflect.DeepEqual(foundStatefulSet.Spec.Template.Spec.Containers[0].EnvFrom, envFrom) {
-		reqLogger.Info("Updating envFrom", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-		foundStatefulSet.Spec.Template.Spec.Containers[0].EnvFrom = envFrom
-		err = r.client.Update(context.TODO(), foundStatefulSet)
-		if err != nil {
-			reqLogger.Error(err, "Failed to update envFrom in StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			reqLogger.Error(err, "Failed to update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			return reconcile.Result{}, err
 		}
 
@@ -211,7 +162,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		reqLogger.Error(err, "Failed to list pods.", "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
 		return reconcile.Result{}, err
 	}
-	reqLogger.Info("List of pods", "Items", podList.Items)
+	size := wildflyServer.Spec.Size
 	if len(podList.Items) != int(size) {
 		reqLogger.Info("Number of pods does not match the desired size", "PodList.Size", len(podList.Items), "Size", size)
 		return reconcile.Result{Requeue: true}, nil
@@ -250,10 +201,42 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	return reconcile.Result{}, nil
 }
 
+// check if the statefulset resource is up to date with the WildFlyServerSpec
+func checkUpdate(spec *wildflyv1alpha1.WildFlyServerSpec, statefuleSet *appsv1.StatefulSet) bool {
+	var update bool
+	// Ensure the application image is up to date
+	applicationImage := spec.ApplicationImage
+	if statefuleSet.Spec.Template.Spec.Containers[0].Image != applicationImage {
+		log.Info("Updating application image to "+applicationImage, "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name)
+		statefuleSet.Spec.Template.Spec.Containers[0].Image = applicationImage
+		update = true
+	}
+	// Ensure the statefulset replicas is up to date
+	size := spec.Size
+	if *statefuleSet.Spec.Replicas != size {
+		log.Info("Updating replica size to "+strconv.Itoa(int(size)), "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name)
+		statefuleSet.Spec.Replicas = &size
+		update = true
+	}
+	// Ensure the env variables are up to date
+	env := spec.Env
+	if !reflect.DeepEqual(statefuleSet.Spec.Template.Spec.Containers[0].Env, env) {
+		log.Info("Updating env", "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name)
+		statefuleSet.Spec.Template.Spec.Containers[0].Env = env
+		update = true
+	}
+	// Ensure the envFrom variables are up to date
+	envFrom := spec.EnvFrom
+	if !reflect.DeepEqual(statefuleSet.Spec.Template.Spec.Containers[0].EnvFrom, envFrom) {
+		log.Info("Updating envFrom", "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name)
+		statefuleSet.Spec.Template.Spec.Containers[0].EnvFrom = envFrom
+		update = true
+	}
+	return update
+}
+
 // statefulSetForWildFly returns a wildfly StatefulSet object
 func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFlyServer) *appsv1.StatefulSet {
-	logger := log.WithValues("Request.Namespace", w.Namespace, "Request.Name", w.Name)
-
 	ls := labelsForWildFly(w)
 	replicas := w.Spec.Size
 	applicationImage := w.Spec.ApplicationImage
@@ -359,7 +342,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 		if configMapKey == "" {
 			configMapKey = "standalone.xml"
 		}
-		logger.Info("Reading standalone configuration from configmap", "StandaloneConfigMap.Name", configMapName, "StandaloneConfigMap.Key", configMapKey)
+		log.Info("Reading standalone configuration from configmap", "StandaloneConfigMap.Name", configMapName, "StandaloneConfigMap.Key", configMapKey)
 
 		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
 			Name: "standalone-config-volume",
