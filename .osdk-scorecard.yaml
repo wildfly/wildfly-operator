@@ -1,3 +1,5 @@
-cr-manifest: "deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml"
+namespaced-manifest: "build/_output/rbac-and-operator.yaml"
+global-manifest: "deploy/crd.yaml"
+cr-manifest: "deploy/cr/quickstart-cr.yaml"
 init-timeout: 30
 olm-tests: false

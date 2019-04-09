@@ -1,7 +1,7 @@
 apiVersion: wildfly.org/v1alpha1
 kind: WildFlyServer
 metadata:
-  name: myapp-wildflyserver
+  name: quickstart
 spec:
   applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart"
   size: 2

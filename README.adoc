@@ -26,31 +26,27 @@ The examples require that https://kubernetes.io/docs/setup/minikube/[Minikube] i
 
 [source,shell]
 ----
-# Install resource for the WildFly Operator
-$ kubectl create -f deploy/service_account.yaml
-$ kubectl create -f deploy/role.yaml
-$ kubectl create -f deploy/role_binding.yaml
-
+# Install resources for the WildFly Operator
+$ kubectl create -f deploy/rbac.yaml
 # install the WildFlyServer CRD that the Operator manages
-$ kubectl create -f deploy/crds/wildfly_v1alpha1_wildflyserver_crd.yaml
-
+$ kubectl create -f deploy/crd.yaml
 # install WildFly Operator
 $ kubectl create -f deploy/operator.yaml
 ----
 
 ### Install a custom resource
 
-An example of a custom resource of `WildFlyServer` is described in https://github.com/wildfly/wildfly-operator/blob/master/deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml[wildfly_v1alpha1_wildflyserver_cr.yaml]:
+An example of a custom resource of `WildFlyServer` is described in https://github.com/wildfly/wildfly-operator/blob/master/deploy/cr/wildfly-operator-quickstart-cr.yaml[wildfly-operator-quickstart-cr.yaml]:
 
 [source,yaml]
 ----
 apiVersion: wildfly.org/v1alpha1
 kind: WildFlyServer
 metadata:
-  name: myapp-wildflyserver
+  name: wildfly-operator-quickstart
 spec:
-  applicationImage: "quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final"
-  stateful: true
+  applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart"
+  size: 2
   storage:
     volumeClaimTemplate:
       spec:
@@ -74,92 +70,42 @@ This simple application illustrates that successive calls will be load balanced 
 
 [source,shell]
 ----
-$ kubectl create -f deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml
-
-wildflyserver.wildfly.org "myapp-wildflyserver" created
+$ kubectl create -f deploy/cr/quickstart-cr.yaml
+wildflyserver.wildfly.org/quickstart created
 ----
 
 Once the application is deployed, it can be accessed through a load balancer:
 
 [source,shell]
 ----
-$ curl $(minikube service myapp-wildflyserver-loadbalancer --url)
-{"ip":"172.17.0.9"}
-$ curl $(minikube service myapp-wildflyserver-loadbalancer --url)
-{"ip":"172.17.0.10"}
-$ curl $(minikube service myapp-wildflyserver-loadbalancer --url)
-{"ip":"172.17.0.11"}
+$ curl $(minikube service quickstart-loadbalancer --url)
+{"ip":"172.17.0.7"}
+$ curl $(minikube service quickstart-loadbalancer --url)
+{"ip":"172.17.0.8"}
+$ curl $(minikube service quickstart-loadbalancer --url)
+{"ip":"172.17.0.7"}
 ----
 
 As illustrated above, calls to the application are load balanced across the pods that runs the application image (as we can see from the different IP addresses).
 
-The WildFly operator describes the deployed application with `$ kubectl describe wildflyserver myapp-wildflyserver`:
+The WildFly operator describes the deployed application with `$ kubectl describe wildflyserver quickstart`:
 
 [source,yaml]
 ----
-kubectl describe wildflyserver
-Name:         myapp-wildflyserver
+Name:         quickstart
 Namespace:    default
 Labels:       <none>
 Annotations:  <none>
 API Version:  wildfly.org/v1alpha1
 Kind:         WildFlyServer
 Metadata:
-  Creation Timestamp:  2019-03-11T17:25:25Z
+  Creation Timestamp:  2019-04-09T08:49:24Z
   Generation:          1
-  Resource Version:    330444
-  Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/myapp-wildflyserver
-  UID:                 a88933a0-4422-11e9-a9e2-ee8c8192f3c7
+  Resource Version:    7954
+  Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/quickstart
+  UID:                 5feb0fd3-5aa4-11e9-af00-7a65e1e4ff53
 Spec:
-  Application Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
-  Size:               3
-  Storage:
-    Volume Claim Template:
-      Spec:
-        Resources:
-          Requests:
-            Storage:  3Gi
-Status:
-  Nodes:
-    myapp-wildflyserver-0
-    myapp-wildflyserver-1
-    myapp-wildflyserver-2
-Events:  <none>
-----
-
-The `Status` section is updated with the 3 pods names containing the application image.
-
-You can modify this custom resource spec to scale down its size from `3` to `2`:
-
-[source,shell]
-----
-$ kubectl edit wildflyserver myapp-wildflyserver
-# Change the `size: 3` spec to `size: 2` and save
-----
-
-The deployment will be updated to scale down to 2 Pods and the resource `Status` will be updated accordingly:
-
-[source,shell]
-----
-$ kubectl describe wildflyserver myapp-wildflyserver
-----
-
-[source,yaml]
-----
-Name:         myapp-wildflyserver
-Namespace:    default
-Labels:       <none>
-Annotations:  <none>
-API Version:  wildfly.org/v1alpha1
-Kind:         WildFlyServer
-Metadata:
-  Creation Timestamp:  2019-03-18T11:17:02Z
-  Generation:          2
-  Resource Version:    2704
-  Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/myapp-wildflyserver
-  UID:                 5b103c16-496f-11e9-83fc-2ec30bcb3dcf
-Spec:
-  Application Image:  quay.io/jmesnil/wildfly-helloworld-rs:16.0.0.Final
+  Application Image:  quay.io/jmesnil/wildfly-operator-quickstart
   Size:               2
   Storage:
     Volume Claim Template:
@@ -168,19 +114,74 @@ Spec:
           Requests:
             Storage:  3Gi
 Status:
-  Nodes:
-    myapp-wildflyserver-0
-    myapp-wildflyserver-1
-Events:  <none>
+  Pods:
+    Name:    quickstart-0
+    Pod IP:  172.17.0.7
+    Name:    quickstart-1
+    Pod IP:  172.17.0.8
+Events:      <none>
+----
+
+The `Status` section is updated with the 2 pods names containing the application image.
+
+You can modify this custom resource spec to scale up its size from `2` to `3`:
+
+[source,shell]
+----
+$ kubectl edit wildflyserver quickstart
+# Change the `size: 2` spec to `size: 3` and save
+
+wildflyserver.wildfly.org/quickstart edited
+----
+
+The deployment will be updated to scale up to 3 Pods and the resource `Status` will be updated accordingly:
+
+[source,shell]
+----
+$ kubectl describe wildflyserver quickstart
+----
+
+[source,yaml]
+----
+Name:         quickstart
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+API Version:  wildfly.org/v1alpha1
+Kind:         WildFlyServer
+Metadata:
+  Creation Timestamp:  2019-04-09T08:49:24Z
+  Generation:          2
+  Resource Version:    8137
+  Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/quickstart
+  UID:                 5feb0fd3-5aa4-11e9-af00-7a65e1e4ff53
+Spec:
+  Application Image:  quay.io/jmesnil/wildfly-operator-quickstart
+  Size:               3
+  Storage:
+    Volume Claim Template:
+      Spec:
+        Resources:
+          Requests:
+            Storage:  3Gi
+Status:
+  Pods:
+    Name:    quickstart-0
+    Pod IP:  172.17.0.7
+    Name:    quickstart-1
+    Pod IP:  172.17.0.8
+    Name:    quickstart-2
+    Pod IP:  172.17.0.9
+Events:      <none>
 ----
 
 You can then remove this custom resource and its assocated resources:
 
 [source,shell]
 ----
-$ kubectl delete wildflyserver myapp-wildflyserver
+$ kubectl delete wildflyserver quickstart
 
-wildflyserver.wildfly.org "myapp-wildflyserver" deleted
+wildflyserver.wildfly.org "quickstart" deleted
 ----
 
 #### OpenShift
@@ -193,35 +194,65 @@ Before deploying the operator and its resources, execute the following commands:
 
 [source,shell]
 ----
-$ oc login -u system:admin
-$ oc adm policy add-cluster-role-to-user cluster-admin developer
+oc login -u system:admin
+oc project default
+oc apply -f deploy/rbac.yaml
+oc apply -f deploy/crd.yaml
+oc apply -f deploy/operator.yaml
 
-$ oc login -u developer
-$ oc project myproject
-$ oc adm policy add-scc-to-user privileged -n myproject -z wildfly-operator
-$ oc adm policy add-scc-to-user privileged -n myproject -z wildflyserver
+oc login -u developer
 ----
 
-After installing the `WildFlyServer` resource from `deploy/crds/wildfly_v1alpha1_wildflyserver_cr.yaml`, you have to create a route to expose it from OpenShift:
+After installing the `WildFlyServer` resource from `deploy/cr/quickstart-cr.yaml`, you have to create a route to expose it from OpenShift:
 
 [source,shell]
 ----
-$ oc expose svc/myapp-wildflyserver-loadbalancer
+$ oc expose svc/quickstart-loadbalancer
+
+route.route.openshift.io/quickstart-loadbalancer exposed
 ----
 
 This will expose the service from OpenShift. To know the URL of the exposed service, run:
 
 [source,shell]
 ----
-$ oc get route myapp-wildflyserver-loadbalancer --template='{{ .spec.host }}'
+$ oc get route quickstart-loadbalancer --template='{{ .spec.host }}'
 ----
 
-This will display the host of the route (on my local machin, it displays `myapp-wildflyserver-loadbalancer-myproject.192.168.64.11.nip.io`).
+This will display the host of the route (on my local machine, it displays `quickstart-loadbalancer-myproject.192.168.64.16.nip.io`).
 
 The application can then be accessed by running:
 
 [source,shell]
 ----
-$ curl "http://$(oc get route myapp-wildflyserver-loadbalancer --template='{{ .spec.host }}')"
+$ curl "http://$(oc get route quickstart-loadbalancer --template='{{ .spec.host }}')"
 {"ip":"172.17.0.9"}
 ----
+
+# Developer Instructions
+
+## System Requirements
+
+* [go](https://github.com/golang/go) with `$GOPATH` set to `$HOME/go`
+* Docker
+* [dep](https://github.com/golang/dep#installation)
+* Either https://github.com/minishift/minishift[Minishift] or https://kubernetes.io/docs/setup/minikube/[Minikube]    
+
+### Building the WildFly Operator
+
+1. Add the source under `$GOPATH`:
+```
+$ git clone https://github.com/wildfly/wildfly-operator.git $GOPATH/src/github.com/wildfly/wildfly-operator
+```
+2. Change to the source directory.
+```
+$ cd $GOPATH/src/github.com/wildfly/wildfly-operator
+```
+3. Review the available build targets.
+```
+$ make
+```
+4. Run any build target. For example, compile and build the WildFly Operator with:
+```
+$ make build
+```
