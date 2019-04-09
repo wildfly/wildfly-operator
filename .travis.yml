@@ -5,12 +5,20 @@ go:
   - 1.11.x
   - 1.12.x
 
+services:
+  - docker
+
 cache:
   directories:
   - $GOPATH/pkg/dep
 
 before_script:
   - go get -u github.com/golang/dep/cmd/dep
+  - ci/start-okd-4.0.0.sh
+
+after_failure:
+  - docker ps -a
+  - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
 
 script:
-  - make unit-test
+  - make unit-test test-e2e KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig

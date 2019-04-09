@@ -21,7 +21,7 @@ import (
 
 var (
 	retryInterval        = time.Second * 5
-	timeout              = time.Second * 60
+	timeout              = time.Minute * 3
 	cleanupRetryInterval = time.Second * 1
 	cleanupTimeout       = time.Second * 5
 )
@@ -38,7 +38,7 @@ func TestWildFlyServer(t *testing.T) {
 		t.Fatalf("failed to add custom resource scheme to framework: %v", err)
 	}
 	// run subtests
-	t.Run("wildlfyserver-group", func(t *testing.T) {
+	t.Run("wildflyserver-group", func(t *testing.T) {
 		t.Run("Cluster", WildFlyCluster)
 		t.Run("Cluster2", WildFlyCluster)
 	})
@@ -126,10 +126,10 @@ func waitForStatefulSet(t *testing.T, kubeclient kubernetes.Interface, namespace
 			return false, err
 		}
 
-		if int(statefulSet.Status.ReadyReplicas) == replicas {
+		if int(statefulSet.Status.Replicas) == replicas {
 			return true, nil
 		}
-		t.Logf("Waiting for full availability of %s statefulset (%d/%d)\n", name, statefulSet.Status.ReadyReplicas, replicas)
+		t.Logf("Waiting for full availability of %s statefulset (%d/%d)\n", name, statefulSet.Status.Replicas, replicas)
 		return false, nil
 	})
 	if err != nil {

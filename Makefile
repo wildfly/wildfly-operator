@@ -41,6 +41,7 @@ run-openshift:
 	./build/run-openshift.sh
 
 init-test: setup
+	mkdir -p build/_output
 	cat deploy/rbac.yaml > build/_output/rbac-and-operator.yaml
 	echo "\n---\n" >> build/_output/rbac-and-operator.yaml
 	cat deploy/operator.yaml >> build/_output/rbac-and-operator.yaml
