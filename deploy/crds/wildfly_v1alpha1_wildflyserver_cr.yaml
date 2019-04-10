@@ -1,0 +1,13 @@
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: quickstart
+spec:
+  applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart"
+  size: 2
+  storage:
+    volumeClaimTemplate:
+      spec:
+        resources:
+          requests:
+            storage: 3Gi
