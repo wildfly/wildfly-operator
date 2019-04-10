@@ -1,6 +1,5 @@
 set -o errexit
 set -o nounset
-set -o pipefail
 
 if ! [ -x "$(command -v operator-sdk)" ]; then
   echo 'Install operator-sdk' >&2
