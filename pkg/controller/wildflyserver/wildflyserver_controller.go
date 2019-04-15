@@ -138,6 +138,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
+	// check if the stateful set is up to date with the WildFlyServerSpec
 	if checkUpdate(&wildflyServer.Spec, foundStatefulSet) {
 		err = r.client.Update(context.TODO(), foundStatefulSet)
 		if err != nil {
@@ -149,8 +150,26 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	// Update the WildFlyServer status with the pod names
-	// List the pods for this WildFlyServer's deployment
+	// Check if the loadbalancer already exists, if not create a new one
+	foundLoadBalancer := &corev1.Service{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name + "-loadbalancer", Namespace: wildflyServer.Namespace}, foundLoadBalancer)
+	if err != nil && errors.IsNotFound(err) {
+		// Define a new loadbalancer
+		loadBalancer := r.loadBalancerForWildFly(wildflyServer)
+		reqLogger.Info("Creating a new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
+		err = r.client.Create(context.TODO(), loadBalancer)
+		if err != nil {
+			reqLogger.Error(err, "Failed to create new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
+			return reconcile.Result{}, err
+		}
+		// loadbalancer created successfully - return and requeue
+		return reconcile.Result{Requeue: true}, nil
+	} else if err != nil {
+		reqLogger.Error(err, "Failed to get LoadBalancer.")
+		return reconcile.Result{}, err
+	}
+
+	// Requeue until the pod list matches the spec's size
 	podList := &corev1.PodList{}
 	labelSelector := labels.SelectorFromSet(labelsForWildFly(wildflyServer))
 	listOps := &client.ListOptions{
@@ -168,8 +187,8 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	// Update status.Pods if needed
-	podsStatus := getPodStatus(podList.Items)
+	// Update status.Pods
+	requeue, podsStatus := getPodStatus(podList.Items)
 	if !reflect.DeepEqual(podsStatus, wildflyServer.Status.Pods) {
 		wildflyServer.Status.Pods = podsStatus
 		err := r.client.Status().Update(context.TODO(), wildflyServer)
@@ -178,24 +197,8 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, err
 		}
 	}
-
-	// Check if the deployment already exists, if not create a new one
-	foundLoadBalancer := &corev1.Service{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name + "-loadbalancer", Namespace: wildflyServer.Namespace}, foundLoadBalancer)
-	if err != nil && errors.IsNotFound(err) {
-		// Define a new deployment
-		loadBalancer := r.loadBalancerForWildFly(wildflyServer)
-		reqLogger.Info("Creating a new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
-		err = r.client.Create(context.TODO(), loadBalancer)
-		if err != nil {
-			reqLogger.Error(err, "Failed to create new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
-			return reconcile.Result{}, err
-		}
-		// Deployment created successfully - return and requeue
+	if requeue {
 		return reconcile.Result{Requeue: true}, nil
-	} else if err != nil {
-		reqLogger.Error(err, "Failed to get LoadBalancer.")
-		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, nil
@@ -398,15 +401,19 @@ func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildF
 }
 
 // getPodStatus returns the pod names of the array of pods passed in
-func getPodStatus(pods []corev1.Pod) []wildflyv1alpha1.PodStatus {
+func getPodStatus(pods []corev1.Pod) (bool, []wildflyv1alpha1.PodStatus) {
+	var requeue = false
 	var podStatus []wildflyv1alpha1.PodStatus
 	for _, pod := range pods {
 		podStatus = append(podStatus, wildflyv1alpha1.PodStatus{
 			Name:  pod.Name,
 			PodIP: pod.Status.PodIP,
 		})
+		if pod.Status.PodIP == "" {
+			requeue = true
+		}
 	}
-	return podStatus
+	return requeue, podStatus
 }
 
 func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
