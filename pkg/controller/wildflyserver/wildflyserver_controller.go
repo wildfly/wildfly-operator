@@ -222,12 +222,13 @@ func checkUpdate(spec *wildflyv1alpha1.WildFlyServerSpec, statefuleSet *appsv1.S
 		update = true
 	}
 	// Ensure the env variables are up to date
-	env := spec.Env
-	if !reflect.DeepEqual(statefuleSet.Spec.Template.Spec.Containers[0].Env, env) {
-		log.Info("Updating env", "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name)
-		statefuleSet.Spec.Template.Spec.Containers[0].Env = env
-		update = true
+	for _, env := range spec.Env {
+		if !matches(statefuleSet.Spec.Template.Spec.Containers[0].Env, env) {
+			log.Info("Updated statefulset env", "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name, "Env", env)
+			update = true
+		}
 	}
+
 	// Ensure the envFrom variables are up to date
 	envFrom := spec.EnvFrom
 	if !reflect.DeepEqual(statefuleSet.Spec.Template.Spec.Containers[0].EnvFrom, envFrom) {
@@ -235,7 +236,24 @@ func checkUpdate(spec *wildflyv1alpha1.WildFlyServerSpec, statefuleSet *appsv1.S
 		statefuleSet.Spec.Template.Spec.Containers[0].EnvFrom = envFrom
 		update = true
 	}
+
 	return update
+}
+
+// matches checks if the envVar from the WildFlyServerSpec matches the same env var from the statefulset.
+// If it does not match, it updates the statefulset EnvVar with the fields from the WildFlyServerSpec and return false.
+func matches(env []corev1.EnvVar, envVar corev1.EnvVar) bool {
+	for _, e := range env {
+		if envVar.Name == e.Name {
+			if envVar != e {
+				e.Value = envVar.Value
+				e.ValueFrom = envVar.ValueFrom
+				return false
+			}
+			return true
+		}
+	}
+	return true
 }
 
 // statefulSetForWildFly returns a wildfly StatefulSet object
@@ -268,10 +286,10 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 						Name:  w.Name,
 						Image: applicationImage,
 						Command: []string{
-							"/opt/jboss/wildfly/bin/standalone.sh",
+							"/bin/bash",
 						},
 						Args: []string{
-							"-b", "0.0.0.0", "-bmanagement", "0.0.0.0",
+							"-c", "/opt/jboss/wildfly/bin/standalone.sh -b $(hostname -i) -bmanagement 0.0.0.0 --debug 8787",
 						},
 						Ports: []corev1.ContainerPort{
 							{
@@ -296,6 +314,22 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 							Name:      volumeName,
 							MountPath: jbossServerDataDirPath,
 						}},
+						// TODO the KUBERNETES_NAMESPACE and KUBERNETES_LABELS env should only be set if
+						// the application uses clustering and KUBE_PING.
+						Env: []corev1.EnvVar{
+							{
+								Name: "KUBERNETES_NAMESPACE",
+								ValueFrom: &corev1.EnvVarSource{
+									FieldRef: &corev1.ObjectFieldSelector{
+										FieldPath: "metadata.namespace",
+									},
+								},
+							},
+							{
+								Name:  "KUBERNETES_LABELS",
+								Value: "app=" + w.Name,
+							},
+						},
 					}},
 				},
 			},

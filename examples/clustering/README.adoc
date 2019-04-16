@@ -1,0 +1,244 @@
+# Clustered application
+
+This example shows how to install and deploy a clustered WildFly application on OpenShift.
+
+The application brings its own standalone configuration for WildFly that is configured to use JGroups and KUBE_PING to form the cluster.
+
+# Prerequisites
+
+* Install OpenShift (or minishift)
+* Install the WildFly Operator as explained in the https://github.com/wildfly/wildfly-operator#install-the-operator-and-associate-resources[README].
+
+# Deploy the application
+
+The application is named https://github.com/clusterbench/clusterbench[clusterbench] and will be deployed with a Docker image https://quay.io/repository/jmesnil/clusterbench[quay.io/jmesnil/clusterbench] that deploys the EE7 variant of the application on WildFly 16.
+
+The application is defined in the https://github.com/wildfly/wildfly-operator/blob/master/examples/clustering/crds/clusterbenc.yaml[clusterbench.yaml file]:
+
+[source,yaml]
+----
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: clusterbench
+spec:
+  applicationImage: "quay.io/jmesnil/clusterbench:latest"
+  size: 2
+  standaloneConfigMap:
+    name: clusterbench-config-map
+    key: standalone-openshift.xml
+----
+
+The application will have 2 instances running behind its load balancer that forms a cluster.
+It requires its own https://github.com/wildfly/wildfly-operator/blob/master/examples/clustering/config/standalone-openshift.xml[standalone configuration] to configure JGroups with KUBE_PING.
+
+This standalone configuration must be mounted in a ConfigMap named `clusterbench-config-map`:
+
+[source,shell]
+----
+$ oc create configmap clusterbench-config-map --from-file examples/clustering/config/standalone-openshift.xml
+
+configmap/clusterbench-config-map created
+----
+
+Once the ConfigMap is created, the application can be deployed on OpenShift using the WildFly Operator:
+
+[source,shell]
+----
+$ oc apply -f examples/clustering/crds/clusterbench.yaml
+
+wildflyserver.wildfly.org/clusterbench created
+----
+
+You can then check the status of the application:
+
+[source,shell]
+----
+$ oc describe wildflyserver clusterbench
+Name:         clusterbench
+Namespace:    myproject
+Labels:       <none>
+Annotations:  kubectl.kubernetes.io/last-applied-configuration={"apiVersion":"wildfly.org/v1alpha1","kind":"WildFlyServer","metadata":{"annotations":{},"name":"clusterbench","namespace":"myproject"},"spec":{"applic...
+API Version:  wildfly.org/v1alpha1
+Kind:         WildFlyServer
+Metadata:
+  Creation Timestamp:  2019-04-16T22:28:07Z
+  Generation:          3
+  Resource Version:    286213
+  Self Link:           /apis/wildfly.org/v1alpha1/namespaces/myproject/wildflyservers/clusterbench
+  UID:                 e8c262f8-6096-11e9-b73e-fa4519ff0e36
+Spec:
+  Application Image:  quay.io/jmesnil/clusterbench:latest
+  Size:               2
+  Standalone Config Map:
+    Key:   standalone-openshift.xml
+    Name:  clusterbench-config-map
+Status:
+  Pods:
+    Name:    clusterbench-0
+    Pod IP:  172.17.0.10
+    Name:    clusterbench-1
+    Pod IP:  172.17.0.11
+Events:      <none>
+----
+
+Once the application is up and running, we create a route to expose its loadbalancer service:
+
+[source,shell]
+----
+$ oc get service clusterbench-loadbalancer
+NAME                        TYPE           CLUSTER-IP       EXTERNAL-IP                 PORT(S)          AGE
+clusterbench-loadbalancer   LoadBalancer   172.30.244.212   172.29.75.61,172.29.75.61   8080:32302/TCP   30m
+
+$ oc expose svc/clusterbench-loadbalancer
+route.route.openshift.io/clusterbench-loadbalancer exposed
+----
+
+The external address can be found by running: 
+
+[source,shell]
+----
+$ oc get route clusterbench-loadbalancer --template='{{ .spec.host }}'
+clusterbench-loadbalancer-myproject.192.168.64.16.nip.io
+----
+
+# Test the application
+
+The application displays a counter that indicates the number of times the application has been invoked and stores it in various mechanisms.
+We will use the variant that stores the counter in a HTTP Session by invoking the `/clusterbenche/session` endpoint:
+
+[source,shell]
+----
+$ curl -v "http://$(oc get route clusterbench-loadbalancer --template='{{ .spec.host }}')/clusterbench/session"
+
+< HTTP/1.1 200 OK
+< Set-Cookie: JSESSIONID=lBOyUs_j3aKoK9uohIkXInTWWlMUXMxq0hFTqDlK.clusterbench-0; path=/clusterbench
+< Set-Cookie: 8695ba418ddbdc20694cde13495bd90c=15fba65f70cb0c242bb137f6775f818b; path=/; HttpOnly
+0
+----
+
+We see that the `/clusterbench/session` returns `0` and a `JSESSIONID` cookie.
+From the Cookie value (`lBOyUs_j3aKoK9uohIkXInTWWlMUXMxq0hFTqDlK.clusterbench-0; path=/clusterbench`), we can deduce that the HTTP request was servered by the `clusterbench-0` pod.
+
+Since cURL does not store cookie, if we perform another request, we will be served by any pod:
+
+[source,shell]
+----
+$ curl -v "http://$(oc get route clusterbench-loadbalancer --template='{{ .spec.host }}')/clusterbench/session"
+
+< HTTP/1.1 200 OK
+< Set-Cookie: JSESSIONID=aw8FZXteRujImdV7eo6jK6tL3E8kneZIleCeC7yU.clusterbench-1; path=/clusterbench
+0
+----
+
+This time, we were served by the `clusterbench-1` pod.
+
+We will now activate cURL cookie to keep connecting to the same pod.
+Run the following cURL command until we are served by the `clusterbench-1` pod:
+
+[source,shell]
+----
+$ curl -v -c cookie.txt "http://$(oc get route clusterbench-loadbalancer --template='{{ .spec.host }}')/clusterbench/session"
+
+Added cookie JSESSIONID="twO6G5zgeWUCByYGiy_1aC3CYFtuUkdJSDtxmr-R.clusterbench-1" for domain clusterbench-loadbalancer-myproject.192.168.64.16.nip.io, path /clusterbench, expire 0
+< Set-Cookie: JSESSIONID=twO6G5zgeWUCByYGiy_1aC3CYFtuUkdJSDtxmr-R.clusterbench-1; path=/clusterbench
+----
+
+Once we have a cookie that make sure we are connected to a session on `clusterbench-1`, we will use cURL cookie to stay on that session with the following command (note that we now added the `-b cookie.txt` parameter):
+
+[source,shell]
+----
+$ curl -v -b cookie.txt -c cookie.txt "http://$(oc get route clusterbench-loadbalancer --template='{{ .spec.host }}')/clusterbench/session"
+
+> GET /clusterbench/session HTTP/1.1
+> Host: clusterbench-loadbalancer-myproject.192.168.64.16.nip.io
+> Cookie: JSESSIONID=pSddeoDxSbOQQUZaFb5XMePjGBp6-WxuaZTizGz7.clusterbench-1; 8695ba418ddbdc20694cde13495bd90c=78c87044937651274b32fab52794c559
+
+< HTTP/1.1 200 OK
+1
+----
+
+Every time, we invoke this command, the counter in the session is incremented:
+
+[source,shell]
+----
+$ curl  -b cookie.txt -c cookie.txt "http://$(oc get route clusterbench-loadbalancer --template='{{ .spec.host }}')/clusterbench/session"
+2
+
+$ curl  -b cookie.txt -c cookie.txt "http://$(oc get route clusterbench-loadbalancer --template='{{ .spec.host }}')/clusterbench/session"
+3
+
+$ curl  -b cookie.txt -c cookie.txt "http://$(oc get route clusterbench-loadbalancer --template='{{ .spec.host }}')/clusterbench/session"
+4
+----
+
+# Scale down the application
+
+We will now scale down the application from 2 nodes to 1.
+This implies that the session on `clusterbench-1` will be moved to the `clusterbench-0` pod and our session will continue to be incremented as expected.
+
+Edit the WildFlyServer custom resource to change its size from `2` to `1`:
+
+[source,shell]
+----
+$ oc edit wildflyserver clusterbench
+# Change the `size: 2` spec to `size: 1` and save
+
+wildflyserver.wildfly.org/clusterbench edited
+----
+
+The deployment will be updated to scale down to 1 Pod and the resource `Status` will be updated accordingly:
+
+[source,shell]
+----
+$ oc describe wildflyserver clusterbench
+----
+
+[source,yaml]
+----
+Name:         clusterbench
+Namespace:    myproject
+Labels:       <none>
+Annotations:  kubectl.kubernetes.io/last-applied-configuration={"apiVersion":"wildfly.org/v1alpha1","kind":"WildFlyServer","metadata":{"annotations":{},"name":"clusterbench","namespace":"myproject"},"spec":{"applic...
+API Version:  wildfly.org/v1alpha1
+Kind:         WildFlyServer
+Metadata:
+  Creation Timestamp:  2019-04-16T22:28:07Z
+  Generation:          4
+  Resource Version:    290752
+  Self Link:           /apis/wildfly.org/v1alpha1/namespaces/myproject/wildflyservers/clusterbench
+  UID:                 e8c262f8-6096-11e9-b73e-fa4519ff0e36
+Spec:
+  Application Image:  quay.io/jmesnil/clusterbench:latest
+  Size:               1
+  Standalone Config Map:
+    Key:   standalone-openshift.xml
+    Name:  clusterbench-config-map
+Status:
+  Pods:
+    Name:    clusterbench-0
+    Pod IP:  172.17.0.10
+Events:      <none>
+----
+
+We see that the application has now a single pod (`clusterbench-0`).
+
+If we now invoke again the `clusterbench/session`, we will be served by this pod that has the session that was previous stored in `clusterbench-1`:
+
+[source,shell]
+----
+curl  -v -b cookie.txt  -c cookie.txt "http://$(oc get route clusterbench-loadbalancer --template='{{ .spec.host }}')/clusterbench/session"
+> GET /clusterbench/session HTTP/1.1
+> Host: clusterbench-loadbalancer-myproject.192.168.64.16.nip.io
+> Accept: */*
+> Cookie: JSESSIONID=2CIEZ9rHUPOZSq_0-6qn9YOoDnObgJ9YCNguVDCl.clusterbench-1; 8695ba418ddbdc20694cde13495bd90c=78c87044937651274b32fab52794c559
+
+< HTTP/1.1 200 OK
+* Replaced cookie JSESSIONID="2CIEZ9rHUPOZSq_0-6qn9YOoDnObgJ9YCNguVDCl.clusterbench-0" for domain clusterbench-loadbalancer-myproject.192.168.64.16.nip.io, path /clusterbench, expire 0
+< Set-Cookie: JSESSIONID=2CIEZ9rHUPOZSq_0-6qn9YOoDnObgJ9YCNguVDCl.clusterbench-0; path=/clusterbench
+* Replaced cookie 8695ba418ddbdc20694cde13495bd90c="15fba65f70cb0c242bb137f6775f818b" for domain clusterbench-loadbalancer-myproject.192.168.64.16.nip.io, path /, expire 0
+< Set-Cookie: 8695ba418ddbdc20694cde13495bd90c=15fba65f70cb0c242bb137f6775f818b; path=/; HttpOnly
+5
+----
+
+The endpoint returns `5` as expected and cURL logs shows that the cookie value was replaced and now references `clusterbench-0`.
