@@ -6,7 +6,7 @@ The application brings its own standalone configuration for WildFly that is conf
 
 # Prerequisites
 
-* Install OpenShift (or minishift)
+* Install minishift or minikube
 * Install the WildFly Operator as explained in the https://github.com/wildfly/wildfly-operator#install-the-operator-and-associate-resources[README].
 
 # Deploy the application
@@ -29,6 +29,29 @@ spec:
     key: standalone-openshift.xml
 ----
 
+
+[NOTE]
+.RBAC
+====
+
+Since clustering requires interaction with Kubernetes API, we must add the `view` role to the `default` service account (that is used by the WildFly CRD).
+
+If you are using OpenShift, you must run the following command:
+
+[source,shell]
+----
+$ oc policy add-role-to-user view system:serviceaccount:$(oc project -q):default -n $(oc project -q)
+----
+
+If you are using Minikube, you must instead run the following command:
+
+
+[source,shell]
+----
+$ kubectl apply -f examples/clustering/crds/role_binding.yaml
+----
+====
+
 The application will have 2 instances running behind its load balancer that forms a cluster.
 It requires its own https://github.com/wildfly/wildfly-operator/blob/master/examples/clustering/config/standalone-openshift.xml[standalone configuration] to configure JGroups with KUBE_PING.
 
@@ -36,16 +59,17 @@ This standalone configuration must be mounted in a ConfigMap named `clusterbench
 
 [source,shell]
 ----
-$ oc create configmap clusterbench-config-map --from-file examples/clustering/config/standalone-openshift.xml
+$ kubectl create configmap clusterbench-config-map --from-file examples/clustering/config/standalone-openshift.xml
 
 configmap/clusterbench-config-map created
 ----
+
 
 Once the ConfigMap is created, the application can be deployed on OpenShift using the WildFly Operator:
 
 [source,shell]
 ----
-$ oc apply -f examples/clustering/crds/clusterbench.yaml
+$ kubectl apply -f examples/clustering/crds/clusterbench.yaml
 
 wildflyserver.wildfly.org/clusterbench created
 ----
@@ -54,7 +78,7 @@ You can then check the status of the application:
 
 [source,shell]
 ----
-$ oc describe wildflyserver clusterbench
+$ kubectl describe wildflyserver clusterbench
 Name:         clusterbench
 Namespace:    myproject
 Labels:       <none>
@@ -82,11 +106,13 @@ Status:
 Events:      <none>
 ----
 
-Once the application is up and running, we create a route to expose its loadbalancer service:
+Once the application is up and running, we now need to expose it.
+
+On OpenShift, we create a route to expose its loadbalancer service:
 
 [source,shell]
 ----
-$ oc get service clusterbench-loadbalancer
+$ kubectl get service clusterbench-loadbalancer
 NAME                        TYPE           CLUSTER-IP       EXTERNAL-IP                 PORT(S)          AGE
 clusterbench-loadbalancer   LoadBalancer   172.30.244.212   172.29.75.61,172.29.75.61   8080:32302/TCP   30m
 
@@ -98,8 +124,18 @@ The external address can be found by running:
 
 [source,shell]
 ----
-$ oc get route clusterbench-loadbalancer --template='{{ .spec.host }}'
+$ kubectl get route clusterbench-loadbalancer --template='{{ .spec.host }}'
+
 clusterbench-loadbalancer-myproject.192.168.64.16.nip.io
+----
+
+If the application is deployed on minikube, we can get the external address by running the command:
+
+[source,shell]
+----
+$ minikube service clusterbench-loadbalancer --url
+
+http://192.168.64.19:32429
 ----
 
 # Test the application
@@ -181,7 +217,7 @@ Edit the WildFlyServer custom resource to change its size from `2` to `1`:
 
 [source,shell]
 ----
-$ oc edit wildflyserver clusterbench
+$ kubectl edit wildflyserver clusterbench
 # Change the `size: 2` spec to `size: 1` and save
 
 wildflyserver.wildfly.org/clusterbench edited
@@ -191,7 +227,7 @@ The deployment will be updated to scale down to 1 Pod and the resource `Status` 
 
 [source,shell]
 ----
-$ oc describe wildflyserver clusterbench
+$ kubectl describe wildflyserver clusterbench
 ----
 
 [source,yaml]
