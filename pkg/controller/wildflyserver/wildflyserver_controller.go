@@ -331,6 +331,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 							},
 						},
 					}},
+					ServiceAccountName: w.Spec.ServiceAccountName,
 				},
 			},
 		},

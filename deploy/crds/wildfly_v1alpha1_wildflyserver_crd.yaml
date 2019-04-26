@@ -43,6 +43,8 @@ spec:
               items:
                 type: object
               type: array
+            serviceAccountName:
+              type: string
             size:
               format: int32
               type: integer
