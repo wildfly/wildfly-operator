@@ -16,7 +16,7 @@ spec:
       containers:
         - name: wildfly-operator
           # Replace this with the built image name
-          image: quay.io/jmesnil/wildfly-operator
+          image: quay.io/jmesnil/wildfly-operator:latest
           command:
           - wildfly-operator
           imagePullPolicy: Always

@@ -55,5 +55,13 @@ scorecard: setup
 unit-test:
 	go test -v ./... -tags=unit
 
+## release     Release a versioned operator.
+##             - Requires 'RELEASE_NAME=X.Y.Z'. Defaults to dry run.
+##             - Pass 'DRY_RUN=false' to commit the release.
+##             - Example: "make DRY_RUN=false RELEASE_NAME=X.Y.Z release"
+##
+release:
+	build/release.sh
+
 help : Makefile
 	@sed -n 's/^##//p' $<
