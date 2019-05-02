@@ -1,0 +1,10 @@
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: clusterbench
+spec:
+  applicationImage: "quay.io/jmesnil/clusterbench:latest"
+  size: 2
+  standaloneConfigMap:
+    name: clusterbench-config-map
+    key: standalone-openshift.xml
