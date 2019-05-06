@@ -1,5 +1,5 @@
 DOCKER_REPO ?= quay.io/
-IMAGE ?= jmesnil/wildfly-operator
+IMAGE ?= wildfly/wildfly-operator
 TAG ?= latest
 PROG  := wildfly-operator
 

@@ -1,3 +1,4 @@
+image:https://quay.io/repository/wildfly/wildfly-operator/status?token=c568da69-fcdb-4b58-8821-5e98f6522290["Docker Repository on Quay", link="https://quay.io/repository/wildfly/wildfly-operator"]
 image:https://travis-ci.org/wildfly/wildfly-operator.svg?branch=master["Build Status", link="https://travis-ci.org/wildfly/wildfly-operator"]
 image:https://goreportcard.com/badge/github.com/wildfly/wildfly-operator["Go Report Card", link="https://goreportcard.com/report/github.com/wildfly/wildfly-operator"]
 image:https://img.shields.io/badge/zulip-join_chat-brightgreen.svg["Join Chat", link="https://wildfly.zulipchat.com/"]
