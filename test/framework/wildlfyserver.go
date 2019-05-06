@@ -1,10 +1,16 @@
 package framework
 
 import (
+	"bytes"
 	goctx "context"
+	"fmt"
+	"io"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -37,6 +43,21 @@ func MakeBasicWildFlyServer(ns, name, applicationImage string, size int32) *wild
 			Size:             size,
 		},
 	}
+}
+
+// CreateStandaloneConfigMap creates a ConfigMap for the standalone configuration
+func CreateStandaloneConfigMap(f *framework.Framework, ctx *framework.TestCtx, ns string, name string, key string, file []byte) error {
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   ns,
+			Name:        name,
+			Annotations: map[string]string{},
+		},
+		BinaryData: map[string][]byte{
+			key: file,
+		},
+	}
+	return f.Client.Create(goctx.TODO(), configMap, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
 }
 
 // CreateAndWaitUntilReady creates a WildFlyServer resource and wait until it is ready
@@ -83,4 +104,80 @@ func WaitUntilReady(f *framework.Framework, t *testing.T, server *wildflyv1alpha
 	}
 	t.Logf("statefulset available (%d/%d)\n", size, size)
 	return nil
+}
+
+// WaitUntilWildFlyServerIstarted waits until the WildFly server in the Pod is started.
+func WaitUntilWildFlyServerIstarted(f *framework.Framework, t *testing.T, server *wildflyv1alpha1.WildFlyServer, podName string) error {
+
+	err := wait.Poll(30*time.Second, 5*time.Minute, func() (done bool, err error) {
+		logs, err := GetLogs(f, server, podName)
+		if err != nil {
+			return false, err
+		}
+
+		// check logs for WFLYSRV0025 (server is started)
+		if strings.Contains(logs, "WFLYSRV0025") {
+			return true, nil
+		}
+		t.Logf("Waiting for WildFly in %s to be be started", podName)
+		t.Logf(logs)
+		return false, nil
+	})
+	if err != nil {
+		return err
+	}
+	t.Logf("WildFly server started in %s", podName)
+	return nil
+}
+
+// WaitUntilClusterIsFormed wait until a cluster is formed with all the podNames
+func WaitUntilClusterIsFormed(f *framework.Framework, t *testing.T, server *wildflyv1alpha1.WildFlyServer, podName1 string, podName2 string) error {
+
+	pattern := fmt.Sprintf(".*ISPN000094: Received new cluster view.*(%s, %s|%[2]s, %[1]s).*", podName1, podName2)
+
+	err := wait.Poll(30*time.Second, 5*time.Minute, func() (done bool, err error) {
+		var clusterFormed bool
+
+		for _, podName := range []string{podName1, podName2} {
+			logs, err := GetLogs(f, server, podName)
+			if err != nil {
+				return false, err
+			}
+
+			match, _ := regexp.MatchString(pattern, logs)
+
+			if match {
+				clusterFormed = true
+				t.Logf("got cluster view log in %s", podName)
+			} else {
+				clusterFormed = false
+				t.Logf("Waiting for cluster view log in %s", podName)
+				t.Logf(logs)
+			}
+		}
+		return clusterFormed, nil
+	})
+	if err != nil {
+		return err
+	}
+	t.Logf("Cluster view formed with %s & %s", podName1, podName2)
+	return nil
+}
+
+// GetLogs returns the logs from the given pod (in the server's namespace).
+func GetLogs(f *framework.Framework, server *wildflyv1alpha1.WildFlyServer, podName string) (string, error) {
+	logsReq := f.KubeClient.CoreV1().Pods(server.ObjectMeta.Namespace).GetLogs(podName, &corev1.PodLogOptions{})
+	podLogs, err := logsReq.Stream()
+	if err != nil {
+		return "", err
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", err
+	}
+	logs := buf.String()
+	return logs, nil
 }
