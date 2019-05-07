@@ -4,7 +4,7 @@ image:https://img.shields.io/badge/zulip-join_chat-brightgreen.svg["Join Chat", 
 
 # WildFly Operator for Kubernetes/OpenShift
 
-The WildFly Operator for Kubernetes provides easy monitoring and configuration for Java applications deployed on http://wildfly.org[WildFly application server].
+The WildFly Operator for Kubernetes provides easy monitoring and configuration for Java applications deployed on http://wildfly.org[WildFly application server] using the https://github.com/openshift-s2i/s2i-wildfly[Source-to-Image (S2I) template for WildFly].
 
 Once installed, the WildFly Operator provides the following features:
 
@@ -59,7 +59,7 @@ spec:
 
 [NOTE]
 =====
-It is based on the application image https://quay.io/repository/jmesnil/wildfly-operator-quickstart[jmesnil/wildfly-operator-quickstart] that provides a simple Java Web application https://github.com/jmesnil/wildfly-operator-quickstart[wildfly-operator-quickstart] on top of WildFly 16.0.0.Final which returns the IP address of its host:
+It is based on the S2I application image https://quay.io/repository/jmesnil/wildfly-operator-quickstart[jmesnil/wildfly-operator-quickstart] that provides a simple Java Web application https://github.com/jmesnil/wildfly-operator-quickstart[wildfly-operator-quickstart] on top of WildFly 16.0.0.Final which returns the IP address of its host:
 
 [source,shell]
 ----
@@ -67,7 +67,7 @@ $ curl http://localhost:8080/
 {"ip":"172.17.0.3"}
 ----
 
-This simple application illustrates that successive calls will be load balanced across the various pods that runs the application
+This simple application illustrates that successive calls will be load balanced across the various pods that runs the application.
 =====
 
 [source,shell]

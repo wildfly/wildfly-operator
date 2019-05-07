@@ -1,8 +1,8 @@
 # Clustered application
 
-This example shows how to install and deploy a clustered WildFly application on OpenShift.
+This example shows how to install and deploy a clustered application built with S2I WildFly on Kubernetes or OpenShift.
 
-The application brings its own standalone configuration for WildFly that is configured to use JGroups and KUBE_PING to form the cluster.
+The application brings its own standalone configuration for WildFly that is configured to use JGroups and `KUBE_PING` to form the cluster.
 
 # Prerequisites
 
@@ -11,7 +11,7 @@ The application brings its own standalone configuration for WildFly that is conf
 
 # Deploy the application
 
-The application is named https://github.com/clusterbench/clusterbench[clusterbench] and will be deployed with a Docker image https://quay.io/repository/jmesnil/clusterbench[quay.io/jmesnil/clusterbench] that deploys the EE7 variant of the application on WildFly 16.
+The application is named https://github.com/clusterbench/clusterbench[clusterbench] and will be deployed with a Docker image built with https://github.com/openshift-s2i/s2i-wildfly[WildFly S2I] and published at https://quay.io/repository/jmesnil/clusterbench[quay.io/jmesnil/clusterbench] that deploys the EE7 variant of the application on WildFly 16.
 
 The application is defined in the https://github.com/wildfly/wildfly-operator/blob/master/examples/clustering/crds/clusterbenc.yaml[clusterbench.yaml file]:
 

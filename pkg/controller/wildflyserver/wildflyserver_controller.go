@@ -29,16 +29,9 @@ import (
 var log = logf.Log.WithName("controller_wildflyserver")
 
 const (
-	httpApplicationPort    int32 = 8080
-	httpManagementPort     int32 = 9990
-	jbossServerDataDirPath       = "/opt/jboss/wildfly/standalone/data"
-)
-
-var (
-	// JBossUserID is the UID for jboss user
-	JBossUserID int64 = 1000
-	// JBossGroupID is GID for jboss user
-	JBossGroupID int64 = 1000
+	httpApplicationPort         int32 = 8080
+	httpManagementPort          int32 = 9990
+	standaloneServerDataDirPath       = "/wildfly/standalone/data"
 )
 
 /**
@@ -245,7 +238,7 @@ func checkUpdate(spec *wildflyv1alpha1.WildFlyServerSpec, statefuleSet *appsv1.S
 func matches(env []corev1.EnvVar, envVar corev1.EnvVar) bool {
 	for _, e := range env {
 		if envVar.Name == e.Name {
-			if envVar != e {
+			if !reflect.DeepEqual(envVar, e) {
 				e.Value = envVar.Value
 				e.ValueFrom = envVar.ValueFrom
 				return false
@@ -288,8 +281,9 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 						Command: []string{
 							"/bin/bash",
 						},
+						// use $(hostname -i) to bind the public interface and JGroups to the pod IP address
 						Args: []string{
-							"-c", "/opt/jboss/wildfly/bin/standalone.sh -b $(hostname -i) -bmanagement 0.0.0.0 --debug 8787",
+							"-c", "/wildfly/bin/standalone.sh -b $(hostname -i) -bmanagement 0.0.0.0 -Djgroups.bind_addr=$(hostname -i) --debug 8787",
 						},
 						Ports: []corev1.ContainerPort{
 							{
@@ -312,7 +306,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      volumeName,
-							MountPath: jbossServerDataDirPath,
+							MountPath: standaloneServerDataDirPath,
 						}},
 						// TODO the KUBERNETES_NAMESPACE and KUBERNETES_LABELS env should only be set if
 						// the application uses clustering and KUBE_PING.
@@ -400,7 +394,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 		})
 		statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      "standalone-config-volume",
-			MountPath: "/opt/jboss/wildfly/standalone/configuration/standalone.xml",
+			MountPath: "/wildfly/standalone/configuration/standalone.xml",
 			SubPath:   "standalone.xml",
 		})
 	}
