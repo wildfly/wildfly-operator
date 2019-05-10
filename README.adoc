@@ -48,7 +48,7 @@ kind: WildFlyServer
 metadata:
   name: quickstart
 spec:
-  applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart"
+  applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart:16.0"
   size: 2
   storage:
     volumeClaimTemplate:
@@ -60,7 +60,7 @@ spec:
 
 [NOTE]
 =====
-It is based on the S2I application image https://quay.io/repository/jmesnil/wildfly-operator-quickstart[jmesnil/wildfly-operator-quickstart] that provides a simple Java Web application https://github.com/jmesnil/wildfly-operator-quickstart[wildfly-operator-quickstart] on top of WildFly 16.0.0.Final which returns the IP address of its host:
+It is based on the S2I application image https://quay.io/repository/jmesnil/wildfly-operator-quickstart[jmesnil/wildfly-operator-quickstart:16.0] that provides a simple Java Web application https://github.com/jmesnil/wildfly-operator-quickstart[wildfly-operator-quickstart] on top of WildFly 16.0.0.Final which returns the IP address of its host:
 
 [source,shell]
 ----
@@ -108,7 +108,7 @@ Metadata:
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/quickstart
   UID:                 5feb0fd3-5aa4-11e9-af00-7a65e1e4ff53
 Spec:
-  Application Image:  quay.io/jmesnil/wildfly-operator-quickstart
+  Application Image:  quay.io/jmesnil/wildfly-operator-quickstart:16.0
   Size:               2
   Storage:
     Volume Claim Template:
@@ -159,7 +159,7 @@ Metadata:
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/default/wildflyservers/quickstart
   UID:                 5feb0fd3-5aa4-11e9-af00-7a65e1e4ff53
 Spec:
-  Application Image:  quay.io/jmesnil/wildfly-operator-quickstart
+  Application Image:  quay.io/jmesnil/wildfly-operator-quickstart:16.0
   Size:               3
   Storage:
     Volume Claim Template:

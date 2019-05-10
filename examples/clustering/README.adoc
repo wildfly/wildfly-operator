@@ -11,7 +11,7 @@ The application brings its own standalone configuration for WildFly that is conf
 
 # Deploy the application
 
-The application is named https://github.com/clusterbench/clusterbench[clusterbench] and will be deployed with a Docker image built with https://github.com/openshift-s2i/s2i-wildfly[WildFly S2I] and published at https://quay.io/repository/jmesnil/clusterbench[quay.io/jmesnil/clusterbench] that deploys the EE7 variant of the application on WildFly 16.
+The application is named https://github.com/clusterbench/clusterbench[clusterbench] and will be deployed with a Docker image built with https://github.com/openshift-s2i/s2i-wildfly[WildFly S2I] and published at https://quay.io/repository/jmesnil/clusterbench-ee7[quay.io/jmesnil/clusterbench-ee7:16.0] that deploys the EE7 variant of the application on WildFly 16.
 
 The application is defined in the https://github.com/wildfly/wildfly-operator/blob/master/examples/clustering/crds/clusterbenc.yaml[clusterbench.yaml file]:
 
@@ -22,7 +22,7 @@ kind: WildFlyServer
 metadata:
   name: clusterbench
 spec:
-  applicationImage: "quay.io/jmesnil/clusterbench:latest"
+  applicationImage: "quay.io/jmesnil/clusterbench-ee7:16.0"
   size: 2
   standaloneConfigMap:
     name: clusterbench-config-map
@@ -92,7 +92,7 @@ Metadata:
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/myproject/wildflyservers/clusterbench
   UID:                 e8c262f8-6096-11e9-b73e-fa4519ff0e36
 Spec:
-  Application Image:  quay.io/jmesnil/clusterbench:latest
+  Application Image:  quay.io/jmesnil/clusterbench-ee7:16.0
   Size:               2
   Standalone Config Map:
     Key:   standalone-openshift.xml
@@ -245,7 +245,7 @@ Metadata:
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/myproject/wildflyservers/clusterbench
   UID:                 e8c262f8-6096-11e9-b73e-fa4519ff0e36
 Spec:
-  Application Image:  quay.io/jmesnil/clusterbench:latest
+  Application Image:  quay.io/jmesnil/clusterbench-ee7:16.0
   Size:               1
   Standalone Config Map:
     Key:   standalone-openshift.xml
