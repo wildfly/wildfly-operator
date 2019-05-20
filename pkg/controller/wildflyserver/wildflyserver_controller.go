@@ -278,13 +278,6 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 					Containers: []corev1.Container{{
 						Name:  w.Name,
 						Image: applicationImage,
-						Command: []string{
-							"/bin/bash",
-						},
-						// use $(hostname -i) to bind the public interface and JGroups to the pod IP address
-						Args: []string{
-							"-c", "/wildfly/bin/standalone.sh -b $(hostname -i) -bmanagement 0.0.0.0 -Djgroups.bind_addr=$(hostname -i) --debug 8787",
-						},
 						Ports: []corev1.ContainerPort{
 							{
 								ContainerPort: httpApplicationPort,
