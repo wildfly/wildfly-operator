@@ -315,7 +315,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 							},
 							{
 								Name:  "KUBERNETES_LABELS",
-								Value: "app=" + w.Name,
+								Value: labels.SelectorFromSet(ls).String(),
 							},
 						},
 					}},

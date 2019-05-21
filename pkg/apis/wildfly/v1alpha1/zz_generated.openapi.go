@@ -229,7 +229,6 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 						},
 					},
 				},
-				Required: []string{"pods"},
 			},
 		},
 		Dependencies: []string{
