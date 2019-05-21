@@ -34,9 +34,8 @@ func MakeBasicWildFlyServer(ns, name, applicationImage string, size int32) *wild
 			APIVersion: "wildfly.org/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   ns,
-			Annotations: map[string]string{},
+			Name:      name,
+			Namespace: ns,
 		},
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
