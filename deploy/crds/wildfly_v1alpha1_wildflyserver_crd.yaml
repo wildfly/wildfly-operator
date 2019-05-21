@@ -10,8 +10,6 @@ spec:
     plural: wildflyservers
     singular: wildflyserver
   scope: Namespaced
-  subresources:
-    status: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -82,8 +80,6 @@ spec:
                 - podIP
                 type: object
               type: array
-          required:
-          - pods
           type: object
   version: v1alpha1
   versions:

@@ -39,7 +39,7 @@ type StorageSpec struct {
 // WildFlyServerStatus defines the observed state of WildFlyServer
 // +k8s:openapi-gen=true
 type WildFlyServerStatus struct {
-	Pods []PodStatus `json:"pods"`
+	Pods []PodStatus `json:"pods,omitempty"`
 }
 
 // PodStatus defines the observed state of pods running the WildFlyServer application
