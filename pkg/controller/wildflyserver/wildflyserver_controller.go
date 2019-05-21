@@ -264,6 +264,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      w.Name,
 			Namespace: w.Namespace,
+			Labels:    ls,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas: &replicas,
@@ -440,7 +441,9 @@ func getPodStatus(pods []corev1.Pod) (bool, []wildflyv1alpha1.PodStatus) {
 
 func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
 	labels := make(map[string]string)
-	labels["app"] = w.Name
+	labels["app.kubernetes.io/name"] = w.Name
+	labels["app.kubernetes.io/managed-by"] = "wildfly-operator"
+	labels["app.openshift.io/runtime"] = "wildfly"
 	if w.Labels != nil {
 		for labelKey, labelValue := range w.Labels {
 			labels[labelKey] = labelValue
