@@ -44,7 +44,7 @@ run-openshift:
 test: unit-test scorecard test-e2e
 
 ## test-e2e         Run e2e test
-test-e2e: setup
+test-e2e: build setup
 	operator-sdk test local ./test/e2e/
 
 ## scorecard        Run operator-sdk scorecard.
