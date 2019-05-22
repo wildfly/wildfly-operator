@@ -19,4 +19,6 @@ after_failure:
   - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
 
 script:
-  - make unit-test test-e2e KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
+  - make build
+  - make test-e2e-16 KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
+  - make test-e2e-17 KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig

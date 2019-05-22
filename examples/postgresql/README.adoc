@@ -69,7 +69,7 @@ spec:
         name: postgresql
 ----
 
-This custom resource will run the https://github.com/jfdenise/s2i-wildfly/tree/master/17.0/test/test-app-postgres[test-app-postgres] application from the https://quay.io/repository/jmesnil/taskrs-app[quay.io/jmesnil/taskrs-app:16.0] image that is using the https://github.com/openshift-s2i/s2i-wildfly[Source-to-Image (S2I) template for WildFly].
+This custom resource will run the https://github.com/jfdenise/s2i-wildfly/tree/master/17.0/test/test-app-postgres[test-app-postgres] application from the https://quay.io/repository/jmesnil/taskrs-app[quay.io/jmesnil/taskrs-app:16.0] image that is using the https://github.com/wildfly/wildfly-s2i[Source-to-Image (S2I) template for WildFly].
 
 The application requires the following Environment variables to configure its connection to PostgreSQL:
 

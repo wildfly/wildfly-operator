@@ -44,8 +44,15 @@ run-openshift:
 test: unit-test scorecard test-e2e
 
 ## test-e2e         Run e2e test
-test-e2e: build setup
-	operator-sdk test local ./test/e2e/
+test-e2e: test-e2e-16 test-e2e-17
+
+## test-e2e         Run e2e test for WildFly 16.0
+test-e2e-16:
+	operator-sdk test local ./test/e2e/16.0 --verbose --debug
+
+## test-e2e         Run e2e test for WildFly 17.0
+test-e2e-17:
+	operator-sdk test local ./test/e2e/17.0 --verbose --debug
 
 ## scorecard        Run operator-sdk scorecard.
 scorecard: setup
