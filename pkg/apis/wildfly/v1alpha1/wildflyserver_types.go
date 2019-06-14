@@ -14,6 +14,7 @@ type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
 	ApplicationImage    string                   `json:"applicationImage"`
 	Size                int32                    `json:"size"`
+	DisableHTTPRoute    bool                     `json:"disableHTTPRoute,omitempty"`
 	StandaloneConfigMap *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
 	Storage             *StorageSpec             `json:"storage,omitempty"`
 	ServiceAccountName  string                   `json:"serviceAccountName,omitempty"`
@@ -39,7 +40,8 @@ type StorageSpec struct {
 // WildFlyServerStatus defines the observed state of WildFlyServer
 // +k8s:openapi-gen=true
 type WildFlyServerStatus struct {
-	Pods []PodStatus `json:"pods,omitempty"`
+	Pods  []PodStatus `json:"pods,omitempty"`
+	Hosts []string    `json:"hosts,omitempty"`
 }
 
 // PodStatus defines the observed state of pods running the WildFlyServer application

@@ -31,6 +31,8 @@ spec:
               description: ApplicationImage is the name of the application image to
                 be deployed
               type: string
+            disableHTTPRoute:
+              type: boolean
             env:
               description: Env contains environment variables for the containers running
                 the WildFlyServer application
@@ -68,6 +70,10 @@ spec:
           type: object
         status:
           properties:
+            hosts:
+              items:
+                type: string
+              type: array
             pods:
               items:
                 properties:

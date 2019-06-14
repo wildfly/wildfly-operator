@@ -1,0 +1,142 @@
+= WildFly Operator - User Documentation
+:toc:               left
+
+This guide documents the various features and capabilites provides by the WildFly Operator.
+
+This guide is complemented by the link:../apis.adoc[API Documentation].
+
+[[basic-install]]
+# Basic Install (Phase I)
+
+The features and capabilities of **Basic Install (Phase I)** deals with the provisioning, installation and configuration of a Java application managed by the WildFly Operator.
+
+[[application-image]]
+## Specify the Docker Application Image
+
+The `applicationImage` specifies the Docker application image that contains the Java application. The image must have been built 
+https://github.com/wildfly/wildfly-s2i[WildFly S2I].
+
+[source,yaml]
+.Example of application image configuration
+----
+spec:
+  applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart:16.0"
+----
+
+The `applicationImage` accepts different references to Docker image:
+
+* the name of the image: `quay.io/jmesnil/wildfly-operator-quickstart`
+* a tag: `quay.io/jmesnil/wildfly-operator-quickstart:16.0`
+* a digest: `quay.io/jmesnil/wildfly-operator-quickstart@sha256:0af38bc38be93116b6a1d86a9c78bd14cd527121970899d719baf78e5dc7bfd2`
+
+[[size]]
+## Specify the Size of the Application
+
+The `size` specifies the size of the application, i.e. the number of pods that runs the application image.
+
+[source,yaml]
+.Example of size configuration
+----
+spec:
+  size:2
+----
+
+[[storage]]
+## Specify the Storage Requirements for the Server Data Directory
+
+The `storage` defines the storage requirements for the application data.
+The application may require persistent storage for some data (e.g. transaction or messaging logs) that must persist across Pod restarts.
+
+If the `storage` spec is empty, an `EmptyDir` volume will be used by each pod of the application (but this volume will not persist after its corresponding pod is stopped)
+The `storage` spec is defined in the link:../apis.adoc#StorageSpec[StorageSpec API Documentation]
+
+[source,yaml]
+.Example of storage requirement
+----
+spec:
+  storage:
+    volumeClaimTemplate:
+      spec:
+        resources:
+          requests:
+            storage: 3Gi
+----
+
+The persistent volume that meets this storage requirement is mounted on the `/wildfly/standalone/data` directory (corresponding to WildFly's `jboss.server.data.dir` path).
+
+[[env]]
+## Configure the Application Environment
+
+Environment can be configured using the `env` spec.
+Environment variables can come directly from values (such as the `POSTGRESQL_SERVICE_HOST` example below) or from secrets (e.g. the `POSTGRESQL_USER` example below).
+
+[source,yaml]
+.Example of environment configuration
+----
+spec:
+  env:
+  - name: POSTGRESQL_SERVICE_HOST
+    value: postgresql
+  - name: POSTGRESQL_SERVICE_PORT
+    value: '5432'
+  - name: POSTGRESQL_DATABASE
+    valueFrom:
+      secretKeyRef:
+        key: database-name
+        name: postgresql
+  - name: POSTGRESQL_USER
+    valueFrom:
+      secretKeyRef:
+        key: database-user
+        name: postgresql
+  - name: POSTGRESQL_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        key: database-password
+        name: postgresql
+----
+
+[[standalone-config-map]]
+## Bring Your Own Standalone XML Configuation
+
+It is possible to directly provide WildFly standalone configuration instead of the one in the application image (that comes from WildFly S2I).
+
+The standalone XML file must be put in a ConfigMap that is accessible by the operator.
+The `standaloneConfigMap` must provide the `name` of this ConfigMap as well as the `key` corresponding to the name of standalone XML file.
+
+[source,yaml]
+.Example of bringing its own standalone configuration
+----
+spec:
+  standaloneConfigMap:
+    name: clusterbench-config-map
+    key: standalone-openshift.xml
+----
+
+In this example, the `clusterbench-config-map` must be created *before* the WildFly Operator deploys the application.
+
+[source,shell]
+.Example of reating a ConfigMap from a standalone XML file
+----
+$ kubectl create configmap clusterbench-config-map --from-file examples/clustering/config/standalone-openshift.xml
+configmap/clusterbench-config-map created
+----
+
+## OpenShift Features
+
+Some Operator features are only available when running on OpenShift if Kubernetes does not provide the required resources to activate these features.
+
+[[http-route-creation]]
+### Creation of an HTTP Route
+
+By default, when the Operator runs on OpenShift, it creates an external route to the HTTP port of the Java application.
+
+This route creation can be disabled by setting `disableHTTPRoute` to `true` if you do not wish to create an external route to the Java application.
+
+[source,yaml]
+.Example to disable HTTP route
+----
+spec:
+  disableHTTPRoute: true
+----
+

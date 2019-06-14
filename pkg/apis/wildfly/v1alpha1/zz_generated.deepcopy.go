@@ -172,6 +172,11 @@ func (in *WildFlyServerStatus) DeepCopyInto(out *WildFlyServerStatus) {
 		*out = make([]PodStatus, len(*in))
 		copy(*out, *in)
 	}
+	if in.Hosts != nil {
+		in, out := &in.Hosts, &out.Hosts
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
