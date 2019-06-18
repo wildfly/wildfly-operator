@@ -2,11 +2,14 @@ package wildflyserver
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 
+	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -145,7 +148,8 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// Check if the loadbalancer already exists, if not create a new one
 	foundLoadBalancer := &corev1.Service{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name + "-loadbalancer", Namespace: wildflyServer.Namespace}, foundLoadBalancer)
+	loadBalancerName := loadBalancerServiceName(wildflyServer)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: loadBalancerName, Namespace: wildflyServer.Namespace}, foundLoadBalancer)
 	if err != nil && errors.IsNotFound(err) {
 		// Define a new loadbalancer
 		loadBalancer := r.loadBalancerForWildFly(wildflyServer)
@@ -160,6 +164,30 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	} else if err != nil {
 		reqLogger.Error(err, "Failed to get LoadBalancer.")
 		return reconcile.Result{}, err
+	}
+
+	// Check if the HTTP route must be created.
+	foundRoute := &routev1.Route{}
+	if !wildflyServer.Spec.DisableHTTPRoute {
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, foundRoute)
+		if err != nil && errors.IsNotFound(err) {
+			// Define a new Route
+			route := r.routeForWildFly(wildflyServer)
+			reqLogger.Info("Creating a new Route.", "Route.Namespace", route.Namespace, "Route.Name", route.Name)
+			err = r.client.Create(context.TODO(), route)
+			if err != nil {
+				reqLogger.Error(err, "Failed to create new Route.", "Route.Namespace", route.Namespace, "Route.Name", route.Name)
+				return reconcile.Result{}, err
+			}
+			// Route created successfully - return and requeue
+			return reconcile.Result{Requeue: true}, nil
+		} else if err != nil && errorIsNoMatchesForKind(err, "Route", "route.openshift.io/v1") {
+			// if the operator runs on k8s, Route resource does not exist and the route creation must be skipped.
+			reqLogger.Info("Routes are not supported, skip creation of the HTTP route")
+		} else if err != nil {
+			reqLogger.Error(err, "Failed to get Route.")
+			return reconcile.Result{}, err
+		}
 	}
 
 	// Requeue until the pod list matches the spec's size
@@ -180,11 +208,27 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	// Update status.Pods
+	// Update WildFly Server status
+
+	if foundRoute != nil {
+		hosts := make([]string, len(foundRoute.Status.Ingress))
+		for i, ingress := range foundRoute.Status.Ingress {
+			hosts[i] = ingress.Host
+		}
+		if !reflect.DeepEqual(hosts, wildflyServer.Status.Hosts) {
+			wildflyServer.Status.Hosts = hosts
+			err := r.client.Update(context.TODO(), wildflyServer)
+			if err != nil {
+				reqLogger.Error(err, "Failed to update WildFlyServer status.")
+				return reconcile.Result{}, err
+			}
+		}
+	}
+
 	requeue, podsStatus := getPodStatus(podList.Items)
 	if !reflect.DeepEqual(podsStatus, wildflyServer.Status.Pods) {
 		wildflyServer.Status.Pods = podsStatus
-		err := r.client.Status().Update(context.TODO(), wildflyServer)
+		err := r.client.Update(context.TODO(), wildflyServer)
 		if err != nil {
 			reqLogger.Error(err, "Failed to update WildFlyServer status.")
 			return reconcile.Result{}, err
@@ -221,7 +265,6 @@ func checkUpdate(spec *wildflyv1alpha1.WildFlyServerSpec, statefuleSet *appsv1.S
 			update = true
 		}
 	}
-
 	// Ensure the envFrom variables are up to date
 	envFrom := spec.EnvFrom
 	if !reflect.DeepEqual(statefuleSet.Spec.Template.Spec.Containers[0].EnvFrom, envFrom) {
@@ -403,7 +446,7 @@ func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildF
 	labels := labelsForWildFly(w)
 	loadBalancer := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      w.Name + "-loadbalancer",
+			Name:      loadBalancerServiceName(w),
 			Namespace: w.Namespace,
 			Labels:    labels,
 		},
@@ -421,6 +464,36 @@ func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildF
 	// Set WildFlyServer instance as the owner and controller
 	controllerutil.SetControllerReference(w, loadBalancer, r.scheme)
 	return loadBalancer
+}
+
+func (r *ReconcileWildFlyServer) routeForWildFly(w *wildflyv1alpha1.WildFlyServer) *routev1.Route {
+	weight := int32(100)
+
+	route := &routev1.Route{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "route.openshift.io/v1",
+			Kind:       "Route",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      w.Name,
+			Namespace: w.Namespace,
+			Labels:    labelsForWildFly(w),
+		},
+		Spec: routev1.RouteSpec{
+			To: routev1.RouteTargetReference{
+				Kind:   "Service",
+				Name:   loadBalancerServiceName(w),
+				Weight: &weight,
+			},
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString("http"),
+			},
+		},
+	}
+	// Set WildFlyServer instance as the owner and controller
+	controllerutil.SetControllerReference(w, route, r.scheme)
+
+	return route
 }
 
 // getPodStatus returns the pod names of the array of pods passed in
@@ -450,4 +523,12 @@ func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
 		}
 	}
 	return labels
+}
+
+func loadBalancerServiceName(w *wildflyv1alpha1.WildFlyServer) string {
+	return w.Name + "-loadbalancer"
+}
+
+func errorIsNoMatchesForKind(err error, kind string, version string) bool {
+	return strings.HasPrefix(err.Error(), fmt.Sprintf("no matches for kind \"%s\" in version \"%s\"", kind, version))
 }

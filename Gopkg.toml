@@ -1,5 +1,6 @@
 # Force dep to vendor the code generators, which aren't imported just used at dev time.
 required = [
+  "github.com/openshift/api/route/v1",
   "k8s.io/code-generator/cmd/defaulter-gen",
   "k8s.io/code-generator/cmd/deepcopy-gen",
   "k8s.io/code-generator/cmd/conversion-gen",

@@ -46,6 +46,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | `serviceAccountName` | Name of the ServiceAccount to use to run the WildFlyServer Pods | string | false
 | `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envfromsource-v1-core[corev1.EnvFromSource] |false
 | `env` | List of environment variable present in the containers | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envvar-v1-core[corev1.EnvVar] | false
+| `disableHTTPRoute`| Disable the creation a route to the HTTP port of the application service | bool | false
 |=======================
 
 
@@ -83,6 +84,7 @@ a default `EmptyDir` will be used.
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
+| `hosts` | Hosts that route to the application HTTP service | []string | true
 | `pods` | Status of the pods | []<<podstatus>> | true
 |=======================
 
