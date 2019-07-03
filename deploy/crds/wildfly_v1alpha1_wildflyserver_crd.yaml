@@ -10,6 +10,8 @@ spec:
     plural: wildflyservers
     singular: wildflyserver
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
