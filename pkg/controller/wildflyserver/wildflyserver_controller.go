@@ -184,6 +184,12 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		} else if err != nil && errorIsNoMatchesForKind(err, "Route", "route.openshift.io/v1") {
 			// if the operator runs on k8s, Route resource does not exist and the route creation must be skipped.
 			reqLogger.Info("Routes are not supported, skip creation of the HTTP route")
+			wildflyServer.Spec.DisableHTTPRoute = true
+			if err = r.client.Update(context.TODO(), wildflyServer); err != nil {
+				reqLogger.Error(err, "Failed to update WildFlyServerSpec to disable HTTP Route.", "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
+				return reconcile.Result{}, err
+			}
+			return reconcile.Result{Requeue: true}, nil
 		} else if err != nil {
 			reqLogger.Error(err, "Failed to get Route.")
 			return reconcile.Result{}, err
@@ -208,29 +214,30 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	// Update WildFly Server status
-
-	if foundRoute != nil {
+	// Update WildFly Server host status
+	update := false
+	if !wildflyServer.Spec.DisableHTTPRoute {
 		hosts := make([]string, len(foundRoute.Status.Ingress))
 		for i, ingress := range foundRoute.Status.Ingress {
 			hosts[i] = ingress.Host
 		}
 		if !reflect.DeepEqual(hosts, wildflyServer.Status.Hosts) {
+			update = true
 			wildflyServer.Status.Hosts = hosts
-			err := r.client.Update(context.TODO(), wildflyServer)
-			if err != nil {
-				reqLogger.Error(err, "Failed to update WildFlyServer status.")
-				return reconcile.Result{}, err
-			}
+			reqLogger.Info("Updating hosts", "WildFlyServer", wildflyServer)
 		}
 	}
 
+	// Update WildFly Server pod status
 	requeue, podsStatus := getPodStatus(podList.Items)
 	if !reflect.DeepEqual(podsStatus, wildflyServer.Status.Pods) {
+		update = true
 		wildflyServer.Status.Pods = podsStatus
-		err := r.client.Update(context.TODO(), wildflyServer)
-		if err != nil {
-			reqLogger.Error(err, "Failed to update WildFlyServer status.")
+	}
+
+	if update {
+		if err := r.client.Status().Update(context.Background(), wildflyServer); err != nil {
+			reqLogger.Error(err, "Failed to update pods in WildFlyServer status.")
 			return reconcile.Result{}, err
 		}
 	}
