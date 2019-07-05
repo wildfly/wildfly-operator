@@ -67,16 +67,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner WildFlyServer
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	// Watch for changes to secondary resources and requeue the owner WildFlyServer
+	enqueueRequestForOwner := handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &wildflyv1alpha1.WildFlyServer{},
-	})
-	if err != nil {
-		return err
 	}
-
+	for _, obj := range [3]runtime.Object{&appsv1.StatefulSet{}, &corev1.Service{}, &routev1.Route{}} {
+		if err = c.Watch(&source.Kind{Type: obj}, &enqueueRequestForOwner); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
