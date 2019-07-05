@@ -21,7 +21,7 @@ import (
 
 var (
 	retryInterval        = time.Second * 5
-	timeout              = time.Minute * 3
+	timeout              = time.Minute * 5
 	cleanupRetryInterval = time.Second * 1
 	cleanupTimeout       = time.Second * 5
 )
@@ -67,12 +67,7 @@ func CreateAndWaitUntilReady(f *framework.Framework, ctx *framework.TestCtx, t *
 		return err
 	}
 
-	err = WaitUntilReady(f, t, server)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return WaitUntilReady(f, t, server)
 }
 
 // WaitUntilReady waits until the stateful set replicas matches the server spec size.
@@ -81,13 +76,18 @@ func WaitUntilReady(f *framework.Framework, t *testing.T, server *wildflyv1alpha
 	ns := server.ObjectMeta.Namespace
 	size := server.Spec.Size
 
+	t.Logf("Waiting until statefulset %s is ready", name)
+
 	err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
 
 		statefulSet, err := f.KubeClient.AppsV1().StatefulSets(ns).Get(name, metav1.GetOptions{IncludeUninitialized: true})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
+				t.Logf("Statefulset %s not found", name)
+
 				return false, nil
 			}
+			t.Logf("Got error when getting statefulset %s: %s", name, err)
 			return false, err
 		}
 
