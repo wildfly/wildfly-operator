@@ -71,7 +71,7 @@ func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *fram
 	if err != nil {
 		return err
 	}
-	t.Logf("Updated aplication %s size to %d\n", name, wildflyServer.Spec.Size)
+	t.Logf("Updated application %s size to %d\n", name, wildflyServer.Spec.Size)
 
 	// check that the resource have been updated
 	return WaitUntilReady(f, t, wildflyServer)
