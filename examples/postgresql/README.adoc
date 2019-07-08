@@ -45,7 +45,7 @@ kind: WildFlyServer
 metadata:
   name: taskrs-app
 spec:
-  applicationImage: "quay.io/jmesnil/taskrs-app:16.0"
+  applicationImage: "quay.io/jmesnil/taskrs-app:17.0"
   size: 2
   env:
   - name: POSTGRESQL_SERVICE_HOST
@@ -69,7 +69,7 @@ spec:
         name: postgresql
 ----
 
-This custom resource will run the https://github.com/jfdenise/s2i-wildfly/tree/master/17.0/test/test-app-postgres[test-app-postgres] application from the https://quay.io/repository/jmesnil/taskrs-app[quay.io/jmesnil/taskrs-app:16.0] image that is using the https://github.com/wildfly/wildfly-s2i[Source-to-Image (S2I) template for WildFly].
+This custom resource will run the https://github.com/jfdenise/s2i-wildfly/tree/master/17.0/test/test-app-postgres[test-app-postgres] application from the https://quay.io/repository/jmesnil/taskrs-app[quay.io/jmesnil/taskrs-app:17.0] image that is using the https://github.com/wildfly/wildfly-s2i[Source-to-Image (S2I) template for WildFly].
 
 The application requires the following Environment variables to configure its connection to PostgreSQL:
 
@@ -108,7 +108,7 @@ Metadata:
   Self Link:         /apis/wildfly.org/v1alpha1/namespaces/myproject/wildflyservers/taskrs-app
   UID:               14c880f3-54c7-11e9-9fb5-065375b5f883
 Spec:
-  Application Image:  quay.io/jmesnil/taskrs-app:16.0
+  Application Image:  quay.io/jmesnil/taskrs-app:17.0
   Env:
     Name:   POSTGRESQL_SERVICE_HOST
     Value:  postgresql
@@ -131,6 +131,8 @@ Spec:
         Name:  postgresql
   Size:        2
 Status:
+  Hosts:
+    taskrs-app-myproject.192.168.64.32.nip.io
   Pods:
     Name:    taskrs-app-0
     Pod IP:  172.17.0.5
@@ -139,7 +141,7 @@ Status:
 Events:      <none>
 ----
 
-Once the application is up and running, we create a route to expose its loadbalancer service:
+The operator will also create a loadbalancer and a HTTP route to expose the application:
 
 [source,shell]
 ----
@@ -147,23 +149,24 @@ $ oc get service taskrs-app-loadbalancer
 NAME                      TYPE           CLUSTER-IP       EXTERNAL-IP                     PORT(S)          AGE
 taskrs-app-loadbalancer   LoadBalancer   172.30.196.165   172.29.120.211,172.29.120.211   8080:31771/TCP   10h
 
-$ oc expose svc/taskrs-app-loadbalancer
-route "taskrs-app-loadbalancer" exposed
+$ oc get route taskrs-app
+NAME         HOST/PORT                                   PATH      SERVICES                  PORT      TERMINATION   WILDCARD
+taskrs-app   taskrs-app-myproject.192.168.64.32.nip.io             taskrs-app-loadbalancer   http                    None
 ----
 
 The external address can be found by running: 
 
 [source,shell]
 ----
-$ oc get route taskrs-app-loadbalancer --template='{{ .spec.host }}'
-taskrs-app-loadbalancer-myproject.192.168.64.11.nip.io
+$ oc get route taskrs-app --template='{{ .spec.host }}'
+taskrs-app-myproject.192.168.64.32.nip.io
 ----
 
 The application will display a list of tasks (in XML):
 
 [source,shell]
 ----
-$ curl "http://$(oc get route taskrs-app-loadbalancer --template='{{ .spec.host }}')"
+$ curl "http://$(oc get route taskrs-app --template='{{ .spec.host }}')"
 ----
 
 [source,xml]
@@ -177,7 +180,7 @@ We can then add tasks by POSTing to the application:
 
 [source,shell]
 ----
-curl -i  -H "Content-Length: 0" -X POST "http://$(oc get route taskrs-app-loadbalancer --template='{{ .spec.host }}')/tasks/title/my%20first%20task"
+curl -i  -H "Content-Length: 0" -X POST "http://$(oc get route taskrs-app --template='{{ .spec.host }}')/tasks/title/my%20first%20task"
 
 HTTP/1.1 201 Created
 ...
