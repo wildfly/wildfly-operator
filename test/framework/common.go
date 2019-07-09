@@ -17,30 +17,37 @@ import (
 
 // WildFlyBasicTest runs basic operator tests
 func WildFlyBasicTest(t *testing.T, applicationTag string) {
-	ctx := framework.NewTestCtx(t)
+	ctx, f := wildflyTestSetup(t)
 	defer ctx.Cleanup()
+
+	if err := wildflyBasicServerScaleTest(t, f, ctx, applicationTag); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func wildflyTestSetup(t *testing.T) (*framework.TestCtx, *framework.Framework) {
+	ctx := framework.NewTestCtx(t)
 	err := ctx.InitializeClusterResources(&framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
 	if err != nil {
-		t.Fatalf("failed to initialize cluster resources: %v", err)
+		defer ctx.Cleanup()
+		t.Fatalf("Failed to initialize cluster resources: %v", err)
 	}
 	t.Log("Initialized cluster resources")
 	namespace, err := ctx.GetNamespace()
-
 	if err != nil {
-		t.Fatal(err)
+		defer ctx.Cleanup()
+		t.Fatalf("Failed to get namespace for testing context '%v': %v", ctx, err)
 	}
 	// get global framework variables
 	f := framework.Global
 	// wait for wildfly-operator to be ready
 	err = e2eutil.WaitForDeployment(t, f.KubeClient, namespace, "wildfly-operator", 1, retryInterval, timeout)
 	if err != nil {
-		t.Fatal(err)
+		defer ctx.Cleanup()
+		t.Fatalf("Failed on waiting for wildfly-operator deployment at namespace %s: %v", namespace, err)
 	}
-	t.Log("Operator is deployed")
-
-	if err = wildflyBasicServerScaleTest(t, f, ctx, applicationTag); err != nil {
-		t.Fatal(err)
-	}
+	t.Log("WildFly Operator is deployed")
+	return ctx, f
 }
 
 func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *framework.TestCtx, applicationTag string) error {
@@ -79,26 +86,10 @@ func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *fram
 
 // WildFlyClusterTest runs cluster operator tests
 func WildFlyClusterTest(t *testing.T, applicationTag string) {
-	ctx := framework.NewTestCtx(t)
+	ctx, f := wildflyTestSetup(t)
 	defer ctx.Cleanup()
-	err := ctx.InitializeClusterResources(&framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
-	if err != nil {
-		t.Fatalf("failed to initialize cluster resources: %v", err)
-	}
-	t.Log("Initialized cluster resources")
-	namespace, err := ctx.GetNamespace()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// get global framework variables
-	f := framework.Global
-	// wait for wildfly-operator to be ready
-	err = e2eutil.WaitForDeployment(t, f.KubeClient, namespace, "wildfly-operator", 1, retryInterval, timeout)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	if err = wildflyClusterViewTest(t, f, ctx, applicationTag); err != nil {
+	if err := wildflyClusterViewTest(t, f, ctx, applicationTag); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -155,10 +146,61 @@ func wildflyClusterViewTest(t *testing.T, f *framework.Framework, ctx *framework
 		return err
 	}
 
-	err = WaitUntilReady(f, t, wildflyServer)
+	return WaitUntilClusterIsFormed(f, t, wildflyServer, "clusterbench-0", "clusterbench-1")
+}
+
+// WildflyScaleDownTest runs recovery scale down operation
+func WildflyScaleDownTest(t *testing.T, applicationTag string) {
+	ctx, f := wildflyTestSetup(t)
+	defer ctx.Cleanup()
+
+	namespace, err := ctx.GetNamespace()
 	if err != nil {
-		return err
+		t.Fatalf("could not get namespace: %v", err)
 	}
 
-	return WaitUntilClusterIsFormed(f, t, wildflyServer, "clusterbench-0", "clusterbench-1")
+	name := "example-wildfly"
+	// create wildflyserver custom resource
+	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/jmesnil/wildfly-operator-quickstart:"+applicationTag, 2)
+	// waiting for number of pods matches the desired state
+	err = CreateAndWaitUntilReady(f, ctx, t, wildflyServer)
+	if err != nil {
+		t.Fatalf("Failed while waiting for all resources being initialized based on the WildflyServer definition: %v", err)
+	}
+	// verification that the size of the instances matches what is expected by the test
+	context := goctx.TODO()
+	err = f.Client.Get(context, types.NamespacedName{Name: name, Namespace: namespace}, wildflyServer)
+	if err != nil {
+		t.Fatalf("Failed to obtain the WildflyServer resource: %v", err)
+	}
+	if wildflyServer.Spec.Size != 2 {
+		t.Fatalf("The created %s customer resource should be defined with 2 instances but it's %v: %v", name, wildflyServer.Spec.Size, err)
+	}
+	// waiting for statefulset to scale to two instances
+	if err = WaitUntilReady(f, t, wildflyServer); err != nil {
+		t.Fatalf("Failed during waiting till %s customer resource is updated and ready: %v", name, err)
+	}
+	t.Logf("Application %s is deployed with %d instances\n", name, wildflyServer.Spec.Size)
+
+	// scaling down by one
+	err = f.Client.Get(context, types.NamespacedName{Name: name, Namespace: namespace}, wildflyServer)
+	if err != nil {
+		t.Fatalf("Failed to obtain the WildflyServer resource for scaling it down: %v", err)
+	}
+	wildflyServer.Spec.Size = 1
+	err = f.Client.Update(context, wildflyServer)
+	if err != nil {
+		t.Fatalf("Failed to update size of %s resource by decreasing the spec size: %v", name, err)
+	}
+	t.Logf("Updated application customer resource %s size to %d\n", name, wildflyServer.Spec.Size)
+
+	// check that the resource has been updated
+	if err = WaitUntilReady(f, t, wildflyServer); err != nil {
+		t.Fatalf("Failed during waiting till %s customer resource is updated and ready: %v", name, err)
+	}
+
+	// verification that deletion works correctly as finalizers should be run at this call
+	if DeleteWildflyServer(context, wildflyServer, f, t); err != nil {
+		t.Fatalf("Failed to wait until the WildflyServer resource is deleted: %v", err)
+	}
 }
