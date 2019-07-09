@@ -13,3 +13,5 @@ if ! [ -x "$(command -v operator-sdk)" ]; then
   make install
   cd $CWD
 fi
+
+operator-sdk version
