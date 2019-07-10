@@ -14,6 +14,7 @@ type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
 	ApplicationImage    string                   `json:"applicationImage"`
 	Size                int32                    `json:"size"`
+	SessionAffinity     bool                     `json:"sessionAffinity,omitempty"`
 	DisableHTTPRoute    bool                     `json:"disableHTTPRoute,omitempty"`
 	StandaloneConfigMap *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
 	Storage             *StorageSpec             `json:"storage,omitempty"`

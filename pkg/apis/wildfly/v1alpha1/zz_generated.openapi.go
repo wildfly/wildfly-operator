@@ -164,6 +164,12 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 							Format: "",
 						},
 					},
+					"sessionAffinity": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 					"standaloneConfigMap": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec"),

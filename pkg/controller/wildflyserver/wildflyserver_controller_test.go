@@ -24,6 +24,7 @@ var (
 	namespace              = "wildfly"
 	replicas         int32 = 3
 	applicationImage       = "my-app-image"
+	sessionAffinity        = true
 )
 
 func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
@@ -40,6 +41,7 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
 			Size:             replicas,
+			SessionAffinity:  sessionAffinity,
 		},
 	}
 	// Objects to track in the fake client.
@@ -76,7 +78,6 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
 
 	require.NoError(t, err)
-
 	assert.Equal(replicas, *statefulSet.Spec.Replicas)
 	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
 }
