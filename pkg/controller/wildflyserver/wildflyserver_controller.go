@@ -3,6 +3,7 @@ package wildflyserver
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -522,8 +523,8 @@ func getPodStatus(pods []corev1.Pod) (bool, []wildflyv1alpha1.PodStatus) {
 func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
 	labels := make(map[string]string)
 	labels["app.kubernetes.io/name"] = w.Name
-	labels["app.kubernetes.io/managed-by"] = "wildfly-operator"
-	labels["app.openshift.io/runtime"] = "wildfly"
+	labels["app.kubernetes.io/managed-by"] = os.Getenv("LABEL_APP_MANAGED_BY")
+	labels["app.openshift.io/runtime"] = os.Getenv("LABEL_APP_RUNTIME")
 	if w.Labels != nil {
 		for labelKey, labelValue := range w.Labels {
 			labels[labelKey] = labelValue
