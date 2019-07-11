@@ -158,13 +158,14 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 							Format: "int32",
 						},
 					},
-					"disableHTTPRoute": {
+					"sessionAffinity": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
+							Description: "SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
-					"sessionAffinity": {
+					"disableHTTPRoute": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
 							Format: "",
