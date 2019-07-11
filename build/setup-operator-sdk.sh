@@ -9,7 +9,7 @@ if ! [ -x "$(command -v operator-sdk)" ]; then
   git clone https://github.com/operator-framework/operator-sdk
   cd operator-sdk
   git checkout master
-  make dep
+  make tidy
   make install
   cd $CWD
 fi
