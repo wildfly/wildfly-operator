@@ -11,9 +11,9 @@ PROG  := wildfly-operator
 setup:
 	./build/setup-operator-sdk.sh
 
-## dep              Ensure deps are locally available.
-dep:
-	dep ensure
+## tidy              Ensure modules are tidy.
+tidy:
+	go mod tidy
 
 ## codegen          Ensure code is generated.
 codegen: setup
@@ -21,7 +21,7 @@ codegen: setup
 	operator-sdk generate openapi
 
 ## build            Compile and build the WildFly operator.
-build: dep codegen unit-test
+build: tidy codegen unit-test
 	operator-sdk build "${DOCKER_REPO}$(IMAGE):$(TAG)"
 
 ## push             Push Docker image to the Quay.io repository.

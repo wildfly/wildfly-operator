@@ -3,15 +3,17 @@ language: go
 go:
   - 1.12.x
 
+env:
+  - GO111MODULE=on
+
 services:
   - docker
 
 cache:
   directories:
-  - $GOPATH/pkg/dep
+  - $GOPATH/pkg
 
 before_script:
-  - go get -u github.com/golang/dep/cmd/dep
   - ci/start-okd-4.0.0.sh
 
 after_failure:
