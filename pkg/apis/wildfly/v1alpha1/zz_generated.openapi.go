@@ -11,12 +11,12 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.PodStatus":               schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref),
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec": schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref),
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec":             schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServer":           schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
-		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerStatus":     schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
+		"./pkg/apis/wildfly/v1alpha1.PodStatus":               schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref),
+		"./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec": schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref),
+		"./pkg/apis/wildfly/v1alpha1.StorageSpec":             schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
+		"./pkg/apis/wildfly/v1alpha1.WildFlyServer":           schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
+		"./pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
+		"./pkg/apis/wildfly/v1alpha1.WildFlyServerStatus":     schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
 	}
 }
 
@@ -123,19 +123,19 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref common.ReferenceCallback
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerSpec"),
+							Ref: ref("./pkg/apis/wildfly/v1alpha1.WildFlyServerSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerStatus"),
+							Ref: ref("./pkg/apis/wildfly/v1alpha1.WildFlyServerStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/wildfly/v1alpha1.WildFlyServerSpec", "./pkg/apis/wildfly/v1alpha1.WildFlyServerStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -173,12 +173,12 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 					},
 					"standaloneConfigMap": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec"),
+							Ref: ref("./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec"),
 						},
 					},
 					"storage": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"),
+							Ref: ref("./pkg/apis/wildfly/v1alpha1.StorageSpec"),
 						},
 					},
 					"serviceAccountName": {
@@ -217,7 +217,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
+			"./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "./pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
 	}
 }
 
@@ -233,7 +233,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.PodStatus"),
+										Ref: ref("./pkg/apis/wildfly/v1alpha1.PodStatus"),
 									},
 								},
 							},
@@ -256,6 +256,6 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.PodStatus"},
+			"./pkg/apis/wildfly/v1alpha1.PodStatus"},
 	}
 }
