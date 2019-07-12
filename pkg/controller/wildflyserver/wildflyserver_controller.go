@@ -340,15 +340,9 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 								Name:          "admin",
 							},
 						},
-						LivenessProbe: &corev1.Probe{
-							Handler: corev1.Handler{
-								HTTPGet: &v1.HTTPGetAction{
-									Path: "/health",
-									Port: intstr.FromString("admin"),
-								},
-							},
-							InitialDelaySeconds: 60,
-						},
+						LivenessProbe: createLivenessProbe(),
+						// Readiness Probe is options
+						ReadinessProbe: createReadinessProbe(),
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      volumeName,
 							MountPath: standaloneServerDataDirPath,
@@ -523,6 +517,53 @@ func getPodStatus(pods []corev1.Pod) (bool, []wildflyv1alpha1.PodStatus) {
 		}
 	}
 	return requeue, podStatus
+}
+
+// createLivenessProbe create a Exec probe if the SERVER_LIVENESS_SCRIPT env var is present.
+// Otherwise, it creates a HTTPGet probe that checks the /health endpoint on the admin port.
+//
+// If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
+// complies to the Kuberenetes probes requirements.
+func createLivenessProbe() *corev1.Probe {
+	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
+	if defined {
+		return &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &v1.ExecAction{
+					Command: []string{"/bin/bash", "-c", livenessProbeScript},
+				},
+			},
+			InitialDelaySeconds: 60,
+		}
+	}
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path: "/health",
+				Port: intstr.FromString("admin"),
+			},
+		},
+		InitialDelaySeconds: 60,
+	}
+}
+
+// createReadinessProbe create a Exec probe if the SERVER_READINESS_SCRIPT env var is present.
+// Otherwise, it returns nil (i.e. no readiness probe is configured).
+//
+// If defined, the SERVER_READINESS_SCRIPT env var must be the path of a shell script that
+// complies to the Kuberenetes probes requirements.
+func createReadinessProbe() *corev1.Probe {
+	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
+	if defined {
+		return &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &v1.ExecAction{
+					Command: []string{"/bin/bash", "-c", readinessProbeScript},
+				},
+			},
+		}
+	}
+	return nil
 }
 
 func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
