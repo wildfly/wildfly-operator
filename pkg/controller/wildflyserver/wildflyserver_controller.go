@@ -452,6 +452,10 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 // loadBalancerForWildFly returns a loadBalancer service
 func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildFlyServer) *corev1.Service {
 	labels := labelsForWildFly(w)
+	sessionAffinity := corev1.ServiceAffinityNone
+	if w.Spec.SessionAffinity {
+		sessionAffinity = corev1.ServiceAffinityClientIP
+	}
 	loadBalancer := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      loadBalancerServiceName(w),
@@ -459,8 +463,9 @@ func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildF
 			Labels:    labels,
 		},
 		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeLoadBalancer,
-			Selector: labels,
+			Type:            corev1.ServiceTypeLoadBalancer,
+			Selector:        labels,
+			SessionAffinity: sessionAffinity,
 			Ports: []corev1.ServicePort{
 				{
 					Name: "http",
