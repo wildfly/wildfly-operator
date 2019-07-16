@@ -11,7 +11,7 @@ PROG  := wildfly-operator
 setup:
 	./build/setup-operator-sdk.sh
 
-## tidy              Ensure modules are tidy.
+## tidy             Ensure modules are tidy.
 tidy:
 	go mod tidy
 
@@ -21,11 +21,15 @@ codegen: setup
 	operator-sdk generate openapi
 
 ## build            Compile and build the WildFly operator.
-build: tidy codegen unit-test
-	operator-sdk build "${DOCKER_REPO}$(IMAGE):$(TAG)"
+build: tidy unit-test
+	./build/build.sh ${GOOS}
+
+## image            Create the Docker image of the operator
+image: build
+	docker build -t "${DOCKER_REPO}$(IMAGE):$(TAG)" . -f build/Dockerfile
 
 ## push             Push Docker image to the Quay.io repository.
-push: build
+push: image
 	docker push "${DOCKER_REPO}$(IMAGE):$(TAG)"
 
 ## clean            Remove all generated build files.
@@ -47,11 +51,11 @@ test: unit-test scorecard test-e2e
 test-e2e: test-e2e-16 test-e2e-17
 
 ## test-e2e         Run e2e test for WildFly 16.0
-test-e2e-16:
+test-e2e-16: setup
 	operator-sdk test local ./test/e2e/16.0 --verbose --debug
 
 ## test-e2e         Run e2e test for WildFly 17.0
-test-e2e-17:
+test-e2e-17: setup
 	operator-sdk test local ./test/e2e/17.0 --verbose --debug
 
 ## scorecard        Run operator-sdk scorecard.
@@ -62,10 +66,10 @@ scorecard: setup
 unit-test:
 	go test -v ./... -tags=unit
 
-## release     Release a versioned operator.
-##             - Requires 'RELEASE_NAME=X.Y.Z'. Defaults to dry run.
-##             - Pass 'DRY_RUN=false' to commit the release.
-##             - Example: "make DRY_RUN=false RELEASE_NAME=X.Y.Z release"
+## release          Release a versioned operator.
+##                  - Requires 'RELEASE_NAME=X.Y.Z'. Defaults to dry run.
+##                  - Pass 'DRY_RUN=false' to commit the release.
+##                  - Example: "make DRY_RUN=false RELEASE_NAME=X.Y.Z release"
 ##
 release:
 	build/release.sh
