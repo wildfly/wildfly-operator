@@ -268,7 +268,7 @@ func checkUpdate(spec *wildflyv1alpha1.WildFlyServerSpec, statefuleSet *appsv1.S
 	}
 	// Ensure the env variables are up to date
 	for _, env := range spec.Env {
-		if !matches(statefuleSet.Spec.Template.Spec.Containers[0].Env, env) {
+		if !matches(&statefuleSet.Spec.Template.Spec.Containers[0], env) {
 			log.Info("Updated statefulset env", "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name, "Env", env)
 			update = true
 		}
@@ -284,20 +284,21 @@ func checkUpdate(spec *wildflyv1alpha1.WildFlyServerSpec, statefuleSet *appsv1.S
 	return update
 }
 
-// matches checks if the envVar from the WildFlyServerSpec matches the same env var from the statefulset.
-// If it does not match, it updates the statefulset EnvVar with the fields from the WildFlyServerSpec and return false.
-func matches(env []corev1.EnvVar, envVar corev1.EnvVar) bool {
-	for _, e := range env {
+// matches checks if the envVar from the WildFlyServerSpec matches the same env var from the container.
+// If it does not match, it updates the container EnvVar with the fields from the WildFlyServerSpec and return false.
+func matches(container *v1.Container, envVar corev1.EnvVar) bool {
+	for index, e := range container.Env {
 		if envVar.Name == e.Name {
 			if !reflect.DeepEqual(envVar, e) {
-				e.Value = envVar.Value
-				e.ValueFrom = envVar.ValueFrom
+				container.Env[index] = envVar
 				return false
 			}
 			return true
 		}
 	}
-	return true
+	//append new spec env to container's env var
+	container.Env = append(container.Env, envVar)
+	return false
 }
 
 // statefulSetForWildFly returns a wildfly StatefulSet object
