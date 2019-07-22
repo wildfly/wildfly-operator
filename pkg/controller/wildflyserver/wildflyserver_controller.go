@@ -341,9 +341,9 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 								Name:          "admin",
 							},
 						},
-						LivenessProbe: createLivenessProbe(),
+						LivenessProbe: createLivenessProbe(w),
 						// Readiness Probe is options
-						ReadinessProbe: createReadinessProbe(),
+						ReadinessProbe: createReadinessProbe(w),
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      volumeName,
 							MountPath: standaloneServerDataDirPath,
@@ -520,21 +520,22 @@ func getPodStatus(pods []corev1.Pod) (bool, []wildflyv1alpha1.PodStatus) {
 	return requeue, podStatus
 }
 
-// createLivenessProbe create a Exec probe if the SERVER_LIVENESS_SCRIPT env var is present.
+// createLivenessProbe create a Exec probe if the SERVER_LIVENESS_SCRIPT env var is present in WildFlyServer spec.
 // Otherwise, it creates a HTTPGet probe that checks the /health endpoint on the admin port.
 //
 // If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
 // complies to the Kuberenetes probes requirements.
-func createLivenessProbe() *corev1.Probe {
-	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
-	if defined {
-		return &corev1.Probe{
-			Handler: corev1.Handler{
-				Exec: &v1.ExecAction{
-					Command: []string{"/bin/bash", "-c", livenessProbeScript},
+func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
+	for _, env := range w.Spec.Env {
+		if env.Name == "SERVER_LIVENESS_SCRIPT" && len(env.Value) > 0 {
+			return &corev1.Probe{
+				Handler: corev1.Handler{
+					Exec: &v1.ExecAction{
+						Command: []string{"/bin/bash", "-c", env.Value},
+					},
 				},
-			},
-			InitialDelaySeconds: 60,
+				InitialDelaySeconds: 60,
+			}
 		}
 	}
 	return &corev1.Probe{
@@ -548,20 +549,22 @@ func createLivenessProbe() *corev1.Probe {
 	}
 }
 
-// createReadinessProbe create a Exec probe if the SERVER_READINESS_SCRIPT env var is present.
+// createReadinessProbe create a Exec probe if the SERVER_READINESS_SCRIPT env var is present in WildFlyServer spec.
 // Otherwise, it returns nil (i.e. no readiness probe is configured).
 //
 // If defined, the SERVER_READINESS_SCRIPT env var must be the path of a shell script that
 // complies to the Kuberenetes probes requirements.
-func createReadinessProbe() *corev1.Probe {
-	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
-	if defined {
-		return &corev1.Probe{
-			Handler: corev1.Handler{
-				Exec: &v1.ExecAction{
-					Command: []string{"/bin/bash", "-c", readinessProbeScript},
+func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
+	for _, env := range w.Spec.Env {
+		if env.Name == "SERVER_READINESS_SCRIPT" && len(env.Value) > 0 {
+			return &corev1.Probe{
+				Handler: corev1.Handler{
+					Exec: &v1.ExecAction{
+						Command: []string{"/bin/bash", "-c", env.Value},
+					},
 				},
-			},
+				InitialDelaySeconds: 60,
+			}
 		}
 	}
 	return nil
