@@ -55,14 +55,7 @@ spec:
               format: int32
               type: integer
             standaloneConfigMap:
-              properties:
-                key:
-                  type: string
-                name:
-                  type: string
-              required:
-              - name
-              type: object
+              type: string
             storage:
               properties:
                 emptyDir:

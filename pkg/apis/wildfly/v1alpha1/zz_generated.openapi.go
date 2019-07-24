@@ -11,12 +11,11 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/wildfly/v1alpha1.PodStatus":               schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref),
-		"./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec": schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref),
-		"./pkg/apis/wildfly/v1alpha1.StorageSpec":             schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
-		"./pkg/apis/wildfly/v1alpha1.WildFlyServer":           schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
-		"./pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
-		"./pkg/apis/wildfly/v1alpha1.WildFlyServerStatus":     schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
+		"./pkg/apis/wildfly/v1alpha1.PodStatus":           schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref),
+		"./pkg/apis/wildfly/v1alpha1.StorageSpec":         schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
+		"./pkg/apis/wildfly/v1alpha1.WildFlyServer":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
+		"./pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":   schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
+		"./pkg/apis/wildfly/v1alpha1.WildFlyServerStatus": schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
 	}
 }
 
@@ -40,32 +39,6 @@ func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) co
 					},
 				},
 				Required: []string{"name", "podIP"},
-			},
-		},
-		Dependencies: []string{},
-	}
-}
-
-func schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer",
-				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"key": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-				},
-				Required: []string{"name"},
 			},
 		},
 		Dependencies: []string{},
@@ -173,7 +146,8 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 					},
 					"standaloneConfigMap": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec"),
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"storage": {
@@ -217,7 +191,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "./pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
+			"./pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
 	}
 }
 

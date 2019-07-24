@@ -12,24 +12,17 @@ import (
 // +k8s:openapi-gen=true
 type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
-	ApplicationImage    string                   `json:"applicationImage"`
-	Size                int32                    `json:"size"`
+	ApplicationImage string `json:"applicationImage"`
+	Size             int32  `json:"size"`
 	//SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time
-	SessionAffinity     bool                     `json:"sessionAffinity,omitempty"`
-	DisableHTTPRoute    bool                     `json:"disableHTTPRoute,omitempty"`
-	StandaloneConfigMap *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
-	Storage             *StorageSpec             `json:"storage,omitempty"`
-	ServiceAccountName  string                   `json:"serviceAccountName,omitempty"`
-	EnvFrom             []corev1.EnvFromSource   `json:"envFrom,omitempty"`
+	SessionAffinity     bool                   `json:"sessionAffinity,omitempty"`
+	DisableHTTPRoute    bool                   `json:"disableHTTPRoute,omitempty"`
+	StandaloneConfigMap string                 `json:"standaloneConfigMap,omitempty"`
+	Storage             *StorageSpec           `json:"storage,omitempty"`
+	ServiceAccountName  string                 `json:"serviceAccountName,omitempty"`
+	EnvFrom             []corev1.EnvFromSource `json:"envFrom,omitempty"`
 	// Env contains environment variables for the containers running the WildFlyServer application
 	Env []corev1.EnvVar `json:"env,omitempty"`
-}
-
-// StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer
-// +k8s:openapi-gen=true
-type StandaloneConfigMapSpec struct {
-	Name string `json:"name"`
-	Key  string `json:"key,omitempty"`
 }
 
 // StorageSpec defines the desired storage for WildFlyServer

@@ -408,34 +408,21 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 	}
 
 	standaloneConfigMap := w.Spec.StandaloneConfigMap
-	if standaloneConfigMap != nil {
-		configMapName := standaloneConfigMap.Name
-		configMapKey := standaloneConfigMap.Key
-		if configMapKey == "" {
-			configMapKey = "standalone.xml"
-		}
-		log.Info("Reading standalone configuration from configmap", "StandaloneConfigMap.Name", configMapName, "StandaloneConfigMap.Key", configMapKey)
-
+	if len(standaloneConfigMap) > 0 {
+		log.Info("Reading standalone configuration from configmap", standaloneConfigMap)
 		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
 			Name: "standalone-config-volume",
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
-						Name: configMapName,
-					},
-					Items: []v1.KeyToPath{
-						{
-							Key:  configMapKey,
-							Path: "standalone.xml",
-						},
+						Name: standaloneConfigMap,
 					},
 				},
 			},
 		})
 		statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      "standalone-config-volume",
-			MountPath: "/wildfly/standalone/configuration/standalone.xml",
-			SubPath:   "standalone.xml",
+			MountPath: "/wildfly/standalone/configuration",
 		})
 	}
 
