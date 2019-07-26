@@ -364,7 +364,8 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 								Value: labels.SelectorFromSet(ls).String(),
 							},
 						},
-					}},
+					},
+					},
 					ServiceAccountName: w.Spec.ServiceAccountName,
 				},
 			},
@@ -409,9 +410,18 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 
 	standaloneConfigMap := w.Spec.StandaloneConfigMap
 	if len(standaloneConfigMap) > 0 {
-		log.Info("Reading standalone configuration from configmap", standaloneConfigMap)
+		log.Info("Store standalone configuration from configmap", standaloneConfigMap)
+		//ConfigMapVolumeSource can only access with 644 mode (https://github.com/kubernetes/kubernetes/issues/62099)
+		//Use a InitContainer and EmptyDir volume to copy these ReadOnly files to /wildfly/standalone/configuration folder
+		//It says k8s 1.12 will enable a RW ConfigMapVolumeSource and we can directly mount this to container[0]
+		//(https://github.com/kubernetes/kubernetes/issues/62099#issuecomment-416584906)
+		statefulSet.Spec.Template.Spec.InitContainers = append(statefulSet.Spec.Template.Spec.InitContainers, corev1.Container{
+			Name:    "chmod-config-dir",
+			Image:   "busybox",
+			Command: []string{"cp", "-R", "/tmp/configmap/.", "/tmp/wildflyconfig"},
+		})
 		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "standalone-config-volume",
+			Name: "standalone-config-tmp",
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -420,10 +430,26 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 				},
 			},
 		})
+		statefulSet.Spec.Template.Spec.InitContainers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.InitContainers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      "standalone-config-tmp",
+			MountPath: "/tmp/configmap",
+		})
+		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "standalone-config-volume",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		})
+		statefulSet.Spec.Template.Spec.InitContainers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.InitContainers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      "standalone-config-volume",
+			MountPath: "/tmp/wildflyconfig",
+		})
+
 		statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      "standalone-config-volume",
 			MountPath: "/wildfly/standalone/configuration",
 		})
+
 	}
 
 	// Set WildFlyServer instance as the owner and controller
