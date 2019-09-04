@@ -12,8 +12,8 @@ import (
 // +k8s:openapi-gen=true
 type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
-	ApplicationImage    string                   `json:"applicationImage"`
-	Size                int32                    `json:"size"`
+	ApplicationImage string `json:"applicationImage"`
+	Size             int32  `json:"size"`
 	//SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time
 	SessionAffinity     bool                     `json:"sessionAffinity,omitempty"`
 	DisableHTTPRoute    bool                     `json:"disableHTTPRoute,omitempty"`
