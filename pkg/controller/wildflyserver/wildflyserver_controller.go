@@ -31,11 +31,12 @@ import (
 )
 
 var log = logf.Log.WithName("controller_wildflyserver")
+var jbossHome = os.Getenv("JBOSS_HOME")
+var standaloneServerDataDirPath = jbossHome + "/standalone/data"
 
 const (
-	httpApplicationPort         int32 = 8080
-	httpManagementPort          int32 = 9990
-	standaloneServerDataDirPath       = "/wildfly/standalone/data"
+	httpApplicationPort int32 = 8080
+	httpManagementPort  int32 = 9990
 )
 
 /**
@@ -434,7 +435,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 		})
 		statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      "standalone-config-volume",
-			MountPath: "/wildfly/standalone/configuration/standalone.xml",
+			MountPath: jbossHome + "/standalone/configuration/standalone.xml",
 			SubPath:   "standalone.xml",
 		})
 	}
