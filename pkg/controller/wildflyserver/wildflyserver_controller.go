@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -28,6 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	openshiftutils "github.com/RHsyseng/operator-utils/pkg/utils/openshift"
 )
 
 var log = logf.Log.WithName("controller_wildflyserver")
@@ -52,7 +55,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileWildFlyServer{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileWildFlyServer{client: mgr.GetClient(), scheme: mgr.GetScheme(), isOpenShift: isOpenShift(mgr.GetConfig())}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -74,8 +77,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		IsController: true,
 		OwnerType:    &wildflyv1alpha1.WildFlyServer{},
 	}
-	for _, obj := range [3]runtime.Object{&appsv1.StatefulSet{}, &corev1.Service{}, &routev1.Route{}} {
-		if err = c.Watch(&source.Kind{Type: obj}, &enqueueRequestForOwner); err != nil && !errorIsMatchesForKind(err, "Route", "route.openshift.io/v1") {
+	for _, obj := range []runtime.Object{&appsv1.StatefulSet{}, &corev1.Service{}} {
+		if err = c.Watch(&source.Kind{Type: obj}, &enqueueRequestForOwner); err != nil {
+			return err
+		}
+	}
+
+	// watch for Route only on OpenShift
+	if isOpenShift(mgr.GetConfig()) {
+		if err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &enqueueRequestForOwner); err != nil {
 			return err
 		}
 	}
@@ -90,6 +100,8 @@ type ReconcileWildFlyServer struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+	// returns true if the operator is running on OpenShift
+	isOpenShift bool
 }
 
 // Reconcile reads that state of the cluster for a WildFlyServer object and makes changes based on the state read
@@ -137,7 +149,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// check if the stateful set is up to date with the WildFlyServerSpec
-	if checkUpdate(&wildflyServer.Spec, foundStatefulSet) {
+	if checkUpdate(wildflyServer, foundStatefulSet) {
 		err = r.client.Update(context.TODO(), foundStatefulSet)
 		if err != nil {
 			reqLogger.Error(err, "Failed to update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
@@ -170,7 +182,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// Check if the HTTP route must be created.
 	foundRoute := &routev1.Route{}
-	if !wildflyServer.Spec.DisableHTTPRoute {
+	if r.isOpenShift && !wildflyServer.Spec.DisableHTTPRoute {
 		err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, foundRoute)
 		if err != nil && errors.IsNotFound(err) {
 			// Define a new Route
@@ -182,15 +194,6 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 				return reconcile.Result{}, err
 			}
 			// Route created successfully - return and requeue
-			return reconcile.Result{Requeue: true}, nil
-		} else if err != nil && errorIsMatchesForKind(err, "Route", "route.openshift.io/v1") {
-			// if the operator runs on k8s, Route resource does not exist and the route creation must be skipped.
-			reqLogger.Info("Routes are not supported, skip creation of the HTTP route")
-			wildflyServer.Spec.DisableHTTPRoute = true
-			if err = r.client.Update(context.TODO(), wildflyServer); err != nil {
-				reqLogger.Error(err, "Failed to update WildFlyServerSpec to disable HTTP Route.", "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
-				return reconcile.Result{}, err
-			}
 			return reconcile.Result{Requeue: true}, nil
 		} else if err != nil {
 			reqLogger.Error(err, "Failed to get Route.")
@@ -218,7 +221,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// Update WildFly Server host status
 	update := false
-	if !wildflyServer.Spec.DisableHTTPRoute {
+	if r.isOpenShift && !wildflyServer.Spec.DisableHTTPRoute {
 		hosts := make([]string, len(foundRoute.Status.Ingress))
 		for i, ingress := range foundRoute.Status.Ingress {
 			hosts[i] = ingress.Host
@@ -251,31 +254,33 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 }
 
 // check if the statefulset resource is up to date with the WildFlyServerSpec
-func checkUpdate(spec *wildflyv1alpha1.WildFlyServerSpec, statefuleSet *appsv1.StatefulSet) bool {
+func checkUpdate(w *wildflyv1alpha1.WildFlyServer, statefuleSet *appsv1.StatefulSet) bool {
 	var update bool
 	// Ensure the application image is up to date
-	applicationImage := spec.ApplicationImage
+	applicationImage := w.Spec.ApplicationImage
 	if statefuleSet.Spec.Template.Spec.Containers[0].Image != applicationImage {
 		log.Info("Updating application image to "+applicationImage, "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name)
 		statefuleSet.Spec.Template.Spec.Containers[0].Image = applicationImage
 		update = true
 	}
 	// Ensure the statefulset replicas is up to date
-	size := spec.Size
+	size := w.Spec.Size
 	if *statefuleSet.Spec.Replicas != size {
 		log.Info("Updating replica size to "+strconv.Itoa(int(size)), "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name)
 		statefuleSet.Spec.Replicas = &size
 		update = true
 	}
 	// Ensure the env variables are up to date
-	for _, env := range spec.Env {
-		if !matches(&statefuleSet.Spec.Template.Spec.Containers[0], env) {
-			log.Info("Updated statefulset env", "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name, "Env", env)
-			update = true
-		}
+	env := w.Spec.Env
+	// add the clustering envs that are added by the operator
+	env = append(env, envForClustering(labels.SelectorFromSet(labelsForWildFly(w)).String())...)
+	if !reflect.DeepEqual(statefuleSet.Spec.Template.Spec.Containers[0].Env, env) {
+		log.Info("Updating statefulset env", "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name, "Env", env)
+		statefuleSet.Spec.Template.Spec.Containers[0].Env = env
+		update = true
 	}
 	// Ensure the envFrom variables are up to date
-	envFrom := spec.EnvFrom
+	envFrom := w.Spec.EnvFrom
 	if !reflect.DeepEqual(statefuleSet.Spec.Template.Spec.Containers[0].EnvFrom, envFrom) {
 		log.Info("Updating envFrom", "StatefulSet.Namespace", statefuleSet.Namespace, "StatefulSet.Name", statefuleSet.Name)
 		statefuleSet.Spec.Template.Spec.Containers[0].EnvFrom = envFrom
@@ -349,22 +354,6 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 							Name:      volumeName,
 							MountPath: standaloneServerDataDirPath,
 						}},
-						// TODO the KUBERNETES_NAMESPACE and KUBERNETES_LABELS env should only be set if
-						// the application uses clustering and KUBE_PING.
-						Env: []corev1.EnvVar{
-							{
-								Name: "KUBERNETES_NAMESPACE",
-								ValueFrom: &corev1.EnvVarSource{
-									FieldRef: &corev1.ObjectFieldSelector{
-										FieldPath: "metadata.namespace",
-									},
-								},
-							},
-							{
-								Name:  "KUBERNETES_LABELS",
-								Value: labels.SelectorFromSet(ls).String(),
-							},
-						},
 					}},
 					ServiceAccountName: w.Spec.ServiceAccountName,
 				},
@@ -379,6 +368,10 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 	if len(w.Spec.Env) > 0 {
 		statefulSet.Spec.Template.Spec.Containers[0].Env = append(statefulSet.Spec.Template.Spec.Containers[0].Env, w.Spec.Env...)
 	}
+
+	// TODO the KUBERNETES_NAMESPACE and KUBERNETES_LABELS env should only be set if
+	// the application uses clustering and KUBE_PING.
+	statefulSet.Spec.Template.Spec.Containers[0].Env = append(statefulSet.Spec.Template.Spec.Containers[0].Env, envForClustering(labels.SelectorFromSet(ls).String())...)
 
 	storageSpec := w.Spec.Storage
 
@@ -568,6 +561,23 @@ func createReadinessProbe() *corev1.Probe {
 	return nil
 }
 
+func envForClustering(labels string) []corev1.EnvVar {
+	return []corev1.EnvVar{
+		{
+			Name: "KUBERNETES_NAMESPACE",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
+				},
+			},
+		},
+		{
+			Name:  "KUBERNETES_LABELS",
+			Value: labels,
+		},
+	}
+}
+
 func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
 	labels := make(map[string]string)
 	labels["app.kubernetes.io/name"] = w.Name
@@ -588,4 +598,13 @@ func loadBalancerServiceName(w *wildflyv1alpha1.WildFlyServer) string {
 // errorIsMatchesForKind return true if the error is that there is no matches for the kind & version
 func errorIsMatchesForKind(err error, kind string, version string) bool {
 	return strings.HasPrefix(err.Error(), fmt.Sprintf("no matches for kind \"%s\" in version \"%s\"", kind, version))
+}
+
+// isOpenShift returns true when the container platform is detected as OpenShift
+func isOpenShift(c *rest.Config) bool {
+	isOpenShift, err := openshiftutils.IsOpenShift(c)
+	if err != nil {
+		return false
+	}
+	return isOpenShift
 }
