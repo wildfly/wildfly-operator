@@ -75,7 +75,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		OwnerType:    &wildflyv1alpha1.WildFlyServer{},
 	}
 	for _, obj := range [3]runtime.Object{&appsv1.StatefulSet{}, &corev1.Service{}, &routev1.Route{}} {
-		if err = c.Watch(&source.Kind{Type: obj}, &enqueueRequestForOwner); err != nil {
+		if err = c.Watch(&source.Kind{Type: obj}, &enqueueRequestForOwner); err != nil && !errorIsMatchesForKind(err, "Route", "route.openshift.io/v1") {
 			return err
 		}
 	}
@@ -183,7 +183,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 			}
 			// Route created successfully - return and requeue
 			return reconcile.Result{Requeue: true}, nil
-		} else if err != nil && errorIsNoMatchesForKind(err, "Route", "route.openshift.io/v1") {
+		} else if err != nil && errorIsMatchesForKind(err, "Route", "route.openshift.io/v1") {
 			// if the operator runs on k8s, Route resource does not exist and the route creation must be skipped.
 			reqLogger.Info("Routes are not supported, skip creation of the HTTP route")
 			wildflyServer.Spec.DisableHTTPRoute = true
@@ -585,6 +585,7 @@ func loadBalancerServiceName(w *wildflyv1alpha1.WildFlyServer) string {
 	return w.Name + "-loadbalancer"
 }
 
-func errorIsNoMatchesForKind(err error, kind string, version string) bool {
+// errorIsMatchesForKind return true if the error is that there is no matches for the kind & version
+func errorIsMatchesForKind(err error, kind string, version string) bool {
 	return strings.HasPrefix(err.Error(), fmt.Sprintf("no matches for kind \"%s\" in version \"%s\"", kind, version))
 }
