@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.36.0 // indirect
 	github.com/Azure/go-autorest/autorest v0.3.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
+	github.com/RHsyseng/operator-utils v0.0.0-20190904181055-24b5b6380a3f
 	github.com/appscode/jsonpatch v0.0.0-20190108182946-7c0e3b262f30 // indirect
 	github.com/coreos/prometheus-operator v0.26.0 // indirect
 	github.com/emicklei/go-restful v2.9.0+incompatible // indirect
