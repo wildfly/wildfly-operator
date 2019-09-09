@@ -567,7 +567,8 @@ func envForClustering(labels string) []corev1.EnvVar {
 			Name: "KUBERNETES_NAMESPACE",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.namespace",
+					APIVersion: "v1",
+					FieldPath:  "metadata.namespace",
 				},
 			},
 		},
