@@ -57,6 +57,10 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 `StorageSpec` defines the configured storage for a `WildFlyServer` resource. If neither an `emptyDir` nor a `volumeClaimTemplate` is defined,
 a default `EmptyDir` will be used.
 
+The Operator will configure the `StatefulSet` using information from this `StorageSpec` to mount a volume dedicated to the `standalone/data` directory
+used by WildFly to persist its own data (e.g. transaction log). If an `EmptyDir` is used, the data will not survive a pod restart. If the application deployed on WildFly relies on
+transaction, make sure to specify a `volumeClaimTemplate` that so that the same persistent volume can be reused upon pod restarts.
+
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
