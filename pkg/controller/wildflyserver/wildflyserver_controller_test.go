@@ -66,6 +66,7 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
+	// statefulset will be created
 	res, err := r.Reconcile(req)
 	require.NoError(t, err)
 
@@ -101,7 +102,7 @@ func TestEnvUpdate(t *testing.T) {
 		},
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
-			Size:             replicas,
+			Size:             0,
 			SessionAffinity:  sessionAffinity,
 			Env: []corev1.EnvVar{
 				*initialEnv,
@@ -119,7 +120,7 @@ func TestEnvUpdate(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 	// Create a ReconcileWildFlyServer object with the scheme and fake client.
-	r := &ReconcileWildFlyServer{client: cl, scheme: s, isOpenShift: false}
+	r := &ReconcileWildFlyServer{client: cl, scheme: s, isOpenShift: false, isWildFlyFinalizer: false}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -129,7 +130,14 @@ func TestEnvUpdate(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
+	// Creating StatefulSet
 	res, err := r.Reconcile(req)
+	require.NoError(t, err)
+	// Creating Loadbalancer service
+	res, err = r.Reconcile(req)
+	require.NoError(t, err)
+	// Creating Headless service
+	res, err = r.Reconcile(req)
 	require.NoError(t, err)
 
 	// Check the result of reconciliation to make sure it has the desired state.
@@ -168,20 +176,17 @@ func TestEnvUpdate(t *testing.T) {
 			assert.Equal("UPDATE", env.Value)
 		}
 	}
-
 	// remove the env from the WildFlyServerSpec
 	wildflyServer.Spec.Env = []corev1.EnvVar{}
 	wildflyServer.SetGeneration(wildflyServer.GetGeneration() + 1)
 	err = cl.Update(context.TODO(), wildflyServer)
 	t.Logf("WildFlyServerSpec generation %d", wildflyServer.GetGeneration())
 	require.NoError(t, err)
-
 	res, err = r.Reconcile(req)
 	require.NoError(t, err)
 	if !res.Requeue {
 		t.Error("reconcile did not requeue request as expected")
 	}
-
 	// check that the statefulset env has been removed
 	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
 	require.NoError(t, err)

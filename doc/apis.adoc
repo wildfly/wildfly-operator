@@ -91,6 +91,7 @@ transaction, make sure to specify a `volumeClaimTemplate` that so that the same 
 | Field  | Description |Scheme| Required
 | `hosts` | Hosts that route to the application HTTP service | []string | true
 | `pods` | Status of the pods | []<<podstatus>> | true
+| `scalingdownPods` | Number of pods which are under scale down cleaning process | int32 | true
 |=======================
 
 [[podstatus]]
@@ -103,4 +104,5 @@ transaction, make sure to specify a `volumeClaimTemplate` that so that the same 
 | Field  | Description |Scheme| Required
 | `name` | Name of the Pod | string | true
 | `podIP` | IP address allocated to the pod | string | true
+| `state` | State of the pod from perspective of scale down process. By default it's active which means it serves requests.  | string | false
 |=======================

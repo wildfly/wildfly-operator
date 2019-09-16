@@ -38,8 +38,15 @@ func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) co
 							Format: "",
 						},
 					},
+					"state": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Represent the state of the Pod, it's used especially during scale down the expected values are represented by the PodState* constants\n\nRead-only.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"name", "podIP"},
+				Required: []string{"name", "podIP", "state"},
 			},
 		},
 		Dependencies: []string{},
@@ -252,7 +259,15 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 							},
 						},
 					},
+					"scalingdownPods": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Represents the number of pods which are in scaledown process what particular pod is scaling down can be verified by PodStatus\n\nRead-only.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
+				Required: []string{"scalingdownPods"},
 			},
 		},
 		Dependencies: []string{
