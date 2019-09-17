@@ -552,7 +552,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:            &replicas,
-			ServiceName:         loadBalancerServiceName(w),
+			ServiceName:         headlessServiceName(w),
 			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
