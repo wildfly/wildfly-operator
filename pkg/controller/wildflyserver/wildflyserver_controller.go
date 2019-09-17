@@ -252,22 +252,17 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Check if the loadbalancer already exists, if not create a new one
-	foundLoadBalancer := &corev1.Service{}
-	loadBalancerName := loadBalancerServiceName(wildflyServer)
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: loadBalancerName, Namespace: wildflyServer.Namespace}, foundLoadBalancer)
-	if err != nil && errors.IsNotFound(err) {
-		// Define a new loadbalancer
-		loadBalancer := r.loadBalancerForWildFly(wildflyServer)
-		reqLogger.Info("Creating a new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
-		err = r.client.Create(context.TODO(), loadBalancer)
-		if err != nil {
-			reqLogger.Error(err, "Failed to create new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
-			return reconcile.Result{}, err
-		}
-		// loadbalancer created successfully - return and requeue
+	foundLoadBalancer, err := r.getOrCreateLoadBalancer(wildflyServer)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	if foundLoadBalancer == nil {
 		return reconcile.Result{Requeue: true}, nil
+	}
+	mustReconcile, requeue, err = r.checkLoadBalancer(wildflyServer, foundLoadBalancer)
+	if mustReconcile {
+		return reconcile.Result{Requeue: requeue}, err
 	} else if err != nil {
-		reqLogger.Error(err, "Failed to get LoadBalancer %s", loadBalancerName)
 		return reconcile.Result{}, err
 	}
 
@@ -360,6 +355,43 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	return reconcile.Result{Requeue: requeue}, nil
 }
 
+func (r *ReconcileWildFlyServer) getOrCreateLoadBalancer(wildflyServer *wildflyv1alpha1.WildFlyServer) (service *corev1.Service, err error) {
+	foundLoadBalancer := &corev1.Service{}
+	loadBalancerName := loadBalancerServiceName(wildflyServer)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: loadBalancerName, Namespace: wildflyServer.Namespace}, foundLoadBalancer)
+	if err != nil && errors.IsNotFound(err) {
+		// Define a new loadbalancer
+		loadBalancer := r.loadBalancerForWildFly(wildflyServer)
+		log.Info("Creating a new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
+		err = r.client.Create(context.TODO(), loadBalancer)
+		if err != nil {
+			log.Error(err, "Failed to create new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
+			return nil, err
+		}
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return foundLoadBalancer, nil
+}
+
+func (r *ReconcileWildFlyServer) checkLoadBalancer(wildflyServer *wildflyv1alpha1.WildFlyServer, loadBalancer *corev1.Service) (mustReconcile bool, mustRequeue bool, err error) {
+	sessionAffinity := wildflyServer.Spec.SessionAffinity
+	if sessionAffinity && loadBalancer.Spec.SessionAffinity != corev1.ServiceAffinityClientIP {
+		if sessionAffinity {
+			loadBalancer.Spec.SessionAffinity = corev1.ServiceAffinityClientIP
+		} else {
+			loadBalancer.Spec.SessionAffinity = corev1.ServiceAffinityNone
+		}
+		if err = r.client.Update(context.TODO(), loadBalancer); err != nil {
+			log.Error(err, "Failed to Update loadbalancer Service.", "Service.Namespace", loadBalancer.Namespace, "Service.Name", loadBalancer.Name)
+			return true, false, err
+		}
+		return true, true, nil
+	}
+	return false, false, nil
+}
+
 // checkStatefulSet checks if the statefulset is up to date with the current WildFlyServerSpec.
 // it returns true if a reconcile result must be returned.
 // the 2nd boolean specifies whether the result must be required.
@@ -427,6 +459,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 		if generation, err := strconv.ParseInt(generationStr, 10, 64); err == nil {
 			// WildFlyServer spec has possibly changed, delete the statefulset
 			// so that a new one is created from the updated spec
+			log.Info("Comparing generations?", "Annotations", generation, "WildFlyServer", wildflyServer.Generation)
 			if generation != wildflyServer.Generation {
 				statefulSet := r.statefulSetForWildFly(wildflyServer)
 				delete := false
