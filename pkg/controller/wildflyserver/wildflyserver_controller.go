@@ -16,22 +16,19 @@ import (
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/routes"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
+	"github.com/wildfly/wildfly-operator/pkg/resources/statefulsets"
 
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -42,27 +39,23 @@ import (
 )
 
 const (
-	controllerName                      = "wildflyserver-controller"
-	httpApplicationPort           int32 = 8080
-	httpManagementPort            int32 = 9990
-	defaultRecoveryPort           int32 = 4712
-	wildflyServerFinalizer              = "finalizer.wildfly.org"
-	wftcDataDirName                     = "ejb-xa-recovery"                      // data directory where WFTC stores transaction runtime data
-	markerOperatedByLoadbalancer        = "wildfly.org/operated-by-loadbalancer" // label used to remove a pod from receiving load from loadbalancer during transaction recovery
-	markerOperatedByHeadless            = "wildfly.org/operated-by-headless"     // label used to remove a pod from receiving load from headless service when it's cleaned to shutdown
-	markerServiceDisabled               = "disabled"                             // label value for the pod that's clean from scaledown and it should be removed from service
-	markerServiceActive                 = "active"                               // marking a pod as actively served by its service
-	markerRecoveryPort                  = "recovery-port"                        // annotation name to save recovery port
-	markerRecoveryPropertiesSetup       = "recovery-properties-setup"            // annotation name to declare that recovery properties were setup for app server
-	txnRecoveryScanCommand              = "SCAN"                                 // Narayana socket command to force recovery
+	controllerName               = "wildflyserver-controller"
+	wildflyServerFinalizer       = "finalizer.wildfly.org"
+	markerServiceDisabled        = "disabled" // label value for the pod that's clean from scaledown and it should be removed from service
+	defaultRecoveryPort    int32 = 4712
+
+	markerRecoveryPort = "recovery-port" // annotation name to save recovery port
+	// markerRecoveryPropertiesSetup declare that recovery properties were setup for app server
+	markerRecoveryPropertiesSetup = "recovery-properties-setup"
+	txnRecoveryScanCommand        = "SCAN"            // Narayana socket command to force recovery
+	wftcDataDirName               = "ejb-xa-recovery" // data directory where WFTC stores transaction runtime data
 )
 
 var (
-	log                         = logf.Log.WithName("controller_wildflyserver")
-	jbossHome                   = os.Getenv("JBOSS_HOME")
-	wildflyFinalizerEnv         = os.Getenv("ENABLE_WILDFLY_FINALIZER")
-	standaloneServerDataDirPath = jbossHome + "/standalone/data"
-	recoveryErrorRegExp         = regexp.MustCompile("ERROR.*Periodic Recovery")
+	log                 = logf.Log.WithName("controller_wildflyserver")
+	recoveryErrorRegExp = regexp.MustCompile("ERROR.*Periodic Recovery")
+	// wildflyFinalizerEnv is used to enable WildFly Finalizers
+	wildflyFinalizerEnv = os.Getenv("ENABLE_WILDFLY_FINALIZER")
 )
 
 // Add creates a new WildFlyServer Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -155,19 +148,11 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Check if the statefulSet already exists, if not create a new one
-	foundStatefulSet := &appsv1.StatefulSet{}
-	err = resources.Get(wildflyServer, types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, r.client, foundStatefulSet)
-	if err != nil && errors.IsNotFound(err) {
-		// Define a new statefulSet
-		statefulSet := r.statefulSetForWildFly(wildflyServer)
-		if err = resources.Create(wildflyServer, r.client, r.scheme, statefulSet); err != nil {
-			return reconcile.Result{}, err
-		}
-		// StatefulSet created successfully - return and requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		reqLogger.Error(err, "Failed to get StatefulSet.")
+	statefulSet, err := statefulsets.GetOrCreateNewStatefulSet(wildflyServer, r.client, r.scheme, labelsForWildFly(wildflyServer))
+	if err != nil {
 		return reconcile.Result{}, err
+	} else if statefulSet == nil {
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// Check if the WildFlyServer instance is marked to be deleted, which is
@@ -215,7 +200,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 	wildflyServerSpecSize := wildflyServer.Spec.Size
-	statefulsetSpecSize := *foundStatefulSet.Spec.Replicas
+	statefulsetSpecSize := *statefulSet.Spec.Replicas
 	numberOfDeployedPods := int32(len(podList.Items))
 
 	if statefulsetSpecSize == wildflyServerSpecSize && numberOfDeployedPods != wildflyServerSpecSize {
@@ -228,7 +213,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	// Processing scaled down
 	numberOfPodsToScaleDown := statefulsetSpecSize - wildflyServerSpecSize // difference between desired pod count and the current number of pods
 	// Update pods which are to be scaled down to not be getting requests through loadbalancer
-	updated, err := r.setLabelAsDisabled(wildflyServer, reqLogger, markerOperatedByLoadbalancer, int(numberOfPodsToScaleDown), podList, nil, "")
+	updated, err := r.setLabelAsDisabled(wildflyServer, reqLogger, resources.MarkerOperatedByLoadbalancer, int(numberOfPodsToScaleDown), podList, nil, "")
 	if updated || err != nil { // labels were updated (updated == true) or some error occured (err != nil)
 		return reconcile.Result{Requeue: updated}, err
 	}
@@ -242,7 +227,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{Requeue: true}, err
 	}
 
-	mustReconcile, requeue, err := r.checkStatefulSet(wildflyServer, foundStatefulSet, podList)
+	mustReconcile, requeue, err := r.checkStatefulSet(wildflyServer, statefulSet, podList)
 	if mustReconcile {
 		return reconcile.Result{Requeue: requeue}, err
 	} else if err != nil {
@@ -270,7 +255,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, nil
 	}
 
-	// Check if the HTTP route must be created.
+	// Check if the HTTP route must be created
 	var route *routev1.Route
 	if r.isOpenShift && !wildflyServer.Spec.DisableHTTPRoute {
 		if route, err = routes.GetOrCreateNewRoute(wildflyServer, r.client, r.scheme, labelsForWildFly(wildflyServer)); err != nil {
@@ -412,7 +397,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 			// so that a new one is created from the updated spec
 			log.Info("Comparing generations?", "Annotations", generation, "WildFlyServer", wildflyServer.Generation)
 			if generation != wildflyServer.Generation {
-				statefulSet := r.statefulSetForWildFly(wildflyServer)
+				statefulSet := statefulsets.NewStatefulSet(wildflyServer, labelsForWildFly(wildflyServer))
 				delete := false
 				// changes to VolumeClaimTemplates can not be updated and requires a delete/create of the statefulset
 				if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {
@@ -506,148 +491,6 @@ func (r *ReconcileWildFlyServer) getPodsForWildFly(w *wildflyv1alpha1.WildFlySer
 		wildflyutil.SortPodListByName(podList)
 	}
 	return podList, err
-}
-
-// statefulSetForWildFly returns a wildfly StatefulSet object
-func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFlyServer) *appsv1.StatefulSet {
-	ls := labelsForWildFly(w)
-	// track the generation number of the WildFlyServer that created the statefulset to ensure that the
-	// statefulset is always up to date with the WildFlyServerSpec
-	annotations := make(map[string]string)
-	annotations["wildfly.org/wildfly-server-generation"] = strconv.FormatInt(w.Generation, 10)
-
-	replicas := w.Spec.Size
-	applicationImage := w.Spec.ApplicationImage
-	volumeName := w.Name + "-volume"
-	labesForActiveWildflyPod := labelsForWildFly(w)
-	labesForActiveWildflyPod[markerOperatedByHeadless] = markerServiceActive
-	labesForActiveWildflyPod[markerOperatedByLoadbalancer] = markerServiceActive
-
-	statefulSet := &appsv1.StatefulSet{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "StatefulSet",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        w.Name,
-			Namespace:   w.Namespace,
-			Labels:      ls,
-			Annotations: annotations,
-		},
-		Spec: appsv1.StatefulSetSpec{
-			Replicas:            &replicas,
-			ServiceName:         services.LoadBalancerServiceName(w),
-			PodManagementPolicy: appsv1.ParallelPodManagement,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: labesForActiveWildflyPod,
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Name:  w.Name,
-						Image: applicationImage,
-						Ports: []corev1.ContainerPort{
-							{
-								ContainerPort: httpApplicationPort,
-								Name:          "http",
-							},
-							{
-								ContainerPort: httpManagementPort,
-								Name:          "admin",
-							},
-						},
-						LivenessProbe: createLivenessProbe(),
-						// Readiness Probe is options
-						ReadinessProbe: createReadinessProbe(),
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      volumeName,
-							MountPath: standaloneServerDataDirPath,
-						}},
-					}},
-					ServiceAccountName: w.Spec.ServiceAccountName,
-				},
-			},
-		},
-	}
-
-	if len(w.Spec.EnvFrom) > 0 {
-		statefulSet.Spec.Template.Spec.Containers[0].EnvFrom = append(statefulSet.Spec.Template.Spec.Containers[0].EnvFrom, w.Spec.EnvFrom...)
-	}
-
-	if len(w.Spec.Env) > 0 {
-		statefulSet.Spec.Template.Spec.Containers[0].Env = append(statefulSet.Spec.Template.Spec.Containers[0].Env, w.Spec.Env...)
-	}
-
-	// TODO the KUBERNETES_NAMESPACE and KUBERNETES_LABELS env should only be set if
-	// the application uses clustering and KUBE_PING.
-	statefulSet.Spec.Template.Spec.Containers[0].Env = append(statefulSet.Spec.Template.Spec.Containers[0].Env, envForClustering(labels.SelectorFromSet(ls).String())...)
-
-	storageSpec := w.Spec.Storage
-
-	if storageSpec == nil {
-		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: volumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		})
-	} else if storageSpec.EmptyDir != nil {
-		emptyDir := storageSpec.EmptyDir
-		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: volumeName,
-			VolumeSource: v1.VolumeSource{
-				EmptyDir: emptyDir,
-			},
-		})
-	} else {
-		pvcTemplate := storageSpec.VolumeClaimTemplate
-		if pvcTemplate.Name == "" {
-			pvcTemplate.Name = volumeName
-		}
-		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-		pvcTemplate.Spec.Resources = storageSpec.VolumeClaimTemplate.Spec.Resources
-		pvcTemplate.Spec.Selector = storageSpec.VolumeClaimTemplate.Spec.Selector
-		statefulSet.Spec.VolumeClaimTemplates = append(statefulSet.Spec.VolumeClaimTemplates, pvcTemplate)
-	}
-
-	standaloneConfigMap := w.Spec.StandaloneConfigMap
-	if standaloneConfigMap != nil {
-		configMapName := standaloneConfigMap.Name
-		configMapKey := standaloneConfigMap.Key
-		if configMapKey == "" {
-			configMapKey = "standalone.xml"
-		}
-		log.Info("Reading standalone configuration from configmap", "StandaloneConfigMap.Name", configMapName, "StandaloneConfigMap.Key", configMapKey)
-
-		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "standalone-config-volume",
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: configMapName,
-					},
-					Items: []v1.KeyToPath{
-						{
-							Key:  configMapKey,
-							Path: "standalone.xml",
-						},
-					},
-				},
-			},
-		})
-		statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-			Name:      "standalone-config-volume",
-			MountPath: jbossHome + "/standalone/configuration/standalone.xml",
-			SubPath:   "standalone.xml",
-		})
-	}
-
-	// Set WildFlyServer instance as the owner and controller
-	controllerutil.SetControllerReference(w, statefulSet, r.scheme)
-	return statefulSet
 }
 
 func (r *ReconcileWildFlyServer) finalizeWildflyServer(reqLogger logr.Logger, w *wildflyv1alpha1.WildFlyServer) error {
@@ -857,11 +700,11 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	if scaleDownPod.Annotations[markerRecoveryPort] == "" {
 		reqLogger.Info("Enabling recovery listener for processing scaledown at " + scaleDownPodName)
 		// Enabling recovery listener to be able to call the server for the recovery
-		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, wildflyutil.MgmtOpTxnEnableRecoveryListener)
+		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, wildflyutil.MgmtOpTxnEnableRecoveryListener)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "cannot execute") {
 				reqLogger.Error(err, "Verify if operator JBOSS_HOME variable determines the place where the application server is installed",
-					w.Name+".JBOSS_HOME", jbossHome)
+					w.Name+".JBOSS_HOME", resources.JBossHome)
 			}
 			return false, "", fmt.Errorf("Cannot enable transaction recovery listener for scaling down pod %v, error: %v", scaleDownPodName, err)
 		}
@@ -873,12 +716,12 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 		isReloadRequired := wildflyutil.ReadJSONDataByIndex(jsonResult["response-headers"], "operation-requires-reload")
 		if isReloadRequiredBool, _ := strconv.ParseBool(isReloadRequired); isReloadRequiredBool {
 			reqLogger.Info("Reloading WildFly for recovery listener being activated at pod " + scaleDownPodName)
-			wildflyutil.ExecuteOpAndWaitForServerBeingReady(wildflyutil.MgmtOpReload, scaleDownPod, jbossHome)
+			wildflyutil.ExecuteOpAndWaitForServerBeingReady(wildflyutil.MgmtOpReload, scaleDownPod, resources.JBossHome)
 		}
 
 		// Reading recovery port from the app server with management port
 		reqLogger.Info("Query to find the transaction recovery port to force scan at pod " + scaleDownPodName)
-		queriedScaleDownPodRecoveryPort, err := wildflyutil.GetTransactionRecoveryPort(scaleDownPod, jbossHome)
+		queriedScaleDownPodRecoveryPort, err := wildflyutil.GetTransactionRecoveryPort(scaleDownPod, resources.JBossHome)
 		if err == nil && queriedScaleDownPodRecoveryPort != 0 {
 			scaleDownPodRecoveryPort = queriedScaleDownPodRecoveryPort
 		}
@@ -925,12 +768,12 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 		return false, retString, nil
 	}
 	// Probing transaction log to verify there is not in-doubt transaction in the log
-	_, err = wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, wildflyutil.MgmtOpTxnProbe)
+	_, err = wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, wildflyutil.MgmtOpTxnProbe)
 	if err != nil {
 		return false, "", fmt.Errorf("Error in probing transaction log for scaling down pod %v, error: %v", scaleDownPodName, err)
 	}
 	// Transaction log was probed, now we read the set of transactions which are in-doubt
-	jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, wildflyutil.MgmtOpTxnRead)
+	jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, wildflyutil.MgmtOpTxnRead)
 	if err != nil {
 		return false, "", fmt.Errorf("Cannot read transactions from the transaction log for pod scaling down %v, error: %v", scaleDownPodName, err)
 	}
@@ -946,7 +789,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 		return false, retString, nil
 	}
 	// Verification of the unfinished data of the WildFly transaction client (verification of the directory content)
-	lsCommand := fmt.Sprintf(`ls %s/%s/ 2> /dev/null || true`, standaloneServerDataDirPath, wftcDataDirName)
+	lsCommand := fmt.Sprintf(`ls %s/%s/ 2> /dev/null || true`, resources.StandaloneServerDataDirPath, wftcDataDirName)
 	commandResult, err := wildflyutil.ExecRemote(scaleDownPod, lsCommand)
 	if err != nil {
 		return false, "", fmt.Errorf("Cannot query filesystem at scaling down pod %v to check existing remote transactions. "+
@@ -955,7 +798,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	if commandResult != "" {
 		retString := fmt.Sprintf("WildFly Transaction Client data dir is not empty and scaling down of the pod '%v' will be retried."+
 			"Wildfly Transacton Client data dir path '%v', output listing: %v",
-			scaleDownPodName, standaloneServerDataDirPath+"/"+wftcDataDirName, commandResult)
+			scaleDownPodName, resources.StandaloneServerDataDirPath+"/"+wftcDataDirName, commandResult)
 		return false, retString, nil
 	}
 	return true, "", nil
@@ -969,9 +812,9 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 		setBackoffPeriodOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyRecoveryBackoffPeriod, "1")
 		setOrphanIntervalOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyOrphanSafetyInterval, "1")
 		setRecoveryPeriodOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyPeriodicRecoveryPeriod, "1")
-		wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, setBackoffPeriodOp)
-		wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, setOrphanIntervalOp)
-		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, setRecoveryPeriodOp)
+		wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setBackoffPeriodOp)
+		wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setOrphanIntervalOp)
+		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setRecoveryPeriodOp)
 		if err != nil {
 			return false, fmt.Errorf("Error to setup recovery periods by system properties with management operation '%s' for scaling down pod %s, error: %v",
 				setRecoveryPeriodOp, scaleDownPodName, err)
@@ -981,7 +824,7 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 				setRecoveryPeriodOp, scaleDownPodName, jsonResult)
 		}
 
-		if _, err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(wildflyutil.MgmtOpRestart, scaleDownPod, jbossHome); err != nil {
+		if _, err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(wildflyutil.MgmtOpRestart, scaleDownPod, resources.JBossHome); err != nil {
 			return false, fmt.Errorf("Cannot restart application server after setting up the periodic recovery properties, error: %v", err)
 		}
 
@@ -1042,71 +885,6 @@ func getPodStatus(pods []corev1.Pod, originalPodStatuses []wildflyv1alpha1.PodSt
 		}
 	}
 	return requeue, podStatuses
-}
-
-// createLivenessProbe create a Exec probe if the SERVER_LIVENESS_SCRIPT env var is present.
-// Otherwise, it creates a HTTPGet probe that checks the /health endpoint on the admin port.
-//
-// If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
-// complies to the Kuberenetes probes requirements.
-func createLivenessProbe() *corev1.Probe {
-	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
-	if defined {
-		return &corev1.Probe{
-			Handler: corev1.Handler{
-				Exec: &v1.ExecAction{
-					Command: []string{"/bin/bash", "-c", livenessProbeScript},
-				},
-			},
-			InitialDelaySeconds: 60,
-		}
-	}
-	return &corev1.Probe{
-		Handler: corev1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
-				Path: "/health",
-				Port: intstr.FromString("admin"),
-			},
-		},
-		InitialDelaySeconds: 60,
-	}
-}
-
-// createReadinessProbe create a Exec probe if the SERVER_READINESS_SCRIPT env var is present.
-// Otherwise, it returns nil (i.e. no readiness probe is configured).
-//
-// If defined, the SERVER_READINESS_SCRIPT env var must be the path of a shell script that
-// complies to the Kuberenetes probes requirements.
-func createReadinessProbe() *corev1.Probe {
-	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
-	if defined {
-		return &corev1.Probe{
-			Handler: corev1.Handler{
-				Exec: &v1.ExecAction{
-					Command: []string{"/bin/bash", "-c", readinessProbeScript},
-				},
-			},
-		}
-	}
-	return nil
-}
-
-func envForClustering(labels string) []corev1.EnvVar {
-	return []corev1.EnvVar{
-		{
-			Name: "KUBERNETES_NAMESPACE",
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					APIVersion: "v1",
-					FieldPath:  "metadata.namespace",
-				},
-			},
-		},
-		{
-			Name:  "KUBERNETES_LABELS",
-			Value: labels,
-		},
-	}
 }
 
 func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {

@@ -39,7 +39,7 @@ func GetOrCreateNewLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client 
 			servicePorts := []corev1.ServicePort{
 				{
 					Name: "http",
-					Port: 8080,
+					Port: resources.HTTPApplicationPort,
 				},
 			}
 			if err := resources.Create(w, client, scheme, newLoadBalancerService(w, labels, servicePorts)); err != nil {
