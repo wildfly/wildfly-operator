@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	name                   = "wildfy-operator"
-	namespace              = "wildfly"
+	name                   = "myapp"
+	namespace              = "mynamespace"
 	replicas         int32 = 3
 	applicationImage       = "my-app-image"
 	sessionAffinity        = true
@@ -67,13 +67,8 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 		},
 	}
 	// statefulset will be created
-	res, err := r.Reconcile(req)
+	_, err := r.Reconcile(req)
 	require.NoError(t, err)
-
-	// Check the result of reconciliation to make sure it has the desired state.
-	if !res.Requeue {
-		t.Error("reconcile did not requeue request as expected")
-	}
 
 	// Check if stateful set has been created and has the correct size.
 	statefulSet := &appsv1.StatefulSet{}

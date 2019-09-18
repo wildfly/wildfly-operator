@@ -13,6 +13,8 @@ import (
 	"github.com/go-logr/logr"
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
+	resources "github.com/wildfly/wildfly-operator/pkg/resources"
+	services "github.com/wildfly/wildfly-operator/pkg/resources/services"
 
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -153,18 +155,15 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// Check if the statefulSet already exists, if not create a new one
 	foundStatefulSet := &appsv1.StatefulSet{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, foundStatefulSet)
+	err = resources.Get(wildflyServer, types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, r.client, foundStatefulSet)
 	if err != nil && errors.IsNotFound(err) {
 		// Define a new statefulSet
 		statefulSet := r.statefulSetForWildFly(wildflyServer)
-		reqLogger.Info("Creating a new StatefulSet.", "StatefulSet.Namespace", statefulSet.Namespace, "StatefulSet.Name", statefulSet.Name)
-		err = r.client.Create(context.TODO(), statefulSet)
-		if err != nil {
-			reqLogger.Error(err, "Failed to create new StatefulSet.", "StatefulSet.Namespace", statefulSet.Namespace, "StatefulSet.Name", statefulSet.Name)
+		if err = resources.Create(wildflyServer, r.client, r.scheme, statefulSet); err != nil {
 			return reconcile.Result{}, err
 		}
 		// StatefulSet created successfully - return and requeue
-		return reconcile.Result{Requeue: true}, nil
+		return reconcile.Result{}, nil
 	} else if err != nil {
 		reqLogger.Error(err, "Failed to get StatefulSet.")
 		return reconcile.Result{}, err
@@ -186,8 +185,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 			// Remove WildflyServer. Once all finalizers have been removed, the object will be deleted.
 			wildflyServer.SetFinalizers(wildflyutil.RemoveFromList(wildflyServer.GetFinalizers(), wildflyServerFinalizer))
-			err := r.client.Update(context.TODO(), wildflyServer)
-			if err != nil {
+			if err := resources.Update(wildflyServer, r.client, wildflyServer); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -202,8 +200,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	if !r.isWildFlyFinalizer && wildflyutil.ContainsInList(wildflyServer.GetFinalizers(), wildflyServerFinalizer) {
 		reqLogger.Info("WildFly finalizer is marked to not be used but it exists at the spec, removing it")
 		wildflyServer.SetFinalizers(wildflyutil.RemoveFromList(wildflyServer.GetFinalizers(), wildflyServerFinalizer))
-		err := r.client.Update(context.TODO(), wildflyServer)
-		if err != nil {
+		if err := resources.Update(wildflyServer, r.client, wildflyServer); err != nil {
 			return reconcile.Result{}, err
 		}
 		// Finalizer removed succesfully - return and requeu
@@ -230,7 +227,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	// Processing scaled down
 	numberOfPodsToScaleDown := statefulsetSpecSize - wildflyServerSpecSize // difference between desired pod count and the current number of pods
 	// Update pods which are to be scaled down to not be getting requests through loadbalancer
-	updated, err := r.setLabelAsDisabled(reqLogger, markerOperatedByLoadbalancer, int(numberOfPodsToScaleDown), podList, nil, "")
+	updated, err := r.setLabelAsDisabled(wildflyServer, reqLogger, markerOperatedByLoadbalancer, int(numberOfPodsToScaleDown), podList, nil, "")
 	if updated || err != nil { // labels were updated (updated == true) or some error occured (err != nil)
 		return reconcile.Result{Requeue: updated}, err
 	}
@@ -271,13 +268,15 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	headlessServiceName := headlessServiceName(wildflyServer)
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: headlessServiceName, Namespace: wildflyServer.Namespace}, foundHeadlessService)
 	if err != nil && errors.IsNotFound(err) {
-		// Define a new headless service
-		headlessService := r.headlessServiceForWildFly(wildflyServer)
-		reqLogger.Info("Creating a new Headless Service.", "HeadlessService.Namespace", headlessService.Namespace, "HeadlessServie.Name", headlessService.Name)
-		err = r.client.Create(context.TODO(), headlessService)
-		if err != nil {
-			reqLogger.Error(err, "Failed to create new Headless Service.", "HeadlessService.Namespace",
-				headlessService.Namespace, "HeadlessService.Name", headlessService.Name)
+		servicePorts := []corev1.ServicePort{
+			{
+				Name: "http",
+				Port: httpApplicationPort,
+			},
+		}
+		// Define a new headless service for the HTTP port
+		headlessService := services.NewHeadlessService(wildflyServer, labelsForWildFly(wildflyServer), servicePorts)
+		if err := resources.Create(wildflyServer, r.client, r.scheme, headlessService); err != nil {
 			return reconcile.Result{}, err
 		}
 		// headless service created successfully - return and requeue
@@ -345,7 +344,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	if updateWildflyServer {
-		if err := r.client.Status().Update(context.Background(), wildflyServer); err != nil {
+		if err := resources.UpdateStatus(wildflyServer, r.client, wildflyServer); err != nil {
 			reqLogger.Error(err, "Failed to update WildFlyServer status.")
 			return reconcile.Result{}, err
 		}
@@ -358,14 +357,11 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 func (r *ReconcileWildFlyServer) getOrCreateLoadBalancer(wildflyServer *wildflyv1alpha1.WildFlyServer) (service *corev1.Service, err error) {
 	foundLoadBalancer := &corev1.Service{}
 	loadBalancerName := loadBalancerServiceName(wildflyServer)
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: loadBalancerName, Namespace: wildflyServer.Namespace}, foundLoadBalancer)
+	err = resources.Get(wildflyServer, types.NamespacedName{Name: loadBalancerName, Namespace: wildflyServer.Namespace}, r.client, foundLoadBalancer)
 	if err != nil && errors.IsNotFound(err) {
 		// Define a new loadbalancer
 		loadBalancer := r.loadBalancerForWildFly(wildflyServer)
-		log.Info("Creating a new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
-		err = r.client.Create(context.TODO(), loadBalancer)
-		if err != nil {
-			log.Error(err, "Failed to create new LoadBalancer.", "LoadBalancer.Namespace", loadBalancer.Namespace, "LoadBalancer.Name", loadBalancer.Name)
+		if err := resources.Create(wildflyServer, r.client, r.scheme, loadBalancer); err != nil {
 			return nil, err
 		}
 		return nil, nil
@@ -383,8 +379,7 @@ func (r *ReconcileWildFlyServer) checkLoadBalancer(wildflyServer *wildflyv1alpha
 		} else {
 			loadBalancer.Spec.SessionAffinity = corev1.ServiceAffinityNone
 		}
-		if err = r.client.Update(context.TODO(), loadBalancer); err != nil {
-			log.Error(err, "Failed to Update loadbalancer Service.", "Service.Namespace", loadBalancer.Namespace, "Service.Name", loadBalancer.Name)
+		if err := resources.Update(wildflyServer, r.client, loadBalancer); err != nil {
 			return true, false, err
 		}
 		return true, true, nil
@@ -487,7 +482,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 
 				if delete {
 					// VolumeClaimTemplates has changed, the statefulset can not be updated and must be deleted
-					if err = r.client.Delete(context.TODO(), foundStatefulSet); err != nil {
+					if err = resources.Delete(wildflyServer, r.client, foundStatefulSet); err != nil {
 						log.Error(err, "Failed to Delete StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 						return true, false, err
 					}
@@ -499,7 +494,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 				foundStatefulSet.Spec.Template = statefulSet.Spec.Template
 				foundStatefulSet.Spec.Replicas = &desiredStatefulSetReplicaSize
 				foundStatefulSet.Annotations["wildfly.org/wildfly-server-generation"] = strconv.FormatInt(wildflyServer.Generation, 10)
-				if err = r.client.Update(context.TODO(), foundStatefulSet); err != nil {
+				if err = resources.Update(wildflyServer, r.client, foundStatefulSet); err != nil {
 					log.Error(err, "Failed to Update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 					return true, false, err
 				}
@@ -730,33 +725,6 @@ func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildF
 	return loadBalancer
 }
 
-// headlessServiceForWildFly returns a headless service for ejb remoting server to server calls
-func (r *ReconcileWildFlyServer) headlessServiceForWildFly(w *wildflyv1alpha1.WildFlyServer) *corev1.Service {
-	labels := labelsForWildFly(w)
-	labels[markerOperatedByHeadless] = markerServiceActive // managing only active pods, ones are not scaled down
-	headlessService := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      headlessServiceName(w),
-			Namespace: w.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.ServiceSpec{
-			Type:      corev1.ServiceTypeClusterIP,
-			Selector:  labels,
-			ClusterIP: corev1.ClusterIPNone,
-			Ports: []corev1.ServicePort{
-				{
-					Name: "http",
-					Port: httpApplicationPort,
-				},
-			},
-		},
-	}
-	// Set WildFlyServer instance as the owner and controller
-	controllerutil.SetControllerReference(w, headlessService, r.scheme)
-	return headlessService
-}
-
 func (r *ReconcileWildFlyServer) routeForWildFly(w *wildflyv1alpha1.WildFlyServer) *routev1.Route {
 	weight := int32(100)
 
@@ -815,8 +783,7 @@ func (r *ReconcileWildFlyServer) addWildflyServerFinalizer(reqLogger logr.Logger
 	w.SetFinalizers(append(w.GetFinalizers(), wildflyServerFinalizer))
 
 	// Update CR WildflyServer
-	err := r.client.Update(context.TODO(), w)
-	if err != nil {
+	if err := resources.Update(w, r.client, w); err != nil {
 		reqLogger.Error(err, "Failed to update WildFlyServer with finalizer", "Finalizer Name", wildflyServerFinalizer)
 		return err
 	}
@@ -825,7 +792,7 @@ func (r *ReconcileWildFlyServer) addWildflyServerFinalizer(reqLogger logr.Logger
 
 // setLabelAsDisabled returns true when kubernetes etcd was updated with label names on some pods, otherwise false
 //  returns error when error processing happened at some of the pods, otherwise if no error occurs then nil is returned
-func (r *ReconcileWildFlyServer) setLabelAsDisabled(reqLogger logr.Logger, labelName string, numberOfPodsToScaleDown int,
+func (r *ReconcileWildFlyServer) setLabelAsDisabled(w *wildflyv1alpha1.WildFlyServer, reqLogger logr.Logger, labelName string, numberOfPodsToScaleDown int,
 	podList *corev1.PodList, podNameToState map[string]string, desiredPodState string) (bool, error) {
 	wildflyServerNumberOfPods := len(podList.Items)
 
@@ -838,7 +805,7 @@ func (r *ReconcileWildFlyServer) setLabelAsDisabled(reqLogger logr.Logger, label
 		scaleDownPodName := scaleDownPod.ObjectMeta.Name
 		// updating the label on pod only if the pod is in particular one state
 		if podNameToState == nil || podNameToState[scaleDownPodName] == desiredPodState {
-			kubernetesUpdated, err := r.updatePodLabel(&scaleDownPod, labelName, markerServiceDisabled)
+			kubernetesUpdated, err := r.updatePodLabel(w, &scaleDownPod, labelName, markerServiceDisabled)
 			if err != nil {
 				errStrings += " [[" + err.Error() + "]],"
 			}
@@ -1026,7 +993,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 
 		// Marking the pod as being searched for the recovery port already
 		scaleDownPod.Annotations[markerRecoveryPort] = strconv.FormatInt(int64(scaleDownPodRecoveryPort), 10)
-		if err := r.client.Update(context.TODO(), scaleDownPod); err != nil {
+		if err := resources.Update(w, r.client, scaleDownPod); err != nil {
 			return false, "", fmt.Errorf("Failed to update pod annotations, pod name %v, annotations to be set %v, error: %v",
 				scaleDownPodName, scaleDownPod.Annotations, err)
 		}
@@ -1036,7 +1003,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 		queriedScaleDownPodRecoveryPort, err := strconv.Atoi(queriedScaleDownPodRecoveryPortString)
 		if err != nil {
 			delete(scaleDownPod.Annotations, markerRecoveryPort)
-			if err := r.client.Update(context.TODO(), scaleDownPod); err != nil {
+			if err := resources.Update(w, r.client, scaleDownPod); err != nil {
 				reqLogger.Info("Cannot update scaledown pod %v while resetting the annotation map to %v", scaleDownPodName, scaleDownPod.Annotations)
 			}
 			return false, "", fmt.Errorf("Cannot convert recovery port value '%s' to integer for the scaling down pod %v, error: %v",
@@ -1125,7 +1092,7 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 
 		// Marking the pod as the server was already setup for the recovery
 		scaleDownPod.Annotations[markerRecoveryPropertiesSetup] = "true"
-		if err := r.client.Update(context.TODO(), scaleDownPod); err != nil {
+		if err := resources.Update(w, r.client, scaleDownPod); err != nil {
 			return false, fmt.Errorf("Failed to update pod annotations, pod name %v, annotations to be set %v, error: %v",
 				scaleDownPodName, scaleDownPod.Annotations, err)
 		}
@@ -1135,11 +1102,11 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 	return true, nil
 }
 
-func (r *ReconcileWildFlyServer) updatePodLabel(scaleDownPod *corev1.Pod, labelName, labelValue string) (bool, error) {
+func (r *ReconcileWildFlyServer) updatePodLabel(w *wildflyv1alpha1.WildFlyServer, scaleDownPod *corev1.Pod, labelName, labelValue string) (bool, error) {
 	updated := false
 	if scaleDownPod.ObjectMeta.Labels[labelName] != labelValue {
 		scaleDownPod.ObjectMeta.Labels[labelName] = labelValue
-		if err := r.client.Update(context.TODO(), scaleDownPod); err != nil {
+		if err := resources.Update(w, r.client, scaleDownPod); err != nil {
 			return false, fmt.Errorf("Failed to update pod labels for pod %v with label [%s=%s], error: %v",
 				scaleDownPod.ObjectMeta.Name, labelName, labelValue, err)
 		}
