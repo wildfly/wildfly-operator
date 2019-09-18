@@ -52,7 +52,7 @@ const (
 )
 
 var (
-	log                 = logf.Log.WithName("controller_wildflyserver")
+	log                 = logf.Log.WithName("wildflyserver_controller")
 	recoveryErrorRegExp = regexp.MustCompile("ERROR.*Periodic Recovery")
 	// wildflyFinalizerEnv is used to enable WildFly Finalizers
 	wildflyFinalizerEnv = os.Getenv("ENABLE_WILDFLY_FINALIZER")
@@ -296,7 +296,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	if updateWildflyServer {
-		if err := resources.UpdateStatus(wildflyServer, r.client, wildflyServer); err != nil {
+		if err := resources.UpdateWildFlyServerStatus(wildflyServer, r.client); err != nil {
 			reqLogger.Error(err, "Failed to update WildFlyServer status.")
 			return reconcile.Result{}, err
 		}
@@ -577,7 +577,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 	}
 	if updated { // updating status of pods as soon as possible
 		w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
-		err := resources.UpdateStatus(w, r.client, w)
+		err := resources.UpdateWildFlyServerStatus(w, r.client)
 		if err != nil {
 			err = fmt.Errorf("There was trouble to update state of WildflyServer: %v, error: %v", w.Status.Pods, err)
 		}
@@ -657,7 +657,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 
 	if updated { // recovery changed the state of the pods
 		w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
-		err := resources.UpdateStatus(w, r.client, w)
+		err := resources.UpdateWildFlyServerStatus(w, r.client)
 		if err != nil {
 			err = fmt.Errorf("Error to update state of WildflyServer after recovery processing for pods %v, "+
 				"error: %v. Recovery processing errors: %v", w.Status.Pods, err, resultError)

@@ -23,26 +23,18 @@ func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client clie
 	}
 	// create the service if it is not found
 	if errors.IsNotFound(err) {
-		servicePorts := []corev1.ServicePort{
-			{
-				Name: "http",
-				Port: resources.HTTPApplicationPort,
-			},
-		}
-		if err := resources.Create(w, client, scheme, newHeadlessService(w, labels, servicePorts)); err != nil {
+		if err := resources.Create(w, client, scheme, newHeadlessService(w, labels)); err != nil {
 			return nil, err
 		}
 		return nil, nil
 	}
 	// service is found, update it if it does not match the wildlfyServer generation
 	if !resources.IsCurrentGeneration(w, headlessService) {
-		servicePorts := []corev1.ServicePort{
-			{
-				Name: "http",
-				Port: resources.HTTPApplicationPort,
-			},
-		}
-		if err := resources.Update(w, client, newHeadlessService(w, labels, servicePorts)); err != nil {
+		newHeadlessService := newHeadlessService(w, labels)
+		headlessService.Labels = labels
+		headlessService.Spec = newHeadlessService.Spec
+
+		if err := resources.Update(w, client, headlessService); err != nil {
 			if errors.IsInvalid(err) {
 				// Can not update, so we delete to recreate the service from scratch
 				if err := resources.Delete(w, client, headlessService); err != nil {
@@ -66,26 +58,17 @@ func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client 
 	}
 	// create the service if it is not found
 	if errors.IsNotFound(err) {
-		servicePorts := []corev1.ServicePort{
-			{
-				Name: "http",
-				Port: resources.HTTPApplicationPort,
-			},
-		}
-		if err := resources.Create(w, client, scheme, newLoadBalancerService(w, labels, servicePorts)); err != nil {
+		if err := resources.Create(w, client, scheme, newLoadBalancerService(w, labels)); err != nil {
 			return nil, err
 		}
 		return nil, nil
 	}
 	// service is found, update it if it does not match the wildlfyServer generation
 	if !resources.IsCurrentGeneration(w, loadBalancer) {
-		servicePorts := []corev1.ServicePort{
-			{
-				Name: "http",
-				Port: resources.HTTPApplicationPort,
-			},
-		}
-		if err := resources.Update(w, client, newLoadBalancerService(w, labels, servicePorts)); err != nil {
+		newLB := newLoadBalancerService(w, labels)
+		loadBalancer.Labels = labels
+		loadBalancer.Spec = newLB.Spec
+		if err := resources.Update(w, client, loadBalancer); err != nil {
 			if errors.IsInvalid(err) {
 				log.Info("Service can not be updated, deleting it", "Service.Name", loadBalancer.Name, "Service.Namespace", loadBalancer.Namespace)
 				// Can not update, so we delete to recreate the service from scratch
@@ -101,7 +84,7 @@ func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client 
 	return loadBalancer, nil
 }
 
-func newHeadlessService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, servicePorts []corev1.ServicePort) *corev1.Service {
+func newHeadlessService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *corev1.Service {
 	headlessService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      HeadlessServiceName(w),
@@ -112,15 +95,19 @@ func newHeadlessService(w *wildflyv1alpha1.WildFlyServer, labels map[string]stri
 			Type:      corev1.ServiceTypeClusterIP,
 			Selector:  labels,
 			ClusterIP: corev1.ClusterIPNone,
-			Ports:     servicePorts,
+			Ports: []corev1.ServicePort{
+				{
+					Name: "http",
+					Port: resources.HTTPApplicationPort,
+				},
+			},
 		},
 	}
-	resources.MarkServerGeneration(w, &headlessService.ObjectMeta)
 	return headlessService
 }
 
 // loadBalancerForWildFly returns a loadBalancer service
-func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, servicePorts []corev1.ServicePort) *corev1.Service {
+func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *corev1.Service {
 	sessionAffinity := corev1.ServiceAffinityNone
 	if w.Spec.SessionAffinity {
 		sessionAffinity = corev1.ServiceAffinityClientIP
@@ -143,7 +130,6 @@ func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]
 			},
 		},
 	}
-	resources.MarkServerGeneration(w, &loadBalancer.ObjectMeta)
 	return loadBalancer
 }
 

@@ -4,8 +4,8 @@ metadata:
   name: quickstart
 spec:
   applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart:17.0"
-  size: 2
-  sessionAffinity: true
+  size: 3
+  sessionAffinity: false
   storage:
     volumeClaimTemplate:
       spec:

@@ -169,7 +169,6 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) 
 		})
 	}
 
-	resources.MarkServerGeneration(w, &statefulSet.ObjectMeta)
 	return statefulSet
 }
 

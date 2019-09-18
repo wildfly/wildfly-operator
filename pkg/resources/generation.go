@@ -32,9 +32,9 @@ func IsCurrentGeneration(w *wildflyv1alpha1.WildFlyServer, objectDefinition runt
 }
 
 // MarkServerGeneration adds a annotation to the object meta to specifies which generation of WildFlyServer created it.
-func MarkServerGeneration(w *wildflyv1alpha1.WildFlyServer, meta *metav1.ObjectMeta) {
-	if meta.Annotations == nil {
-		meta.Annotations = make(map[string]string)
+func MarkServerGeneration(w *wildflyv1alpha1.WildFlyServer, meta metav1.Object) {
+	if meta.GetAnnotations() == nil {
+		meta.SetAnnotations(make(map[string]string))
 	}
-	meta.Annotations[MarkerServerGeneration] = strconv.FormatInt(w.Generation, 10)
+	meta.GetAnnotations()[MarkerServerGeneration] = strconv.FormatInt(w.Generation, 10)
 }
