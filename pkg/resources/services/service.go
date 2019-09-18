@@ -43,7 +43,13 @@ func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client clie
 			},
 		}
 		if err := resources.Update(w, client, newHeadlessService(w, labels, servicePorts)); err != nil {
-			// FIXME if update fails, delete
+			if errors.IsInvalid(err) {
+				// Can not update, so we delete to recreate the service from scratch
+				if err := resources.Delete(w, client, headlessService); err != nil {
+					return nil, err
+				}
+				return nil, nil
+			}
 			return nil, err
 		}
 		return nil, nil
