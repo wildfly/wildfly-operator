@@ -14,22 +14,39 @@ import (
 
 var log = logf.Log.WithName("wildlfyserver_services")
 
-// GetOrCreateNewHeadlessService either returns the headless service or create it
-func GetOrCreateNewHeadlessService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
+// CreateOrUpdateHeadlessService create a headless service or returns one up to date with the WildflyServer
+func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
 	headlessService := &corev1.Service{}
-	if err := resources.Get(w, types.NamespacedName{Name: HeadlessServiceName(w), Namespace: w.Namespace}, client, headlessService); err != nil {
-		if errors.IsNotFound(err) {
-			servicePorts := []corev1.ServicePort{
-				{
-					Name: "http",
-					Port: 8080,
-				},
-			}
-			if err := resources.Create(w, client, scheme, newHeadlessService(w, labels, servicePorts)); err != nil {
-				return nil, err
-			}
-			return nil, nil
+	err := resources.Get(w, types.NamespacedName{Name: HeadlessServiceName(w), Namespace: w.Namespace}, client, headlessService)
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	}
+	// create the service if it is not found
+	if errors.IsNotFound(err) {
+		servicePorts := []corev1.ServicePort{
+			{
+				Name: "http",
+				Port: resources.HTTPApplicationPort,
+			},
 		}
+		if err := resources.Create(w, client, scheme, newHeadlessService(w, labels, servicePorts)); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	// service is found, update it if it does not match the wildlfyServer generation
+	if !resources.IsCurrentGeneration(w, headlessService) {
+		servicePorts := []corev1.ServicePort{
+			{
+				Name: "http",
+				Port: resources.HTTPApplicationPort,
+			},
+		}
+		if err := resources.Update(w, client, newHeadlessService(w, labels, servicePorts)); err != nil {
+			// FIXME if update fails, delete
+			return nil, err
+		}
+		return nil, nil
 	}
 	return headlessService, nil
 }
@@ -85,6 +102,7 @@ func newHeadlessService(w *wildflyv1alpha1.WildFlyServer, labels map[string]stri
 			Ports:     servicePorts,
 		},
 	}
+	resources.MarkServerGeneration(w, &headlessService.ObjectMeta)
 	return headlessService
 }
 
@@ -113,7 +131,6 @@ func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]
 		},
 	}
 	resources.MarkServerGeneration(w, &loadBalancer.ObjectMeta)
-	log.Info("Annots after creating loadbalancer", "annots", loadBalancer.Annotations)
 	return loadBalancer
 }
 

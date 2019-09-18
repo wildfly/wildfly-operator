@@ -243,7 +243,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Check if the headless service already exists, if not create a new one
-	if headlessService, err := services.GetOrCreateNewHeadlessService(wildflyServer, r.client, r.scheme, labelsForWildFly(wildflyServer)); err != nil {
+	if headlessService, err := services.CreateOrUpdateHeadlessService(wildflyServer, r.client, r.scheme, labelsForWildFly(wildflyServer)); err != nil {
 		return reconcile.Result{}, err
 	} else if headlessService == nil {
 		return reconcile.Result{}, nil

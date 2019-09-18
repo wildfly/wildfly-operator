@@ -8,8 +8,6 @@ require (
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/RHsyseng/operator-utils v0.0.0-20190904181055-24b5b6380a3f
 	github.com/appscode/jsonpatch v0.0.0-20190108182946-7c0e3b262f30 // indirect
-	github.com/coreos/etcd v3.3.15+incompatible
-	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/prometheus-operator v0.26.0 // indirect
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/elazarl/goproxy v0.0.0-20190711103511-473e67f1d7d2 // indirect
@@ -40,7 +38,6 @@ require (
 	github.com/pborman/uuid v0.0.0-20180906182336-adf5a7427709 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90 // indirect
-	github.com/prometheus/common v0.2.0
 	github.com/prometheus/procfs v0.0.0-20190306233201-d0f344d83b0c // indirect
 	github.com/sirupsen/logrus v1.4.1 // indirect
 	github.com/spf13/pflag v1.0.3
