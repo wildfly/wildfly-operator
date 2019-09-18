@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +24,7 @@ import (
 var (
 	name                   = "myapp"
 	namespace              = "mynamespace"
-	replicas         int32 = 3
+	replicas         int32 = 0
 	applicationImage       = "my-app-image"
 	sessionAffinity        = true
 )
@@ -73,10 +74,27 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 	// Check if stateful set has been created and has the correct size.
 	statefulSet := &appsv1.StatefulSet{}
 	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
-
 	require.NoError(t, err)
 	assert.Equal(replicas, *statefulSet.Spec.Replicas)
 	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+
+	// loadbalancer service will be created
+	_, err = r.Reconcile(req)
+	require.NoError(t, err)
+
+	loadbalancer := &corev1.Service{}
+	err = cl.Get(context.TODO(), types.NamespacedName{Name: services.LoadBalancerServiceName(wildflyServer), Namespace: req.Namespace}, loadbalancer)
+	require.NoError(t, err)
+	assert.Equal(corev1.ServiceAffinityClientIP, loadbalancer.Spec.SessionAffinity)
+
+	// headless service will be created
+	_, err = r.Reconcile(req)
+	require.NoError(t, err)
+
+	headlessService := &corev1.Service{}
+	err = cl.Get(context.TODO(), types.NamespacedName{Name: services.HeadlessServiceName(wildflyServer), Namespace: req.Namespace}, headlessService)
+	require.NoError(t, err)
+
 }
 
 func TestEnvUpdate(t *testing.T) {

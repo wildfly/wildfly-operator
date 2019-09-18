@@ -14,7 +14,7 @@ import (
 // GetOrCreateNewHeadlessService either returns the headless service or create it
 func GetOrCreateNewHeadlessService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
 	headlessService := &corev1.Service{}
-	if err := resources.Get(w, types.NamespacedName{Name: headlessServiceName(w), Namespace: w.Namespace}, client, headlessService); err != nil {
+	if err := resources.Get(w, types.NamespacedName{Name: HeadlessServiceName(w), Namespace: w.Namespace}, client, headlessService); err != nil {
 		if errors.IsNotFound(err) {
 			servicePorts := []corev1.ServicePort{
 				{
@@ -54,7 +54,7 @@ func GetOrCreateNewLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client 
 func newHeadlessService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, servicePorts []corev1.ServicePort) *corev1.Service {
 	headlessService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      headlessServiceName(w),
+			Name:      HeadlessServiceName(w),
 			Namespace: w.Namespace,
 			Labels:    labels,
 		},
@@ -95,7 +95,8 @@ func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]
 	return loadBalancer
 }
 
-func headlessServiceName(w *wildflyv1alpha1.WildFlyServer) string {
+// HeadlessServiceName returns the name of the headless service
+func HeadlessServiceName(w *wildflyv1alpha1.WildFlyServer) string {
 	return w.Name + "-headless"
 }
 
