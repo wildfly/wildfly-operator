@@ -249,14 +249,13 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Check if the loadbalancer already exists, if not create a new one
-	foundLoadBalancer, err := r.getOrCreateLoadBalancer(wildflyServer)
+	loadBalancer, err := services.GetOrCreateNewLoadBalancerService(wildflyServer, r.client, r.scheme, labelsForWildFly(wildflyServer))
 	if err != nil {
 		return reconcile.Result{}, err
-	}
-	if foundLoadBalancer == nil {
+	} else if loadBalancer == nil {
 		return reconcile.Result{Requeue: true}, nil
 	}
-	mustReconcile, requeue, err = r.checkLoadBalancer(wildflyServer, foundLoadBalancer)
+	mustReconcile, requeue, err = r.checkLoadBalancer(wildflyServer, loadBalancer)
 	if mustReconcile {
 		return reconcile.Result{Requeue: requeue}, err
 	} else if err != nil {
@@ -264,26 +263,10 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Check if the headless service already exists, if not create a new one
-	foundHeadlessService := &corev1.Service{}
-	headlessServiceName := headlessServiceName(wildflyServer)
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: headlessServiceName, Namespace: wildflyServer.Namespace}, foundHeadlessService)
-	if err != nil && errors.IsNotFound(err) {
-		servicePorts := []corev1.ServicePort{
-			{
-				Name: "http",
-				Port: httpApplicationPort,
-			},
-		}
-		// Define a new headless service for the HTTP port
-		headlessService := services.NewHeadlessService(wildflyServer, labelsForWildFly(wildflyServer), servicePorts)
-		if err := resources.Create(wildflyServer, r.client, r.scheme, headlessService); err != nil {
-			return reconcile.Result{}, err
-		}
-		// headless service created successfully - return and requeue
-		return reconcile.Result{Requeue: true}, nil
-	} else if err != nil {
-		reqLogger.Error(err, "Failed to get Headless Service %s", headlessServiceName)
+	if headlessService, err := services.GetOrCreateNewHeadlessService(wildflyServer, r.client, r.scheme, labelsForWildFly(wildflyServer)); err != nil {
 		return reconcile.Result{}, err
+	} else if headlessService == nil {
+		return reconcile.Result{}, nil
 	}
 
 	// Check if the HTTP route must be created.
@@ -352,23 +335,6 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	return reconcile.Result{Requeue: requeue}, nil
-}
-
-func (r *ReconcileWildFlyServer) getOrCreateLoadBalancer(wildflyServer *wildflyv1alpha1.WildFlyServer) (service *corev1.Service, err error) {
-	foundLoadBalancer := &corev1.Service{}
-	loadBalancerName := loadBalancerServiceName(wildflyServer)
-	err = resources.Get(wildflyServer, types.NamespacedName{Name: loadBalancerName, Namespace: wildflyServer.Namespace}, r.client, foundLoadBalancer)
-	if err != nil && errors.IsNotFound(err) {
-		// Define a new loadbalancer
-		loadBalancer := r.loadBalancerForWildFly(wildflyServer)
-		if err := resources.Create(wildflyServer, r.client, r.scheme, loadBalancer); err != nil {
-			return nil, err
-		}
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-	return foundLoadBalancer, nil
 }
 
 func (r *ReconcileWildFlyServer) checkLoadBalancer(wildflyServer *wildflyv1alpha1.WildFlyServer, loadBalancer *corev1.Service) (mustReconcile bool, mustRequeue bool, err error) {
@@ -580,7 +546,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:            &replicas,
-			ServiceName:         loadBalancerServiceName(w),
+			ServiceName:         services.LoadBalancerServiceName(w),
 			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
@@ -694,37 +660,6 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 	return statefulSet
 }
 
-// loadBalancerForWildFly returns a loadBalancer service
-func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildFlyServer) *corev1.Service {
-	labels := labelsForWildFly(w)
-	labels[markerOperatedByLoadbalancer] = markerServiceActive // managing only active pods which are not in scaledown process
-	sessionAffinity := corev1.ServiceAffinityNone
-	if w.Spec.SessionAffinity {
-		sessionAffinity = corev1.ServiceAffinityClientIP
-	}
-	loadBalancer := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      loadBalancerServiceName(w),
-			Namespace: w.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.ServiceSpec{
-			Type:            corev1.ServiceTypeLoadBalancer,
-			Selector:        labels,
-			SessionAffinity: sessionAffinity,
-			Ports: []corev1.ServicePort{
-				{
-					Name: "http",
-					Port: httpApplicationPort,
-				},
-			},
-		},
-	}
-	// Set WildFlyServer instance as the owner and controller
-	controllerutil.SetControllerReference(w, loadBalancer, r.scheme)
-	return loadBalancer
-}
-
 func (r *ReconcileWildFlyServer) routeForWildFly(w *wildflyv1alpha1.WildFlyServer) *routev1.Route {
 	weight := int32(100)
 
@@ -741,7 +676,7 @@ func (r *ReconcileWildFlyServer) routeForWildFly(w *wildflyv1alpha1.WildFlyServe
 		Spec: routev1.RouteSpec{
 			To: routev1.RouteTargetReference{
 				Kind:   "Service",
-				Name:   loadBalancerServiceName(w),
+				Name:   services.LoadBalancerServiceName(w),
 				Weight: &weight,
 			},
 			Port: &routev1.RoutePort{
@@ -1225,14 +1160,6 @@ func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
 		}
 	}
 	return labels
-}
-
-func loadBalancerServiceName(w *wildflyv1alpha1.WildFlyServer) string {
-	return w.Name + "-loadbalancer"
-}
-
-func headlessServiceName(w *wildflyv1alpha1.WildFlyServer) string {
-	return w.Name + "-headless"
 }
 
 // errorIsMatchesForKind return true if the error is that there is no matches for the kind & version

@@ -135,11 +135,6 @@ func TestEnvUpdate(t *testing.T) {
 	res, err = r.Reconcile(req)
 	require.NoError(t, err)
 
-	// Check the result of reconciliation to make sure it has the desired state.
-	if !res.Requeue {
-		t.Error("reconcile did not requeue request as expected")
-	}
-
 	// Check if stateful set has been created and has the correct env var
 	statefulSet := &appsv1.StatefulSet{}
 	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
