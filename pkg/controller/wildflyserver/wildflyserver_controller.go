@@ -13,8 +13,9 @@ import (
 	"github.com/go-logr/logr"
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
-	resources "github.com/wildfly/wildfly-operator/pkg/resources"
-	services "github.com/wildfly/wildfly-operator/pkg/resources/services"
+	"github.com/wildfly/wildfly-operator/pkg/resources"
+	"github.com/wildfly/wildfly-operator/pkg/resources/routes"
+	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -270,31 +271,20 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Check if the HTTP route must be created.
-	foundRoute := &routev1.Route{}
+	var route *routev1.Route
 	if r.isOpenShift && !wildflyServer.Spec.DisableHTTPRoute {
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: wildflyServer.Name, Namespace: wildflyServer.Namespace}, foundRoute)
-		if err != nil && errors.IsNotFound(err) {
-			// Define a new Route
-			route := r.routeForWildFly(wildflyServer)
-			reqLogger.Info("Creating a new Route.", "Route.Namespace", route.Namespace, "Route.Name", route.Name)
-			err = r.client.Create(context.TODO(), route)
-			if err != nil {
-				reqLogger.Error(err, "Failed to create new Route.", "Route.Namespace", route.Namespace, "Route.Name", route.Name)
-				return reconcile.Result{}, err
-			}
-			// Route created successfully - return and requeue
-			return reconcile.Result{Requeue: true}, nil
-		} else if err != nil {
-			reqLogger.Error(err, "Failed to get Route.")
+		if route, err = routes.GetOrCreateNewRoute(wildflyServer, r.client, r.scheme, labelsForWildFly(wildflyServer)); err != nil {
 			return reconcile.Result{}, err
+		} else if route == nil {
+			return reconcile.Result{}, nil
 		}
 	}
 
 	// Update WildFly Server host status
 	updateWildflyServer := false
 	if r.isOpenShift && !wildflyServer.Spec.DisableHTTPRoute {
-		hosts := make([]string, len(foundRoute.Status.Ingress))
-		for i, ingress := range foundRoute.Status.Ingress {
+		hosts := make([]string, len(route.Status.Ingress))
+		for i, ingress := range route.Status.Ingress {
 			hosts[i] = ingress.Host
 		}
 		if !reflect.DeepEqual(hosts, wildflyServer.Status.Hosts) {
