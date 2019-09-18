@@ -61,11 +61,12 @@ func Update(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefini
 
 	reqLogger := log.WithValues("WildFlyServer Name", w.Name, "WildFlyServer Namespace", w.Namespace)
 	objectTypeString := reflect.TypeOf(objectDefinition).String()
-	reqLogger.Info("Updating " + objectTypeString)
+	meta := objectDefinition.(metav1.Object)
+	reqLogger.Info("Updating " + meta.GetName() + "  " + objectTypeString)
 
 	var err error
 	if err = client.Update(context.TODO(), objectDefinition); err != nil {
-		reqLogger.Error(err, "Failed to update "+objectTypeString)
+		reqLogger.Error(err, "Failed to update "+meta.GetName()+"  "+objectTypeString)
 	}
 
 	return err

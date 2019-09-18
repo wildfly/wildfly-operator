@@ -2,7 +2,6 @@ package statefulsets
 
 import (
 	"os"
-	"strconv"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
@@ -42,11 +41,6 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 
 // NewStatefulSet retunrs a new statefulset
 func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *appsv1.StatefulSet {
-	// track the generation number of the WildFlyServer that created the statefulset to ensure that the
-	// statefulset is always up to date with the WildFlyServerSpec
-	annotations := make(map[string]string)
-	annotations["wildfly.org/wildfly-server-generation"] = strconv.FormatInt(w.Generation, 10)
-
 	replicas := w.Spec.Size
 	applicationImage := w.Spec.ApplicationImage
 	volumeName := w.Name + "-volume"
@@ -60,10 +54,9 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) 
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        w.Name,
-			Namespace:   w.Namespace,
-			Labels:      labels,
-			Annotations: annotations,
+			Name:      w.Name,
+			Namespace: w.Namespace,
+			Labels:    labels,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:            &replicas,
@@ -176,6 +169,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) 
 		})
 	}
 
+	resources.MarkServerGeneration(w, &statefulSet.ObjectMeta)
 	return statefulSet
 }
 

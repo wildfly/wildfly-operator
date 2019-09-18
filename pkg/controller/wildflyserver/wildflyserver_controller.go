@@ -235,17 +235,11 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Check if the loadbalancer already exists, if not create a new one
-	loadBalancer, err := services.GetOrCreateNewLoadBalancerService(wildflyServer, r.client, r.scheme, labelsForWildFly(wildflyServer))
+	loadBalancer, err := services.CreateOrUpdateLoadBalancerService(wildflyServer, r.client, r.scheme, labelsForWildFly(wildflyServer))
 	if err != nil {
 		return reconcile.Result{}, err
 	} else if loadBalancer == nil {
 		return reconcile.Result{Requeue: true}, nil
-	}
-	mustReconcile, requeue, err = r.checkLoadBalancer(wildflyServer, loadBalancer)
-	if mustReconcile {
-		return reconcile.Result{Requeue: requeue}, err
-	} else if err != nil {
-		return reconcile.Result{}, err
 	}
 
 	// Check if the headless service already exists, if not create a new one
@@ -391,58 +385,51 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 		}
 	}
 
-	if generationStr, found := foundStatefulSet.Annotations["wildfly.org/wildfly-server-generation"]; found {
-		if generation, err := strconv.ParseInt(generationStr, 10, 64); err == nil {
-			// WildFlyServer spec has possibly changed, delete the statefulset
-			// so that a new one is created from the updated spec
-			log.Info("Comparing generations?", "Annotations", generation, "WildFlyServer", wildflyServer.Generation)
-			if generation != wildflyServer.Generation {
-				statefulSet := statefulsets.NewStatefulSet(wildflyServer, labelsForWildFly(wildflyServer))
-				delete := false
-				// changes to VolumeClaimTemplates can not be updated and requires a delete/create of the statefulset
-				if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {
-					if len(foundStatefulSet.Spec.VolumeClaimTemplates) == 0 {
-						// existing stateful set does not have a VCT
-						delete = true
-					} else {
-						foundVCT := foundStatefulSet.Spec.VolumeClaimTemplates[0]
-						vct := statefulSet.Spec.VolumeClaimTemplates[0]
+	if !resources.IsCurrentGeneration(wildflyServer, foundStatefulSet) {
+		statefulSet := statefulsets.NewStatefulSet(wildflyServer, labelsForWildFly(wildflyServer))
+		delete := false
+		// changes to VolumeClaimTemplates can not be updated and requires a delete/create of the statefulset
+		if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {
+			if len(foundStatefulSet.Spec.VolumeClaimTemplates) == 0 {
+				// existing stateful set does not have a VCT
+				delete = true
+			} else {
+				foundVCT := foundStatefulSet.Spec.VolumeClaimTemplates[0]
+				vct := statefulSet.Spec.VolumeClaimTemplates[0]
 
-						if foundVCT.Name != vct.Name ||
-							!reflect.DeepEqual(foundVCT.Spec.AccessModes, vct.Spec.AccessModes) ||
-							!reflect.DeepEqual(foundVCT.Spec.Resources, vct.Spec.Resources) {
-							delete = true
-						}
-					}
-				} else {
-					if len(foundStatefulSet.Spec.VolumeClaimTemplates) != 0 {
-						// existing stateful set has a VCT while updated statefulset does not
-						delete = true
-					}
+				if foundVCT.Name != vct.Name ||
+					!reflect.DeepEqual(foundVCT.Spec.AccessModes, vct.Spec.AccessModes) ||
+					!reflect.DeepEqual(foundVCT.Spec.Resources, vct.Spec.Resources) {
+					delete = true
 				}
-
-				if delete {
-					// VolumeClaimTemplates has changed, the statefulset can not be updated and must be deleted
-					if err = resources.Delete(wildflyServer, r.client, foundStatefulSet); err != nil {
-						log.Error(err, "Failed to Delete StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-						return true, false, err
-					}
-					log.Info("Deleting StatefulSet that is not up to date with the WildFlyServer StorageSpec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-					return true, true, nil
-				}
-
-				// all other changes are in the spec Template or Replicas and the statefulset can be updated
-				foundStatefulSet.Spec.Template = statefulSet.Spec.Template
-				foundStatefulSet.Spec.Replicas = &desiredStatefulSetReplicaSize
-				foundStatefulSet.Annotations["wildfly.org/wildfly-server-generation"] = strconv.FormatInt(wildflyServer.Generation, 10)
-				if err = resources.Update(wildflyServer, r.client, foundStatefulSet); err != nil {
-					log.Error(err, "Failed to Update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-					return true, false, err
-				}
-				log.Info("Updating StatefulSet to be up to date with the WildFlyServer Spec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-				return true, true, nil
+			}
+		} else {
+			if len(foundStatefulSet.Spec.VolumeClaimTemplates) != 0 {
+				// existing stateful set has a VCT while updated statefulset does not
+				delete = true
 			}
 		}
+
+		if delete {
+			// VolumeClaimTemplates has changed, the statefulset can not be updated and must be deleted
+			if err = resources.Delete(wildflyServer, r.client, foundStatefulSet); err != nil {
+				log.Error(err, "Failed to Delete StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+				return true, false, err
+			}
+			log.Info("Deleting StatefulSet that is not up to date with the WildFlyServer StorageSpec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			return true, true, nil
+		}
+
+		// all other changes are in the spec Template or Replicas and the statefulset can be updated
+		foundStatefulSet.Spec.Template = statefulSet.Spec.Template
+		foundStatefulSet.Spec.Replicas = &desiredStatefulSetReplicaSize
+		foundStatefulSet.Annotations[resources.MarkerServerGeneration] = strconv.FormatInt(wildflyServer.Generation, 10)
+		if err = resources.Update(wildflyServer, r.client, foundStatefulSet); err != nil {
+			log.Error(err, "Failed to Update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			return true, false, err
+		}
+		log.Info("Updating StatefulSet to be up to date with the WildFlyServer Spec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+		return true, true, nil
 	}
 
 	if update {
