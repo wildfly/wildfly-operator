@@ -650,36 +650,6 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 	return statefulSet
 }
 
-func (r *ReconcileWildFlyServer) routeForWildFly(w *wildflyv1alpha1.WildFlyServer) *routev1.Route {
-	weight := int32(100)
-
-	route := &routev1.Route{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "route.openshift.io/v1",
-			Kind:       "Route",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      w.Name,
-			Namespace: w.Namespace,
-			Labels:    labelsForWildFly(w),
-		},
-		Spec: routev1.RouteSpec{
-			To: routev1.RouteTargetReference{
-				Kind:   "Service",
-				Name:   services.LoadBalancerServiceName(w),
-				Weight: &weight,
-			},
-			Port: &routev1.RoutePort{
-				TargetPort: intstr.FromString("http"),
-			},
-		},
-	}
-	// Set WildFlyServer instance as the owner and controller
-	controllerutil.SetControllerReference(w, route, r.scheme)
-
-	return route
-}
-
 func (r *ReconcileWildFlyServer) finalizeWildflyServer(reqLogger logr.Logger, w *wildflyv1alpha1.WildFlyServer) error {
 	podList, err := r.getPodsForWildFly(w)
 	if err != nil {
@@ -777,7 +747,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 	}
 	if updated { // updating status of pods as soon as possible
 		w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
-		err := r.client.Status().Update(context.TODO(), w)
+		err := resources.UpdateStatus(w, r.client, w)
 		if err != nil {
 			err = fmt.Errorf("There was trouble to update state of WildflyServer: %v, error: %v", w.Status.Pods, err)
 		}
@@ -857,7 +827,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 
 	if updated { // recovery changed the state of the pods
 		w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
-		err := r.client.Status().Update(context.TODO(), w)
+		err := resources.UpdateStatus(w, r.client, w)
 		if err != nil {
 			err = fmt.Errorf("Error to update state of WildflyServer after recovery processing for pods %v, "+
 				"error: %v. Recovery processing errors: %v", w.Status.Pods, err, resultError)
