@@ -239,7 +239,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	if err != nil {
 		return reconcile.Result{}, err
 	} else if loadBalancer == nil {
-		return reconcile.Result{Requeue: true}, nil
+		return reconcile.Result{}, nil
 	}
 
 	// Check if the headless service already exists, if not create a new one
@@ -304,22 +304,6 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	return reconcile.Result{Requeue: requeue}, nil
-}
-
-func (r *ReconcileWildFlyServer) checkLoadBalancer(wildflyServer *wildflyv1alpha1.WildFlyServer, loadBalancer *corev1.Service) (mustReconcile bool, mustRequeue bool, err error) {
-	sessionAffinity := wildflyServer.Spec.SessionAffinity
-	if sessionAffinity && loadBalancer.Spec.SessionAffinity != corev1.ServiceAffinityClientIP {
-		if sessionAffinity {
-			loadBalancer.Spec.SessionAffinity = corev1.ServiceAffinityClientIP
-		} else {
-			loadBalancer.Spec.SessionAffinity = corev1.ServiceAffinityNone
-		}
-		if err := resources.Update(wildflyServer, r.client, loadBalancer); err != nil {
-			return true, false, err
-		}
-		return true, true, nil
-	}
-	return false, false, nil
 }
 
 // checkStatefulSet checks if the statefulset is up to date with the current WildFlyServerSpec.
