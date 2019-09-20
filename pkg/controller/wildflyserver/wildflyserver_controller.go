@@ -249,9 +249,9 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 			"Number of pods to be removed", numberOfPodsToScaleDown)
 	}
 
-	mustReconcile, requeue, err := r.checkStatefulSet(wildflyServer, foundStatefulSet, podList)
+	mustReconcile, err = r.checkStatefulSet(wildflyServer, foundStatefulSet, podList)
 	if mustReconcile {
-		return reconcile.Result{Requeue: requeue}, err
+		return reconcile.Result{Requeue: true}, err
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -365,10 +365,9 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 // checkStatefulSet checks if the statefulset is up to date with the current WildFlyServerSpec.
 // it returns true if a reconcile result must be returned.
-// the 2nd boolean specifies whether the result must be required.
 // A non-nil error if an error happend while updating/deleting the statefulset.
 func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1.WildFlyServer, foundStatefulSet *appsv1.StatefulSet,
-	podList *corev1.PodList) (mustReconcile bool, mustRequeue bool, err error) {
+	podList *corev1.PodList) (mustReconcile bool, err error) {
 	var update, requeue bool
 	// Ensure the statefulset replicas is up to date (driven by scaledown processing)
 	wildflyServerSpecSize := wildflyServer.Spec.Size
@@ -459,10 +458,10 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 					// VolumeClaimTemplates has changed, the statefulset can not be updated and must be deleted
 					if err = r.client.Delete(context.TODO(), foundStatefulSet); err != nil {
 						log.Error(err, "Failed to Delete StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-						return true, false, err
+						return true, err
 					}
 					log.Info("Deleting StatefulSet that is not up to date with the WildFlyServer StorageSpec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-					return true, true, nil
+					return true, nil
 				}
 
 				// all other changes are in the spec Template or Replicas and the statefulset can be updated
@@ -471,10 +470,10 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 				foundStatefulSet.Annotations["wildfly.org/wildfly-server-generation"] = strconv.FormatInt(wildflyServer.Generation, 10)
 				if err = r.client.Update(context.TODO(), foundStatefulSet); err != nil {
 					log.Error(err, "Failed to Update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-					return true, false, err
+					return true, err
 				}
 				log.Info("Updating StatefulSet to be up to date with the WildFlyServer Spec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-				return true, true, nil
+				return true, nil
 			}
 		}
 	}
@@ -484,12 +483,12 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 		err := r.client.Update(context.TODO(), foundStatefulSet)
 		if err != nil {
 			log.Error(err, "Failed to update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-			return false, true, err
+			return true, err
 		}
-		return false, true, nil
+		return true, nil
 	}
 
-	return false, requeue, nil
+	return requeue, nil
 }
 
 // matches checks if the envVar from the WildFlyServerSpec matches the same env var from the container.
@@ -1090,7 +1089,7 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 	if scaleDownPod.Annotations[markerRecoveryPropertiesSetup] == "" {
 		setBackoffPeriodOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyRecoveryBackoffPeriod, "1")
 		setOrphanIntervalOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyOrphanSafetyInterval, "1")
-		setRecoveryPeriodOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyPeriodicRecoveryPeriod, "1")
+		setRecoveryPeriodOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyPeriodicRecoveryPeriod, "30") // speed-up but still having time proceed the SCAN
 		wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, setBackoffPeriodOp)
 		wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, setOrphanIntervalOp)
 		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, setRecoveryPeriodOp)

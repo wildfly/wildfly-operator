@@ -27,6 +27,8 @@ var (
 	timestampFromLogLine = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}[^ ]+`)
 	// start of the time timestamp
 	startOfTheTimeTimestamp = time.Unix(0, 0)
+	// socket dial timeout
+	socketDialTimeout = 10 * time.Second
 )
 
 //ExecRemote executes a command inside the remote pod
@@ -87,7 +89,7 @@ func ExecRemote(pod *corev1.Pod, command string) (string, error) {
 func SocketConnect(hostname string, port int32, command string) (string, error) {
 	// connect to socket
 	toConnectTo := fmt.Sprintf("%v:%v", hostname, port)
-	conn, err := net.Dial("tcp", toConnectTo)
+	conn, err := net.DialTimeout("tcp", toConnectTo, socketDialTimeout)
 	if err != nil {
 		return "", fmt.Errorf("Cannot process TCP connection to %v, error: %v",
 			toConnectTo, err)

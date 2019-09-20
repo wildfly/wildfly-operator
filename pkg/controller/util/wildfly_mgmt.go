@@ -202,7 +202,7 @@ func ExecuteOpAndWaitForServerBeingReady(mgmtOp string, pod *corev1.Pod, jbossHo
 		return false, fmt.Errorf("Cannot run operation '%v' at application container for down pod %s, error: %v", mgmtOp, podName, err)
 	}
 	if !IsMgmtOutcomeSuccesful(jsonResult) {
-		return false, fmt.Errorf("Not succefully runnin management operation '%v' for pod %s. JSON output: %v",
+		return false, fmt.Errorf("Not succefully running management operation '%v' for pod %s. JSON output: %v",
 			mgmtOp, podName, jsonResult)
 	}
 	for serverStateCheckCounter := 0; err != nil && serverStateCheckCounter < reloadRetryCount; serverStateCheckCounter++ {
