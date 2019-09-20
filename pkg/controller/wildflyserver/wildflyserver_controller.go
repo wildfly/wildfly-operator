@@ -1032,6 +1032,10 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	reqLogger.Info("Executing recovery scan at "+scaleDownPodName, "Pod IP", scaleDownPodIP, "Recovery port", scaleDownPodRecoveryPort)
 	_, err = wildflyutil.SocketConnect(scaleDownPodIP, scaleDownPodRecoveryPort, txnRecoveryScanCommand)
 	if err != nil {
+		delete(scaleDownPod.Annotations, markerRecoveryPort)
+		if err := r.client.Update(context.TODO(), scaleDownPod); err != nil {
+			reqLogger.Info("Cannot update scaledown pod %v while resetting the annotation map to %v", scaleDownPodName, scaleDownPod.Annotations)
+		}
 		return false, "", fmt.Errorf("Failed to run transaction recovery scan for scaling down pod %v. "+
 			"Please, verify the pod log file. Error: %v", scaleDownPodName, err)
 	}
