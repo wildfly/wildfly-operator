@@ -216,7 +216,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// List of pods which belongs under this WildflyServer instance
-	podList, err := r.getPodsForWildFly(wildflyServer)
+	podList, err := GetPodsForWildFly(r, wildflyServer)
 	if err != nil {
 		reqLogger.Error(err, "Failed to list pods.", "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
 		return reconcile.Result{}, err
@@ -509,11 +509,11 @@ func matches(container *v1.Container, envVar corev1.EnvVar) bool {
 	return false
 }
 
-// listing pods which belongs to the WildFly server
+// GetPodsForWildFly lists pods which belongs to the WildFly server
 //   the pods are differentiated based on the selectors
-func (r *ReconcileWildFlyServer) getPodsForWildFly(w *wildflyv1alpha1.WildFlyServer) (*corev1.PodList, error) {
+func GetPodsForWildFly(r *ReconcileWildFlyServer, w *wildflyv1alpha1.WildFlyServer) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(labelsForWildFly(w))
+	labelSelector := labels.SelectorFromSet(LabelsForWildFly(w))
 	listOps := &client.ListOptions{
 		Namespace:     w.Namespace,
 		LabelSelector: labelSelector,
@@ -529,7 +529,7 @@ func (r *ReconcileWildFlyServer) getPodsForWildFly(w *wildflyv1alpha1.WildFlySer
 
 // statefulSetForWildFly returns a wildfly StatefulSet object
 func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFlyServer) *appsv1.StatefulSet {
-	ls := labelsForWildFly(w)
+	ls := LabelsForWildFly(w)
 	// track the generation number of the WildFlyServer that created the statefulset to ensure that the
 	// statefulset is always up to date with the WildFlyServerSpec
 	annotations := make(map[string]string)
@@ -538,7 +538,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 	replicas := w.Spec.Size
 	applicationImage := w.Spec.ApplicationImage
 	volumeName := w.Name + "-volume"
-	labesForActiveWildflyPod := labelsForWildFly(w)
+	labesForActiveWildflyPod := LabelsForWildFly(w)
 	labesForActiveWildflyPod[markerOperatedByHeadless] = markerServiceActive
 	labesForActiveWildflyPod[markerOperatedByLoadbalancer] = markerServiceActive
 
@@ -671,7 +671,7 @@ func (r *ReconcileWildFlyServer) statefulSetForWildFly(w *wildflyv1alpha1.WildFl
 
 // loadBalancerForWildFly returns a loadBalancer service
 func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildFlyServer) *corev1.Service {
-	labels := labelsForWildFly(w)
+	labels := LabelsForWildFly(w)
 	labels[markerOperatedByLoadbalancer] = markerServiceActive // managing only active pods which are not in scaledown process
 	sessionAffinity := corev1.ServiceAffinityNone
 	if w.Spec.SessionAffinity {
@@ -702,7 +702,7 @@ func (r *ReconcileWildFlyServer) loadBalancerForWildFly(w *wildflyv1alpha1.WildF
 
 // headlessServiceForWildFly returns a headless service for ejb remoting server to server calls
 func (r *ReconcileWildFlyServer) headlessServiceForWildFly(w *wildflyv1alpha1.WildFlyServer) *corev1.Service {
-	labels := labelsForWildFly(w)
+	labels := LabelsForWildFly(w)
 	labels[markerOperatedByHeadless] = markerServiceActive // managing only active pods, ones are not scaled down
 	headlessService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -738,7 +738,7 @@ func (r *ReconcileWildFlyServer) routeForWildFly(w *wildflyv1alpha1.WildFlyServe
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      w.Name,
 			Namespace: w.Namespace,
-			Labels:    labelsForWildFly(w),
+			Labels:    LabelsForWildFly(w),
 		},
 		Spec: routev1.RouteSpec{
 			To: routev1.RouteTargetReference{
@@ -758,7 +758,7 @@ func (r *ReconcileWildFlyServer) routeForWildFly(w *wildflyv1alpha1.WildFlyServe
 }
 
 func (r *ReconcileWildFlyServer) finalizeWildflyServer(reqLogger logr.Logger, w *wildflyv1alpha1.WildFlyServer) (bool, error) {
-	podList, err := r.getPodsForWildFly(w)
+	podList, err := GetPodsForWildFly(r, w)
 	if err != nil {
 		return false, fmt.Errorf("Finalizer processing: failed to list pods for WildflyServer %v:%v name Error: %v", w.Namespace, w.Name, err)
 	}
@@ -1231,7 +1231,9 @@ func envForClustering(labels string) []corev1.EnvVar {
 	}
 }
 
-func labelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
+// LabelsForWildFly retirms lists of labels that are used for identification
+//  of objects belonging to the particular WildflyServer instance
+func LabelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
 	labels := make(map[string]string)
 	labels["app.kubernetes.io/name"] = w.Name
 	labels["app.kubernetes.io/managed-by"] = os.Getenv("LABEL_APP_MANAGED_BY")
