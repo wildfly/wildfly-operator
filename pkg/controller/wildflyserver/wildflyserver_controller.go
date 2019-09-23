@@ -255,11 +255,20 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// Check if the HTTP route must be created
 	var route *routev1.Route
-	if r.isOpenShift && !wildflyServer.Spec.DisableHTTPRoute {
-		if route, err = routes.GetOrCreateNewRoute(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
-			return reconcile.Result{}, err
-		} else if route == nil {
-			return reconcile.Result{}, nil
+	if r.isOpenShift {
+		if !wildflyServer.Spec.DisableHTTPRoute {
+			if route, err = routes.GetOrCreateNewRoute(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
+				return reconcile.Result{}, err
+			} else if route == nil {
+				return reconcile.Result{}, nil
+			}
+		} else {
+			// delete the route that may have been created by a previous generation of the WildFlyServer
+			if deleted, err := routes.DeleteExistingRoute(wildflyServer, r.client); err != nil {
+				return reconcile.Result{}, err
+			} else if deleted {
+				return reconcile.Result{}, nil
+			}
 		}
 	}
 

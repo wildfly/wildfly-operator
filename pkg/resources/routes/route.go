@@ -27,6 +27,23 @@ func GetOrCreateNewRoute(w *wildflyv1alpha1.WildFlyServer, client client.Client,
 	return route, nil
 }
 
+// DeleteExistingRoute delete the route if it exists. It returns true if the route is deleted.
+func DeleteExistingRoute(w *wildflyv1alpha1.WildFlyServer, client client.Client) (bool, error) {
+	route := &routev1.Route{}
+	if err := resources.Get(w, types.NamespacedName{Name: routeServiceName(w), Namespace: w.Namespace}, client, route); err != nil {
+		if errors.IsNotFound(err) {
+			// route has been not found, nothing to do
+			return false, nil
+		}
+		return false, err
+	}
+	// route has been found, let's delete it
+	if err := resources.Delete(w, client, route); err != nil {
+		return true, err
+	}
+	return false, nil
+}
+
 func newRoute(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *routev1.Route {
 	weight := int32(100)
 
