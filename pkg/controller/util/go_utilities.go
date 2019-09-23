@@ -72,3 +72,18 @@ func SortPodListByName(podList *corev1.PodList) *corev1.PodList {
 	})
 	return podList
 }
+
+// MapMerge merges the two maps together and returns the result.
+// If one of them is nil then is ommitted from the merged result
+// If both maps are null then an empty initialized map is returned
+// The second map rewrites data of the first map in the result if there are such
+func MapMerge(firstMap map[string]string, secondOverwritingMap map[string]string) map[string]string {
+	returnedMap := make(map[string]string)
+	for v, k := range firstMap {
+		returnedMap[v] = k
+	}
+	for v, k := range secondOverwritingMap {
+		returnedMap[v] = k
+	}
+	return returnedMap
+}
