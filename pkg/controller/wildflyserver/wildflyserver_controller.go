@@ -974,25 +974,27 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 
 	// If we are in state of recovery is needed the setup of the server has to be already done
 	if scaleDownPod.Annotations[markerRecoveryPort] == "" {
-		reqLogger.Info("Enabling recovery listener for processing scaledown at " + scaleDownPodName)
-		// Enabling recovery listener to be able to call the server for the recovery
-		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, wildflyutil.MgmtOpTxnEnableRecoveryListener)
+		reqLogger.Info("Verification the recovery listener is setup to run transaction recovery at " + scaleDownPodName)
+		// Verify the recovery listener is setup
+		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, jbossHome, wildflyutil.MgmtOpTxnCheckRecoveryListener)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "cannot execute") {
 				reqLogger.Error(err, "Verify if operator JBOSS_HOME variable determines the place where the application server is installed",
 					w.Name+".JBOSS_HOME", jbossHome)
 			}
-			return false, "", fmt.Errorf("Cannot enable transaction recovery listener for scaling down pod %v, error: %v", scaleDownPodName, err)
+			return false, "", fmt.Errorf("Cannot check if the transaction recovery listener is enabled for recovery at pod %v, error: %v", scaleDownPodName, err)
 		}
 		if !wildflyutil.IsMgmtOutcomeSuccesful(jsonResult) {
-			return false, "", fmt.Errorf("Failed to enable transaction recovery listener for scaling down pod %v. Scaledown processing cannot trigger recovery. "+
-				"Management command: %v, JSON response: %v", scaleDownPodName, wildflyutil.MgmtOpTxnEnableRecoveryListener, jsonResult)
+			return false, "", fmt.Errorf("Failed to verify if transaction recovery listener is enabled at pod %v. Scaledown processing cannot trigger recovery. "+
+				"Management command: %v, JSON response: %v", scaleDownPodName, wildflyutil.MgmtOpTxnCheckRecoveryListener, jsonResult)
 		}
-		// Enabling the recovery listner may require the server being reloaded
-		isReloadRequired := wildflyutil.ReadJSONDataByIndex(jsonResult["response-headers"], "operation-requires-reload")
-		if isReloadRequiredBool, _ := strconv.ParseBool(isReloadRequired); isReloadRequiredBool {
-			reqLogger.Info("Reloading WildFly for recovery listener being activated at pod " + scaleDownPodName)
-			wildflyutil.ExecuteOpAndWaitForServerBeingReady(wildflyutil.MgmtOpReload, scaleDownPod, jbossHome)
+		// When listener is not enabled then the pod will be terminated
+		if jsonResult["result"] != "true" {
+			reqLogger.Info("Transaction recovery listener is not enabled. Recovery pocess can't proceed at pod " + scaleDownPodName)
+			r.recorder.Event(w, corev1.EventTypeWarning, "WildFlyServerTransactionRecovery",
+				"Application server at pod "+scaleDownPodName+" does not define transaction recovery listener and recovery processing can't go forward."+
+					" Please consider fixing server configuration. The pod is now going to be terminated.")
+			return true, "", nil
 		}
 
 		// Reading recovery port from the app server with management port

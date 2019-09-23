@@ -22,8 +22,8 @@ var (
 	MgmtOpReload = ":reload()"
 	// MgmtOpRestart is a JBoss CLI command for restarting WFLY server
 	MgmtOpRestart = ":shutdown(restart=true)"
-	// MgmtOpTxnEnableRecoveryListener is a JBoss CLI command for enabling txn recovery listener
-	MgmtOpTxnEnableRecoveryListener = "/subsystem=transactions:write-attribute(name=recovery-listener, value=true)"
+	// MgmtOpTxnCheckRecoveryListener is a JBoss CLI command for enabling txn recovery listener
+	MgmtOpTxnCheckRecoveryListener = "/subsystem=transactions:read-attribute(name=recovery-listener)"
 	// MgmtOpTxnProbe is a JBoss CLI command for probing transaction log store
 	MgmtOpTxnProbe = "/subsystem=transactions/log-store=log-store:probe()"
 	// MgmtOpTxnRead is a JBoss CLI command for reading transaction log store
