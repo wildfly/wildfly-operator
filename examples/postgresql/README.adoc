@@ -45,7 +45,7 @@ kind: WildFlyServer
 metadata:
   name: taskrs-app
 spec:
-  applicationImage: "quay.io/jmesnil/taskrs-app:17.0"
+  applicationImage: "quay.io/wildfly-quickstarts/taskrs-app:17.0"
   size: 2
   env:
   - name: POSTGRESQL_SERVICE_HOST
@@ -69,7 +69,7 @@ spec:
         name: postgresql
 ----
 
-This custom resource will run the https://github.com/jfdenise/s2i-wildfly/tree/master/17.0/test/test-app-postgres[test-app-postgres] application from the https://quay.io/repository/jmesnil/taskrs-app[quay.io/jmesnil/taskrs-app:17.0] image that is using the https://github.com/wildfly/wildfly-s2i[Source-to-Image (S2I) template for WildFly].
+This custom resource will run the https://github.com/jfdenise/s2i-wildfly/tree/master/17.0/test/test-app-postgres[test-app-postgres] application from the https://quay.io/repository/wildfly-quickstarts/taskrs-app[quay.io/wildfly-quickstarts/taskrs-app:17.0] image that is using the https://github.com/wildfly/wildfly-s2i[Source-to-Image (S2I) template for WildFly].
 
 The application requires the following Environment variables to configure its connection to PostgreSQL:
 
@@ -108,7 +108,7 @@ Metadata:
   Self Link:         /apis/wildfly.org/v1alpha1/namespaces/myproject/wildflyservers/taskrs-app
   UID:               14c880f3-54c7-11e9-9fb5-065375b5f883
 Spec:
-  Application Image:  quay.io/jmesnil/taskrs-app:17.0
+  Application Image:  quay.io/wildfly-quickstarts/taskrs-app:17.0
   Env:
     Name:   POSTGRESQL_SERVICE_HOST
     Value:  postgresql

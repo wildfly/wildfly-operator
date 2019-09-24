@@ -15,7 +15,7 @@ metadata:
             "name": "quickstart"
           },
           "spec": {
-            "applicationImage": "quay.io/jmesnil/wildfly-operator-quickstart:16.0",
+            "applicationImage": "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:16.0",
             "size": 1
           }
         }
@@ -54,13 +54,13 @@ spec:
     https://github.com/wildfly/wildfly-s2i[WildFly S2I].
 
         spec:
-          applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart:16.0"
+          applicationImage: "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:16.0"
 
     The `applicationImage` accepts different references to Docker image:
 
-      * the name of the image: `quay.io/jmesnil/wildfly-operator-quickstart`
-      * a tag: `quay.io/jmesnil/wildfly-operator-quickstart:16.0`
-      * a digest: `quay.io/jmesnil/wildfly-operator-quickstart@sha256:0af38bc38be93116b6a1d86a9c78bd14cd527121970899d719baf78e5dc7bfd2`
+      * the name of the image: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart`
+      * a tag: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart:16.0`
+      * a digest: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart@sha256:0af38bc38be93116b6a1d86a9c78bd14cd527121970899d719baf78e5dc7bfd2`
 
     ### Specify the Size of the Application
     The `size` specifies the size of the application, i.e. the number of pods that runs the application image.

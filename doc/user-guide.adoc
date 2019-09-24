@@ -20,14 +20,14 @@ https://github.com/wildfly/wildfly-s2i[WildFly S2I].
 .Example of application image configuration
 ----
 spec:
-  applicationImage: "quay.io/jmesnil/wildfly-operator-quickstart:17.0"
+  applicationImage: "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:17.0"
 ----
 
 The `applicationImage` accepts different references to Docker image:
 
-* the name of the image: `quay.io/jmesnil/wildfly-operator-quickstart`
-* a tag: `quay.io/jmesnil/wildfly-operator-quickstart:17.0`
-* a digest: `quay.io/jmesnil/wildfly-operator-quickstart@sha256:0af38bc38be93116b6a1d86a9c78bd14cd527121970899d719baf78e5dc7bfd2`
+* the name of the image: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart`
+* a tag: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart:17.0`
+* a digest: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart@sha256:0af38bc38be93116b6a1d86a9c78bd14cd527121970899d719baf78e5dc7bfd2`
 
 [[size]]
 ## Specify the Size of the Application
