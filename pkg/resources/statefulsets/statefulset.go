@@ -60,7 +60,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) 
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:            &replicas,
-			ServiceName:         services.LoadBalancerServiceName(w),
+			ServiceName:         services.HeadlessServiceName(w),
 			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
