@@ -160,10 +160,11 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
-					"size": {
+					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Description: "Replicas is the desired number of replicas for the application",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"sessionAffinity": {
@@ -199,7 +200,8 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 					},
 					"envFrom": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "EnvFrom contains environment variables from a source such as a ConfigMap or a Secret",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -223,7 +225,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"applicationImage", "size"},
+				Required: []string{"applicationImage", "replicas"},
 			},
 		},
 		Dependencies: []string{
@@ -237,6 +239,13 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServerStatus defines the observed state of WildFlyServer",
 				Properties: map[string]spec.Schema{
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Replicas is the actual number of replicas for the application",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"pods": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -270,7 +279,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 						},
 					},
 				},
-				Required: []string{"scalingdownPods"},
+				Required: []string{"replicas", "scalingdownPods"},
 			},
 		},
 		Dependencies: []string{

@@ -42,7 +42,7 @@ func MakeBasicWildFlyServer(ns, name, applicationImage string, size int32) *wild
 		},
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
-			Size:             size,
+			Replicas:         size,
 		},
 	}
 }
@@ -111,7 +111,7 @@ func CreateAndWaitUntilReady(f *framework.Framework, ctx *framework.TestCtx, t *
 func WaitUntilReady(f *framework.Framework, t *testing.T, server *wildflyv1alpha1.WildFlyServer) error {
 	name := server.ObjectMeta.Name
 	ns := server.ObjectMeta.Namespace
-	size := server.Spec.Size
+	size := server.Spec.Replicas
 
 	t.Logf("Waiting until statefulset %s is ready with size of %v", name, size)
 

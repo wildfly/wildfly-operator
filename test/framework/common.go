@@ -67,12 +67,12 @@ func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *fram
 	if err != nil {
 		return err
 	}
-	wildflyServer.Spec.Size = 2
+	wildflyServer.Spec.Replicas = 2
 	err = f.Client.Update(context, wildflyServer)
 	if err != nil {
 		return err
 	}
-	t.Logf("Updated application %s size to %d\n", name, wildflyServer.Spec.Size)
+	t.Logf("Updated application %s size to %d\n", name, wildflyServer.Spec.Replicas)
 
 	// check that the resource have been updated
 	return WaitUntilReady(f, t, wildflyServer)
@@ -167,26 +167,26 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 	if err != nil {
 		t.Fatalf("Failed to obtain the WildflyServer resource: %v", err)
 	}
-	if wildflyServer.Spec.Size != 2 {
-		t.Fatalf("The created %s customer resource should be defined with 2 instances but it's %v: %v", name, wildflyServer.Spec.Size, err)
+	if wildflyServer.Spec.Replicas != 2 {
+		t.Fatalf("The created %s customer resource should be defined with 2 instances but it's %v: %v", name, wildflyServer.Spec.Replicas, err)
 	}
 	// waiting for statefulset to scale to two instances
 	if err = WaitUntilReady(f, t, wildflyServer); err != nil {
 		t.Fatalf("Failed during waiting till %s customer resource is updated and ready: %v", name, err)
 	}
-	t.Logf("Application %s is deployed with %d instances\n", name, wildflyServer.Spec.Size)
+	t.Logf("Application %s is deployed with %d instances\n", name, wildflyServer.Spec.Replicas)
 
 	// scaling down by one
 	err = f.Client.Get(context, types.NamespacedName{Name: name, Namespace: namespace}, wildflyServer)
 	if err != nil {
 		t.Fatalf("Failed to obtain the WildflyServer resource for scaling it down: %v", err)
 	}
-	wildflyServer.Spec.Size = 1
+	wildflyServer.Spec.Replicas = 1
 	err = f.Client.Update(context, wildflyServer)
 	if err != nil {
 		t.Fatalf("Failed to update size of %s resource by decreasing the spec size: %v", name, err)
 	}
-	t.Logf("Updated application customer resource %s size to %d\n", name, wildflyServer.Spec.Size)
+	t.Logf("Updated application customer resource %s size to %d\n", name, wildflyServer.Spec.Replicas)
 
 	// check that the resource has been updated
 	if err = WaitUntilReady(f, t, wildflyServer); err != nil {
