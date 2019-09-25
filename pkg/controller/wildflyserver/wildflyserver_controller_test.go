@@ -24,11 +24,11 @@ import (
 )
 
 var (
-	name                   = "myapp"
-	namespace              = "mynamespace"
-	replicas         int32 = 0
-	applicationImage       = "my-app-image"
-	sessionAffinity        = true
+	name             = "myapp"
+	namespace        = "mynamespace"
+	replicas         = int32(0)
+	applicationImage = "my-app-image"
+	sessionAffinity  = true
 )
 
 func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
