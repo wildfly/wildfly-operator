@@ -210,7 +210,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 	// Processing recovery on pods which are planned to be removed because of scale down is in progress now
 	mustReconcile, err := r.processTransactionRecoveryScaleDown(reqLogger, wildflyServer, int(numberOfPodsToScaleDown), podList)
-	if mustReconcile { // server state was updated (or/and some erro could happen), we need to reconcile
+	if mustReconcile { // server state was updated (or/and some error could happen), we need to reconcile
 		return reconcile.Result{Requeue: true}, err
 	}
 	if err != nil {

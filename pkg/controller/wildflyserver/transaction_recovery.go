@@ -66,8 +66,10 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 				"Management command: %v, JSON response: %v", scaleDownPodName, wildflyutil.MgmtOpTxnCheckRecoveryListener, jsonResult)
 		}
 		// When listener is not enabled then the pod will be terminated
-		if jsonResult["result"] != "true" {
-			reqLogger.Info("Transaction recovery listener is not enabled. Recovery pocess can't proceed at pod " + scaleDownPodName)
+		isTxRecoveryListenerEnabledAsInterface := wildflyutil.ReadJSONDataByIndex(jsonResult, "result")
+		isTxRecoveryListenerEnabledAsString, _ := wildflyutil.ConvertToString(isTxRecoveryListenerEnabledAsInterface)
+		if txrecoverydefined, err := strconv.ParseBool(isTxRecoveryListenerEnabledAsString); err == nil && !txrecoverydefined {
+			reqLogger.Info("Transaction recovery listener is not enabled. Transaction recovery cannot proceed at pod " + scaleDownPodName)
 			r.recorder.Event(w, corev1.EventTypeWarning, "WildFlyServerTransactionRecovery",
 				"Application server at pod "+scaleDownPodName+" does not define transaction recovery listener and recovery processing can't go forward."+
 					" Please consider fixing server configuration. The pod is now going to be terminated.")

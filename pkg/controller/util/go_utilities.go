@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"sort"
@@ -113,4 +114,52 @@ func GetEnvAsInt(key string, fallbackInteger int64) int64 {
 func GetEnvAsDuration(key string, fallbackDurationAmount int64, durationType time.Duration) time.Duration {
 	valueAsInt := GetEnvAsInt(key, fallbackDurationAmount)
 	return time.Duration(valueAsInt) * durationType
+}
+
+// ConvertToInt takes interface type and tries to convert it to int32
+func ConvertToInt(intf interface{}) (int32, error) {
+	switch v := intf.(type) {
+	case int32:
+		return v, nil
+	case int:
+		return int32(v), nil
+	case float64:
+		return int32(int(v)), nil
+	case float32:
+		return int32(v), nil
+	case string:
+		i, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return 0, err
+		}
+		return int32(i), nil
+	case nil:
+		return 0, fmt.Errorf("The passed value is nil and cannot be converted to int32")
+	default:
+		return 0, fmt.Errorf("Un-expected type of passed value %v, actual type is %T", intf, intf)
+	}
+}
+
+// ConvertToString takes interface type and tries to convert it to string
+func ConvertToString(intf interface{}) (string, error) {
+	switch vv := intf.(type) {
+	case string:
+		return vv, nil
+	case int:
+		return strconv.Itoa(vv), nil
+	case int32:
+		return strconv.Itoa(int(vv)), nil
+	case int64:
+		return strconv.Itoa(int(vv)), nil
+	case float64:
+		return fmt.Sprintf("%f", vv), nil
+	case float32:
+		return fmt.Sprintf("%f", vv), nil
+	case bool:
+		return strconv.FormatBool(vv), nil
+	case nil:
+		return "", fmt.Errorf("The passed value is nil and cannot be converted to int32")
+	default:
+		return "", fmt.Errorf("Un-expected type of passed value %v, actual type is %T", intf, intf)
+	}
 }

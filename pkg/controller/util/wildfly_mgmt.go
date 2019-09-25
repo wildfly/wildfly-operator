@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -30,12 +29,8 @@ var (
 	MgmtOpTxnRead = "/subsystem=transactions/log-store=log-store:read-children-resources(child-type=transactions,recursive=true,include-runtime=true)"
 	// MgmtOpTxnRecoverySocketBindingRead is a JBoss CLI command for reading name of recovery socket binding
 	MgmtOpTxnRecoverySocketBindingRead = "/subsystem=transactions:read-attribute(name=socket-binding)"
-	// MgmtOpSocketBindingRecoveryPortAddress is a JBoss CLI command for reading recovery port
-	MgmtOpSocketBindingRecoveryPortAddress = "/socket-binding-group=standard-sockets/socket-binding="
-	// MgmtOpSocketBindingRecoveryPortRead is a JBoss CLI command for reading recovery port
-	MgmtOpSocketBindingRecoveryPortRead = ":read-attribute(name=port)"
-	// MgmtOpPortOffsetRead reads port of set defined for the standard-sockets binding group
-	MgmtOpPortOffsetRead = "/socket-binding-group=standard-sockets:read-attribute(name=port-offset,resolve-expressions=true)"
+	// MgmtOpSocketBindingRead is a JBoss CLI command for reading all data on the socket binding group
+	MgmtOpSocketBindingRead = "/socket-binding-group=standard-sockets:read-resource(recursive=true,resolve-expressions=true,include-runtime=true)"
 	// MgmtOpSystemPropertyRecoveryBackoffPeriod is a JBoss CLI command to set system property of recovery backoff period
 	MgmtOpSystemPropertyRecoveryBackoffPeriod = "/system-property=com.arjuna.ats.arjuna.common.RecoveryEnvironmentBean.recoveryBackoffPeriod:add(value=%s)"
 	// MgmtOpSystemPropertyPeriodicRecoveryPeriod is a JBoss CLI command to set system property of periodic recovery period
@@ -95,26 +90,17 @@ func decodeJSON(reader *io.ReadCloser) (map[string]interface{}, error) {
 
 // ReadJSONDataByIndex iterates over the JSON object to return
 //   data saved at the provided index. It returns string.
-func ReadJSONDataByIndex(json interface{}, indexes ...string) string {
+func ReadJSONDataByIndex(json interface{}, indexes ...string) interface{} {
 	jsonInProgress := json
 	for _, index := range indexes {
 		switch vv := jsonInProgress.(type) {
 		case map[string]interface{}:
 			jsonInProgress = vv[index]
 		default:
-			return ""
+			return nil
 		}
 	}
-	switch vv := jsonInProgress.(type) {
-	case string:
-		return vv
-	case int:
-		return strconv.Itoa(vv)
-	case bool:
-		return strconv.FormatBool(vv)
-	default:
-		return ""
-	}
+	return jsonInProgress
 }
 
 // GetTransactionRecoveryPort reads management to find out the recovery port
@@ -130,65 +116,32 @@ func GetTransactionRecoveryPort(pod *corev1.Pod, jbossHome string) (int32, error
 	}
 	nameOfSocketBinding, isString := jsonResult["result"].(string)
 	if !isString {
-		return 0, fmt.Errorf("Cannot parse result from reading transaction recoery socket binding. The result is '%v', from command '%v' of whole JSON result: %v",
+		return 0, fmt.Errorf("Cannot parse result from reading transaction recovery socket binding. The result is '%v', from command '%v' of whole JSON result: %v",
 			nameOfSocketBinding, MgmtOpTxnRecoverySocketBindingRead, jsonResult)
 	}
 
-	mgmtOpRecoveryPortRead := MgmtOpSocketBindingRecoveryPortAddress + nameOfSocketBinding + MgmtOpSocketBindingRecoveryPortRead
-	jsonResult, err = ExecuteMgmtOp(pod, jbossHome, mgmtOpRecoveryPortRead)
+	jsonResult, err = ExecuteMgmtOp(pod, jbossHome, MgmtOpSocketBindingRead)
 	if err != nil {
-		return 0, fmt.Errorf("Error on management operation to read recovery port with command %v, error: %v",
-			mgmtOpRecoveryPortRead, err)
+		return 0, fmt.Errorf("Error on management operation to read socket binding group with command %v, error: %v",
+			MgmtOpSocketBindingRead, err)
 	}
 	if !IsMgmtOutcomeSuccesful(jsonResult) {
-		return 0, fmt.Errorf("Cannot read recovery port. The response on command '%v' was %v",
-			mgmtOpRecoveryPortRead, jsonResult)
+		return 0, fmt.Errorf("Cannot read information on socket binding group. The response on command '%v' was %v",
+			MgmtOpSocketBindingRead, jsonResult)
 	}
-	recoveryPort, err := convertJSONResultToIntgo(jsonResult["result"])
+	offsetPortString := ReadJSONDataByIndex(jsonResult["result"], "port-offset")
+	offsetPort, err := ConvertToInt(offsetPortString)
 	if err != nil {
-		return 0, fmt.Errorf("Cannot parse result for reading recovery port. Command: '%v', JSON result: %v",
-			mgmtOpRecoveryPortRead, jsonResult)
+		return 0, fmt.Errorf("Cannot read port offset with the socket binding group read command '%v' with response %v. "+
+			"Cannot convert value '%v' to integer.", MgmtOpSocketBindingRead, jsonResult, offsetPortString)
 	}
-
-	jsonResult, err = ExecuteMgmtOp(pod, jbossHome, MgmtOpPortOffsetRead)
+	recoveryPortString := ReadJSONDataByIndex(jsonResult["result"], "socket-binding", nameOfSocketBinding, "bound-port")
+	recoveryPort, err := ConvertToInt(recoveryPortString)
 	if err != nil {
-		return 0, fmt.Errorf("Error on management operation to read port offset for socket binding with command %v, error: %v",
-			MgmtOpPortOffsetRead, err)
+		return 0, fmt.Errorf("Cannot read txn recovery port with the socket binding group read command '%v' with response %v. "+
+			"Cannot convert value '%v' to integer.", MgmtOpSocketBindingRead, jsonResult, recoveryPortString)
 	}
-	if !IsMgmtOutcomeSuccesful(jsonResult) {
-		return 0, fmt.Errorf("Cannot read port offset for socket binding. The response on command '%v' was %v",
-			MgmtOpPortOffsetRead, jsonResult)
-	}
-	portOffset, err := convertJSONResultToIntgo(jsonResult["result"])
-	if err != nil {
-		return 0, fmt.Errorf("Cannot parse result for reading port offset. Command: '%v', JSON result: %v",
-			mgmtOpRecoveryPortRead, jsonResult)
-	}
-
-	return recoveryPort + portOffset, nil
-}
-
-func convertJSONResultToIntgo(jsonResult interface{}) (int32, error) {
-	switch v := jsonResult.(type) {
-	case int32:
-		return v, nil
-	case int:
-		return int32(v), nil
-	case float64:
-		return int32(int(v)), nil
-	case float32:
-		return int32(v), nil
-	case string:
-		i, err := strconv.ParseInt(v, 10, 32)
-		if err != nil {
-			return 0, err
-		}
-		return int32(i), nil
-	case nil:
-		return 0, fmt.Errorf("The passed value is nil and cannot be converted to int32")
-	default:
-		return 0, fmt.Errorf("Un-expected type of passed value %v, actual type is %T", jsonResult, jsonResult)
-	}
+	return int32(recoveryPort) + int32(offsetPort), nil
 }
 
 // ExecuteOpAndWaitForServerBeingReady executes WildFly management operation on the pod
