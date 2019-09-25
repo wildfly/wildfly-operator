@@ -28,7 +28,7 @@ var (
 	// start of the time timestamp
 	startOfTheTimeTimestamp = time.Unix(0, 0)
 	// socket dial timeout
-	socketDialTimeout = 10 * time.Second
+	socketDialTimeout = GetEnvAsDuration("SOCKET_DIAL_TIMEOUT", 10, time.Second)
 )
 
 //ExecRemote executes a command inside the remote pod

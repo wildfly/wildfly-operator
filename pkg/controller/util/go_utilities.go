@@ -1,9 +1,12 @@
 package util
 
 import (
+	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -86,4 +89,77 @@ func MapMerge(firstMap map[string]string, secondOverwritingMap map[string]string
 		returnedMap[v] = k
 	}
 	return returnedMap
+}
+
+// GetEnvAsInt returns defined environment variable as an integer
+//  or default value is returned if the env var is not configured
+func GetEnvAsInt(key string, fallbackInteger int64) int64 {
+	valueStr, ok := os.LookupEnv(key)
+	if ok {
+		valueInt, err := strconv.ParseInt(valueStr, 10, 64)
+		if err == nil {
+			return valueInt
+		}
+	}
+	return fallbackInteger
+}
+
+// GetEnvAsDuration returns defined environment variable as duration
+//  while it expects the environment variable contains the number defined in duration type
+//  defined as a third parameter. The result will be returned as duration.
+//  If env variable is not found then the default value as duration is returned (defined by the duration type)
+//  e.g. call 'GetEnvAsDuration("TIMEOUT", 10, time.Second)' means
+//   search for the TIMEOUT env variable and the value is expected being defined in seconds,
+//   if the env var is not found then returns duration of 10 seconds
+func GetEnvAsDuration(key string, fallbackDurationAmount int64, durationType time.Duration) time.Duration {
+	valueAsInt := GetEnvAsInt(key, fallbackDurationAmount)
+	return time.Duration(valueAsInt) * durationType
+}
+
+// ConvertToInt takes interface type and tries to convert it to int32
+func ConvertToInt(intf interface{}) (int32, error) {
+	switch v := intf.(type) {
+	case int32:
+		return v, nil
+	case int:
+		return int32(v), nil
+	case float64:
+		return int32(int(v)), nil
+	case float32:
+		return int32(v), nil
+	case string:
+		i, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return 0, err
+		}
+		return int32(i), nil
+	case nil:
+		return 0, fmt.Errorf("The passed value is nil and cannot be converted to int32")
+	default:
+		return 0, fmt.Errorf("Un-expected type of passed value %v, actual type is %T", intf, intf)
+	}
+}
+
+// ConvertToString takes interface type and tries to convert it to string
+func ConvertToString(intf interface{}) (string, error) {
+	switch vv := intf.(type) {
+	case string:
+		return vv, nil
+	case int:
+		return strconv.Itoa(vv), nil
+	case int32:
+		return strconv.Itoa(int(vv)), nil
+	case int64:
+		return strconv.Itoa(int(vv)), nil
+	case float64:
+		return fmt.Sprintf("%f", vv), nil
+	case float32:
+		return fmt.Sprintf("%f", vv), nil
+	case bool:
+		return strconv.FormatBool(vv), nil
+	case nil:
+		return "", fmt.Errorf("The passed value is nil and cannot be converted to int32")
+	default:
+		return "", fmt.Errorf("Un-expected type of passed value %v, actual type is %T", intf, intf)
+	}
 }
