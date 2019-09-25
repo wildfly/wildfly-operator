@@ -15,7 +15,7 @@ metadata:
             "name": "quickstart"
           },
           "spec": {
-            "applicationImage": "quay.io/jmesnil/wildfly-operator-quickstart:16.0",
+            "applicationImage": "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:16.0",
             "size": 2
           }
         }
