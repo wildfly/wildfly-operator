@@ -25,7 +25,6 @@ func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) co
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "PodStatus defines the observed state of pods running the WildFlyServer application",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -50,6 +49,7 @@ func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) co
 				Required: []string{"name", "podIP", "state"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -58,7 +58,6 @@ func schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref common.Referen
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -77,6 +76,7 @@ func schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref common.Referen
 				Required: []string{"name"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -85,7 +85,6 @@ func schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "StorageSpec defines the desired storage for WildFlyServer",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"emptyDir": {
 						SchemaProps: spec.SchemaProps{
@@ -110,7 +109,6 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref common.ReferenceCallback
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServer is the Schema for the wildflyservers API",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -154,7 +152,6 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServerSpec defines the desired state of WildFlyServer",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"applicationImage": {
 						SchemaProps: spec.SchemaProps{
@@ -163,10 +160,11 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
-					"size": {
+					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Description: "Replicas is the desired number of replicas for the application",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"sessionAffinity": {
@@ -202,7 +200,8 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 					},
 					"envFrom": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "EnvFrom contains environment variables from a source such as a ConfigMap or a Secret",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -226,7 +225,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"applicationImage", "size"},
+				Required: []string{"applicationImage", "replicas"},
 			},
 		},
 		Dependencies: []string{
@@ -239,8 +238,14 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServerStatus defines the observed state of WildFlyServer",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Replicas is the actual number of replicas for the application",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"pods": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -274,7 +279,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 						},
 					},
 				},
-				Required: []string{"scalingdownPods"},
+				Required: []string{"replicas", "scalingdownPods"},
 			},
 		},
 		Dependencies: []string{

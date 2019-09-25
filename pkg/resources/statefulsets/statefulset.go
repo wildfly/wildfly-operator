@@ -41,7 +41,7 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 
 // NewStatefulSet retunrs a new statefulset
 func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *appsv1.StatefulSet {
-	replicas := w.Spec.Size
+	replicas := w.Spec.Replicas
 	applicationImage := w.Spec.ApplicationImage
 	volumeName := w.Name + "-volume"
 	labesForActiveWildflyPod := labels

@@ -13,7 +13,8 @@ import (
 type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
 	ApplicationImage string `json:"applicationImage"`
-	Size             int32  `json:"size"`
+	// Replicas is the desired number of replicas for the application
+	Replicas int32 `json:"replicas"`
 	// SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time (false if omitted)
 	SessionAffinity bool `json:"sessionAffinity,omitempty"`
 	// DisableHTTPRoute disables the creation a route to the HTTP port of the application service (false if omitted)
@@ -21,9 +22,10 @@ type WildFlyServerSpec struct {
 	StandaloneConfigMap *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
 	// StorageSpec defines specific storage required for the server own data directory. If omitted, an EmptyDir is used (that will not
 	// persist data across pod restart).
-	Storage            *StorageSpec           `json:"storage,omitempty"`
-	ServiceAccountName string                 `json:"serviceAccountName,omitempty"`
-	EnvFrom            []corev1.EnvFromSource `json:"envFrom,omitempty,list_type=corev1.EnvFromSource"`
+	Storage            *StorageSpec `json:"storage,omitempty"`
+	ServiceAccountName string       `json:"serviceAccountName,omitempty"`
+	// EnvFrom contains environment variables from a source such as a ConfigMap or a Secret
+	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty,list_type=corev1.EnvFromSource"`
 	// Env contains environment variables for the containers running the WildFlyServer application
 	Env []corev1.EnvVar `json:"env,omitempty"`
 }
@@ -46,8 +48,10 @@ type StorageSpec struct {
 // WildFlyServerStatus defines the observed state of WildFlyServer
 // +k8s:openapi-gen=true
 type WildFlyServerStatus struct {
-	Pods  []PodStatus `json:"pods,omitempty"`
-	Hosts []string    `json:"hosts,omitempty"`
+	// Replicas is the actual number of replicas for the application
+	Replicas int32       `json:"replicas"`
+	Pods     []PodStatus `json:"pods,omitempty"`
+	Hosts    []string    `json:"hosts,omitempty"`
 	// Represents the number of pods which are in scaledown process
 	// what particular pod is scaling down can be verified by PodStatus
 	//
@@ -91,6 +95,10 @@ type PodStatus struct {
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
+// +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:resource:shortName=wfly
 type WildFlyServer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
