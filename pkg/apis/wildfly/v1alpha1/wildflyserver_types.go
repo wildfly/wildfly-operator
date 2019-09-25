@@ -14,13 +14,16 @@ type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
 	ApplicationImage string `json:"applicationImage"`
 	Size             int32  `json:"size"`
-	//SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time
-	SessionAffinity     bool                     `json:"sessionAffinity,omitempty"`
+	// SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time (false if omitted)
+	SessionAffinity bool `json:"sessionAffinity,omitempty"`
+	// DisableHTTPRoute disables the creation a route to the HTTP port of the application service (false if omitted)
 	DisableHTTPRoute    bool                     `json:"disableHTTPRoute,omitempty"`
 	StandaloneConfigMap *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
-	Storage             *StorageSpec             `json:"storage,omitempty"`
-	ServiceAccountName  string                   `json:"serviceAccountName,omitempty"`
-	EnvFrom             []corev1.EnvFromSource   `json:"envFrom,omitempty"`
+	// StorageSpec defines specific storage required for the server own data directory. If omitted, an EmptyDir is used (that will not
+	// persist data across pod restart).
+	Storage            *StorageSpec           `json:"storage,omitempty"`
+	ServiceAccountName string                 `json:"serviceAccountName,omitempty"`
+	EnvFrom            []corev1.EnvFromSource `json:"envFrom,omitempty,list_type=corev1.EnvFromSource"`
 	// Env contains environment variables for the containers running the WildFlyServer application
 	Env []corev1.EnvVar `json:"env,omitempty"`
 }
@@ -29,7 +32,8 @@ type WildFlyServerSpec struct {
 // +k8s:openapi-gen=true
 type StandaloneConfigMapSpec struct {
 	Name string `json:"name"`
-	Key  string `json:"key,omitempty"`
+	// Key of the config map whose value is the standalone XML configuration file ("standalone.xml" if omitted)
+	Key string `json:"key,omitempty"`
 }
 
 // StorageSpec defines the desired storage for WildFlyServer
