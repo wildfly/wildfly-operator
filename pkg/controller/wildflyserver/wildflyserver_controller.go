@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-logr/logr"
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
@@ -37,8 +36,7 @@ import (
 )
 
 const (
-	controllerName         = "wildflyserver-controller"
-	wildflyServerFinalizer = "finalizer.wildfly.org"
+	controllerName = "wildflyserver-controller"
 )
 
 var (
@@ -54,11 +52,10 @@ func Add(mgr manager.Manager) error {
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcileWildFlyServer{
-		client:             mgr.GetClient(),
-		scheme:             mgr.GetScheme(),
-		isOpenShift:        isOpenShift(mgr.GetConfig()),
-		isWildFlyFinalizer: isWildFlyFinalizerEnabled(),
-		recorder:           mgr.GetRecorder(controllerName),
+		client:      mgr.GetClient(),
+		scheme:      mgr.GetScheme(),
+		isOpenShift: isOpenShift(mgr.GetConfig()),
+		recorder:    mgr.GetRecorder(controllerName),
 	}
 }
 
@@ -107,8 +104,6 @@ type ReconcileWildFlyServer struct {
 	recorder record.EventRecorder
 	// returns true if the operator is running on OpenShift
 	isOpenShift bool
-	// returns true if wilfly finalizer should be enabled
-	isWildFlyFinalizer bool
 }
 
 // Reconcile reads that state of the cluster for a WildFlyServer object and makes changes based on the state read
@@ -139,48 +134,6 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	if err != nil {
 		return reconcile.Result{}, err
 	} else if statefulSet == nil {
-		return reconcile.Result{Requeue: true}, nil
-	}
-
-	// Check if the WildFlyServer instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
-	isWildflyServerMarkedToBeDeleted := wildflyServer.GetDeletionTimestamp() != nil
-	if isWildflyServerMarkedToBeDeleted {
-		reqLogger.Info("WildflyServer is marked for deletion. Waiting for finalizers to clean the workspace")
-		if wildflyutil.ContainsInList(wildflyServer.GetFinalizers(), wildflyServerFinalizer) {
-			// Run finalization logic for WildflyServer. If fails do not remove.
-			//   this will be retried at next reconciliation.
-			r.recorder.Event(wildflyServer, corev1.EventTypeNormal, "WildFlyServerDeletion",
-				"Scaledown processing started before removal. Consult operator log for status.")
-			requeue, err := r.finalizeWildFlyServer(reqLogger, wildflyServer)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-			if requeue {
-				return reconcile.Result{Requeue: true}, nil
-			}
-
-			// Remove WildflyServer. Once all finalizers have been removed, the object will be deleted.
-			wildflyServer.SetFinalizers(wildflyutil.RemoveFromList(wildflyServer.GetFinalizers(), wildflyServerFinalizer))
-			if err := resources.Update(wildflyServer, r.client, wildflyServer); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-		return reconcile.Result{}, nil
-	}
-	// Add finalizer for this CR
-	if r.isWildFlyFinalizer && !wildflyutil.ContainsInList(wildflyServer.GetFinalizers(), wildflyServerFinalizer) {
-		if err := r.addWildFlyServerFinalizer(reqLogger, wildflyServer); err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-	if !r.isWildFlyFinalizer && wildflyutil.ContainsInList(wildflyServer.GetFinalizers(), wildflyServerFinalizer) {
-		reqLogger.Info("WildFly finalizer is marked to not be used but it exists at the spec, removing it")
-		wildflyServer.SetFinalizers(wildflyutil.RemoveFromList(wildflyServer.GetFinalizers(), wildflyServerFinalizer))
-		if err := resources.Update(wildflyServer, r.client, wildflyServer); err != nil {
-			return reconcile.Result{}, err
-		}
-		// Finalizer removed succesfully - return and requeu
 		return reconcile.Result{Requeue: true}, nil
 	}
 
@@ -462,44 +415,6 @@ func GetPodsForWildFly(r *ReconcileWildFlyServer, w *wildflyv1alpha1.WildFlyServ
 	return podList, err
 }
 
-func (r *ReconcileWildFlyServer) finalizeWildFlyServer(reqLogger logr.Logger, w *wildflyv1alpha1.WildFlyServer) (bool, error) {
-	podList, err := GetPodsForWildFly(r, w)
-	if err != nil {
-		return false, fmt.Errorf("Finalizer processing: failed to list pods for WildflyServer %v:%v name Error: %v", w.Namespace, w.Name, err)
-	}
-	requeue, err := r.processTransactionRecoveryScaleDown(reqLogger, w, len(podList.Items), podList)
-	if err != nil {
-		// error during processing transaction recovery, error from finalizer
-		return false, fmt.Errorf("Finalizer processing: failed transaction recovery for WildflyServer %v:%v name Error: %v", w.Namespace, w.Name, err)
-	}
-	if requeue {
-		return true, nil
-	}
-	for _, v := range w.Status.Pods {
-		if v.State == wildflyv1alpha1.PodStateScalingDownRecoveryInvestigation {
-			return false, fmt.Errorf("Finalizer processing: recovery in progress at %v/%v at pod %v", w.Namespace, w.Name, v.Name)
-		}
-		if v.State != wildflyv1alpha1.PodStateScalingDownClean {
-			return false, fmt.Errorf("Finalizer processing: transaction recovery processed with unfinished transactions at %v/%v at pod %v with state %v",
-				w.Namespace, w.Name, v.Name, v.State)
-		}
-	}
-	reqLogger.Info("Finalizer finished succesfully", "WildflyServer Namespace", w.Namespace, "WildflyServer Name", w.Name)
-	return false, nil
-}
-
-func (r *ReconcileWildFlyServer) addWildFlyServerFinalizer(reqLogger logr.Logger, w *wildflyv1alpha1.WildFlyServer) error {
-	reqLogger.Info("Adding Finalizer for the WildFlyServer", "Finalizer Name", wildflyServerFinalizer)
-	w.SetFinalizers(append(w.GetFinalizers(), wildflyServerFinalizer))
-
-	// Update CR WildflyServer
-	if err := resources.Update(w, r.client, w); err != nil {
-		reqLogger.Error(err, "Failed to update WildFlyServer with finalizer", "Finalizer Name", wildflyServerFinalizer)
-		return err
-	}
-	return nil
-}
-
 func getWildflyServerPodStatusByName(w *wildflyv1alpha1.WildFlyServer, podName string) *wildflyv1alpha1.PodStatus {
 	for index, podStatus := range w.Status.Pods {
 		if podName == podStatus.Name {
@@ -561,13 +476,4 @@ func isOpenShift(c *rest.Config) bool {
 		return false
 	}
 	return isOpenShift
-}
-
-// isWildFlyFinalizer returns true when is defined the finalizer should be added
-func isWildFlyFinalizerEnabled() bool {
-	isWildFlyFinalizer, err := strconv.ParseBool(os.Getenv("ENABLE_WILDFLY_FINALIZER"))
-	if err != nil {
-		return true
-	}
-	return isWildFlyFinalizer
 }
