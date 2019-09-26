@@ -160,7 +160,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
-					"size": {
+					"replicas": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"integer"},
 							Format: "int32",
@@ -223,7 +223,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"applicationImage", "size"},
+				Required: []string{"applicationImage", "replicas"},
 			},
 		},
 		Dependencies: []string{

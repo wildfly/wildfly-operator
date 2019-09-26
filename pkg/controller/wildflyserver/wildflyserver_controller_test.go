@@ -44,7 +44,7 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 		},
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
-			Size:             replicas,
+			Replicas:         replicas,
 			SessionAffinity:  sessionAffinity,
 		},
 	}
@@ -117,7 +117,7 @@ func TestEnvUpdate(t *testing.T) {
 		},
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
-			Size:             0,
+			Replicas:         0,
 			SessionAffinity:  sessionAffinity,
 			Env: []corev1.EnvVar{
 				*initialEnv,
@@ -249,7 +249,7 @@ func TestWildFlyServerControllerScaleDown(t *testing.T) {
 		},
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
-			Size:             expectedReplicaSize,
+			Replicas:         expectedReplicaSize,
 			SessionAffinity:  sessionAffinity,
 		},
 	}
@@ -310,7 +310,7 @@ func TestWildFlyServerControllerScaleDown(t *testing.T) {
 		"WildflyServer", wildflyServer)
 	assert.Equal(int(expectedReplicaSize), len(wildflyServer.Status.Pods))
 	assert.Equal(wildflyv1alpha1.PodStateActive, wildflyServer.Status.Pods[0].State)
-	wildflyServer.Spec.Size = 0
+	wildflyServer.Spec.Replicas = 0
 	err = cl.Update(context.TODO(), wildflyServer)
 
 	// Reconcile for the scale down - updating the pod labels

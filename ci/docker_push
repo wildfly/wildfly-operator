@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
+  echo "Push images only on Pull Requests"
+  exit 1
+fi
+
+docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_PASSWORD}"  quay.io
+docker push quay.io/${IMAGE}:${TAG}

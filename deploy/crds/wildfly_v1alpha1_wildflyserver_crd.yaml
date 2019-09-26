@@ -52,6 +52,9 @@ spec:
               items:
                 type: object
               type: array
+            replicas:
+              format: int32
+              type: integer
             serviceAccountName:
               type: string
             sessionAffinity:
@@ -59,9 +62,6 @@ spec:
                 ip are passed to the same WildFlyServer instance/pod each time (false
                 if omitted)
               type: boolean
-            size:
-              format: int32
-              type: integer
             standaloneConfigMap:
               properties:
                 key:
@@ -85,7 +85,7 @@ spec:
               type: object
           required:
           - applicationImage
-          - size
+          - replicas
           type: object
         status:
           properties:

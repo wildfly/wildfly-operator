@@ -13,7 +13,7 @@ import (
 type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
 	ApplicationImage string `json:"applicationImage"`
-	Size             int32  `json:"size"`
+	Replicas         int32  `json:"replicas"`
 	// SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time (false if omitted)
 	SessionAffinity bool `json:"sessionAffinity,omitempty"`
 	// DisableHTTPRoute disables the creation a route to the HTTP port of the application service (false if omitted)

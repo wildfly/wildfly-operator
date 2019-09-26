@@ -52,11 +52,11 @@ test-e2e: test-e2e-16 test-e2e-17
 
 ## test-e2e         Run e2e test for WildFly 16.0
 test-e2e-16: setup
-	operator-sdk test local ./test/e2e/16.0 --verbose --debug
+	operator-sdk test local ./test/e2e/16.0 --verbose --debug --image "${DOCKER_REPO}$(IMAGE):$(TAG)"  --namespace operator-test
 
 ## test-e2e         Run e2e test for WildFly 17.0
 test-e2e-17: setup
-	operator-sdk test local ./test/e2e/17.0 --verbose --debug
+	operator-sdk test local ./test/e2e/17.0 --verbose --debug --image "${DOCKER_REPO}$(IMAGE):$(TAG)"  --namespace operator-test
 
 ## scorecard        Run operator-sdk scorecard.
 scorecard: setup
