@@ -108,7 +108,6 @@ spec:
                 required:
                 - name
                 - podIP
-                - state
                 type: object
               type: array
             scalingdownPods:
@@ -116,8 +115,6 @@ spec:
                 what particular pod is scaling down can be verified by PodStatus  Read-only.
               format: int32
               type: integer
-          required:
-          - scalingdownPods
           type: object
   version: v1alpha1
   versions:

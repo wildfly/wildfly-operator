@@ -46,7 +46,7 @@ func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) co
 						},
 					},
 				},
-				Required: []string{"name", "podIP", "state"},
+				Required: []string{"name", "podIP"},
 			},
 		},
 		Dependencies: []string{},
@@ -270,7 +270,6 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 						},
 					},
 				},
-				Required: []string{"scalingdownPods"},
 			},
 		},
 		Dependencies: []string{

@@ -52,7 +52,7 @@ type WildFlyServerStatus struct {
 	// what particular pod is scaling down can be verified by PodStatus
 	//
 	// Read-only.
-	ScalingdownPods int32 `json:"scalingdownPods"`
+	ScalingdownPods int32 `json:"scalingdownPods,omitempty"`
 }
 
 const (
@@ -84,7 +84,7 @@ type PodStatus struct {
 	// the expected values are represented by the PodState* constants
 	//
 	// Read-only.
-	State string `json:"state"`
+	State string `json:"state,omitempty"`
 }
 
 // WildFlyServer is the Schema for the wildflyservers API
