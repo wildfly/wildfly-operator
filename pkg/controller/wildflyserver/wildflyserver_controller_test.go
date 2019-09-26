@@ -135,7 +135,7 @@ func TestEnvUpdate(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 	// Create a ReconcileWildFlyServer object with the scheme and fake client.
-	r := &ReconcileWildFlyServer{client: cl, scheme: s, isOpenShift: false, isWildFlyFinalizer: false}
+	r := &ReconcileWildFlyServer{client: cl, scheme: s, isOpenShift: false}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -264,7 +264,7 @@ func TestWildFlyServerControllerScaleDown(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 	// Create a ReconcileWildFlyServer object with the scheme and fake client.
-	r := &ReconcileWildFlyServer{client: cl, scheme: s, recorder: eventRecorderMock{}, isOpenShift: false, isWildFlyFinalizer: true}
+	r := &ReconcileWildFlyServer{client: cl, scheme: s, recorder: eventRecorderMock{}, isOpenShift: false}
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
 	req := reconcile.Request{
@@ -284,13 +284,6 @@ func TestWildFlyServerControllerScaleDown(t *testing.T) {
 	assert.Equal(expectedReplicaSize, *statefulSet.Spec.Replicas)
 	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
 
-	// Finalizer will be added
-	_, err = r.Reconcile(req)
-	require.NoError(t, err)
-	err = cl.Get(context.TODO(), req.NamespacedName, wildflyServer)
-	require.NoError(t, err)
-	assert.Equal(1, len(wildflyServer.GetFinalizers()))
-	assert.Equal("finalizer.wildfly.org", wildflyServer.GetFinalizers()[0])
 	// Operator correctly setup the StatefulSet replica thus move on and create the Pod that the operator waits for
 	//   StatefulSet won't do this here for us thus manual creation is needed
 	pod := &corev1.Pod{
