@@ -52,11 +52,11 @@ test-e2e: test-e2e-16 test-e2e-17
 
 ## test-e2e         Run e2e test for WildFly 16.0
 test-e2e-16: setup
-	operator-sdk test local ./test/e2e/16.0 --verbose --debug
+	JBOSS_HOME=/opt/jboss/wildfly OPERATOR_NAME=wildfly-operator operator-sdk test local ./test/e2e/16.0 --verbose --debug  --namespace default --up-local
 
 ## test-e2e         Run e2e test for WildFly 17.0
 test-e2e-17: setup
-	operator-sdk test local ./test/e2e/17.0 --verbose --debug
+	JBOSS_HOME=/opt/jboss/wildfly OPERATOR_NAME=wildfly-operator operator-sdk test local ./test/e2e/17.0 --verbose --debug  --namespace default --up-local
 
 ## scorecard        Run operator-sdk scorecard.
 scorecard: setup

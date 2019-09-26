@@ -4,15 +4,15 @@ import (
 	goctx "context"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"testing"
+	"time"
 
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
-	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
+	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 )
 
 // WildFlyBasicTest runs basic operator tests
@@ -38,15 +38,9 @@ func wildflyTestSetup(t *testing.T) (*framework.TestCtx, *framework.Framework) {
 		defer ctx.Cleanup()
 		t.Fatalf("Failed to get namespace for testing context '%v': %v", ctx, err)
 	}
+	t.Logf("Testing in namespace %s", namespace)
 	// get global framework variables
 	f := framework.Global
-	// wait for wildfly-operator to be ready
-	err = e2eutil.WaitForDeployment(t, f.KubeClient, namespace, "wildfly-operator", 1, retryInterval, timeout)
-	if err != nil {
-		defer ctx.Cleanup()
-		t.Fatalf("Failed on waiting for wildfly-operator deployment at namespace %s: %v", namespace, err)
-	}
-	t.Log("WildFly Operator is deployed")
 	return ctx, f
 }
 
@@ -56,7 +50,7 @@ func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *fram
 		return fmt.Errorf("could not get namespace: %v", err)
 	}
 
-	name := "example-wildfly"
+	name := "example-wildfly-" + unixEpoch()
 	// create wildflyserver custom resource
 	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:"+applicationTag, 1)
 	err = CreateAndWaitUntilReady(f, ctx, t, wildflyServer)
@@ -100,7 +94,7 @@ func wildflyClusterViewTest(t *testing.T, f *framework.Framework, ctx *framework
 		return fmt.Errorf("could not get namespace: %v", err)
 	}
 
-	name := "clusterbench"
+	name := "clusterbench-" + unixEpoch()
 	standaloneConfigXML, err := ioutil.ReadFile("test/e2e/" + applicationTag + "/standalone-clustering-test.xml")
 	if err != nil {
 		return err
@@ -146,7 +140,7 @@ func wildflyClusterViewTest(t *testing.T, f *framework.Framework, ctx *framework
 		return err
 	}
 
-	return WaitUntilClusterIsFormed(f, t, wildflyServer, "clusterbench-0", "clusterbench-1")
+	return WaitUntilClusterIsFormed(f, t, wildflyServer, name+"-0", name+"-1")
 }
 
 // WildflyScaleDownTest runs recovery scale down operation
@@ -159,7 +153,7 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 		t.Fatalf("could not get namespace: %v", err)
 	}
 
-	name := "example-wildfly"
+	name := "example-wildfly-" + unixEpoch()
 	// create wildflyserver custom resource
 	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:"+applicationTag, 2)
 	// waiting for number of pods matches the desired state
@@ -203,4 +197,8 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 	if DeleteWildflyServer(context, wildflyServer, f, t); err != nil {
 		t.Fatalf("Failed to wait until the WildflyServer resource is deleted: %v", err)
 	}
+}
+
+func unixEpoch() string {
+	return strconv.FormatInt(time.Now().UnixNano(), 10)
 }

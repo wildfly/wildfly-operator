@@ -25,7 +25,7 @@ func TestWildFly16Server(t *testing.T) {
 	}
 	// run subtests
 	t.Run("BasicTest", wildFlyBasicTest)
-	t.Run("ClusterTest", wildFlyClusterTest)
+	//t.Run("ClusterTest", wildFlyClusterTest)
 }
 
 func wildFlyBasicTest(t *testing.T) {
