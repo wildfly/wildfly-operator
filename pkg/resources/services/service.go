@@ -16,6 +16,7 @@ var log = logf.Log.WithName("wildlfyserver_services")
 
 // CreateOrUpdateHeadlessService create a headless service or returns one up to date with the WildflyServer
 func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
+	labels[resources.MarkerOperatedByHeadless] = resources.MarkerServiceActive // managing only active pods which are permitted to run EJB remote calls
 	headlessService := &corev1.Service{}
 	err := resources.Get(w, types.NamespacedName{Name: HeadlessServiceName(w), Namespace: w.Namespace}, client, headlessService)
 	if err != nil && !errors.IsNotFound(err) {
@@ -51,6 +52,7 @@ func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client clie
 
 // CreateOrUpdateLoadBalancerService create a loadbalancer service or returns one up to date with the WildflyServer
 func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
+	labels[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive // managing only active pods which are not in scaledown process
 	loadBalancer := &corev1.Service{}
 	err := resources.Get(w, types.NamespacedName{Name: LoadBalancerServiceName(w), Namespace: w.Namespace}, client, loadBalancer)
 	if err != nil && !errors.IsNotFound(err) {
@@ -85,7 +87,6 @@ func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client 
 }
 
 func newHeadlessService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *corev1.Service {
-	labels[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive // managing only active pods which are not in scaledown process
 	headlessService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      HeadlessServiceName(w),
@@ -109,7 +110,6 @@ func newHeadlessService(w *wildflyv1alpha1.WildFlyServer, labels map[string]stri
 
 // loadBalancerForWildFly returns a loadBalancer service
 func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *corev1.Service {
-	labels[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive // managing only active pods which are not in scaledown process
 	sessionAffinity := corev1.ServiceAffinityNone
 	if w.Spec.SessionAffinity {
 		sessionAffinity = corev1.ServiceAffinityClientIP

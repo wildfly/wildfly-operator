@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 
@@ -44,7 +45,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) 
 	replicas := w.Spec.Size
 	applicationImage := w.Spec.ApplicationImage
 	volumeName := w.Name + "-volume"
-	labesForActiveWildflyPod := labels
+	labesForActiveWildflyPod := wildflyutil.CopyMap(labels)
 	labesForActiveWildflyPod[resources.MarkerOperatedByHeadless] = resources.MarkerServiceActive
 	labesForActiveWildflyPod[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive
 

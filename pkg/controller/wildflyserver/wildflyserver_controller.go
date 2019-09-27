@@ -310,9 +310,9 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 		}
 		// There are some unclean pods which can't be scaled down
 		if wildflyServerSpecSize < calculatedStatefulSetReplicaSize {
-			log.Info("Statefulset was not fully scaled to the desired replica size "+strconv.Itoa(int(wildflyServerSpecSize))+
+			log.Info("Statefulset was not scaled to the desired replica size "+strconv.Itoa(int(wildflyServerSpecSize))+
 				" (current StatefulSet size: "+strconv.Itoa(int(calculatedStatefulSetReplicaSize))+
-				"). Some pods were not cleaned by recovery. Verify status of the WildflyServer "+wildflyServer.Name,
+				"). Transaction recovery scaledown process has not cleaned all pods. Please, check status of the WildflyServer "+wildflyServer.Name,
 				"StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			r.recorder.Event(wildflyServer, corev1.EventTypeWarning, "WildFlyServerScaledown",
 				"Transaction recovery slowed down the scaledown.")
