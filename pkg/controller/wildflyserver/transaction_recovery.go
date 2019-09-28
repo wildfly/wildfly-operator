@@ -217,7 +217,6 @@ func (r *ReconcileWildFlyServer) updatePodLabel(w *wildflyv1alpha1.WildFlyServer
 }
 
 // processTransactionRecoveryScaleDown runs transaction recovery on provided number of pods
-//   needUpdate returns true if some changes in status pods were done and client update is expected
 //   mustReconcileRequeue returns true if the reconcile requeue loop should be called as soon as possible
 //   err reports error which occurs during method processing
 func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger logr.Logger, w *wildflyv1alpha1.WildFlyServer,
@@ -249,7 +248,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 		if err != nil {
 			err = fmt.Errorf("There was trouble to update state of WildflyServer: %v, error: %v", w.Status.Pods, err)
 		}
-		return true, err
+		return false, err
 	}
 
 	updated.UnSet()
@@ -332,10 +331,9 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 		w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
 		err := resources.UpdateWildFlyServerStatus(w, r.client)
 		if err != nil {
-			err = fmt.Errorf("Error to update state of WildflyServer after recovery processing for pods %v, "+
+			return true, fmt.Errorf("Error to update state of WildflyServer after recovery processing for pods %v, "+
 				"error: %v. Recovery processing errors: %v", w.Status.Pods, err, resultError)
 		}
-		return true, err
 	}
 
 	return false, resultError
