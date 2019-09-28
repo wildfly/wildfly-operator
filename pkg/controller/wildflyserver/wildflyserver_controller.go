@@ -369,8 +369,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 
 	if update {
 		log.Info("Updating statefulset", "StatefulSet.Replicas", foundStatefulSet.Spec.Replicas)
-		err := r.client.Update(context.TODO(), foundStatefulSet)
-		if err != nil {
+		if err = resources.Update(wildflyServer, r.client, foundStatefulSet); err != nil {
 			log.Error(err, "Failed to update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			return true, err
 		}
