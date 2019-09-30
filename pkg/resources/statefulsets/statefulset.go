@@ -134,6 +134,13 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		}
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 		pvcTemplate.Spec.Resources = storageSpec.VolumeClaimTemplate.Spec.Resources
+		// Kubernetes initializes empty map as nil, the reflect.DeepEqual causes troubles when we do not use nil too
+		if pvcTemplate.Spec.Resources.Limits != nil && len(pvcTemplate.Spec.Resources.Limits) == 0 {
+			pvcTemplate.Spec.Resources.Limits = nil
+		}
+		if pvcTemplate.Spec.Resources.Requests != nil && len(pvcTemplate.Spec.Resources.Requests) == 0 {
+			pvcTemplate.Spec.Resources.Requests = nil
+		}
 		pvcTemplate.Spec.Selector = storageSpec.VolumeClaimTemplate.Spec.Selector
 		statefulSet.Spec.VolumeClaimTemplates = append(statefulSet.Spec.VolumeClaimTemplates, pvcTemplate)
 	}
