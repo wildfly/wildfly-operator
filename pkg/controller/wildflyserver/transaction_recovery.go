@@ -168,40 +168,41 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	return true, "", nil
 }
 
-func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger logr.Logger, scaleDownPod *corev1.Pod, w *wildflyv1alpha1.WildFlyServer) (bool, error) {
+func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger logr.Logger, scaleDownPod *corev1.Pod, w *wildflyv1alpha1.WildFlyServer) (needReconcile bool, err error) {
 	scaleDownPodName := scaleDownPod.ObjectMeta.Name
-
 	// Setup and restart only if it was not done in the prior reconcile cycle
 	if scaleDownPod.Annotations[markerRecoveryPropertiesSetup] == "" {
-		setBackoffPeriodOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyRecoveryBackoffPeriod, "1")
-		setOrphanIntervalOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyOrphanSafetyInterval, "1")
-		setRecoveryPeriodOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyPeriodicRecoveryPeriod, "30") // speed-up but still having time proceed the SCAN
-		wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setBackoffPeriodOp)
-		wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setOrphanIntervalOp)
-		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setRecoveryPeriodOp)
-		if err != nil {
-			return false, fmt.Errorf("Error to setup recovery periods by system properties with management operation '%s' for scaling down pod %s, error: %v",
-				setRecoveryPeriodOp, scaleDownPodName, err)
-		}
-		if !wildflyutil.IsMgmtOutcomeSuccesful(jsonResult) {
-			return false, fmt.Errorf("Setting up the recovery period by system property with operation '%s' at pod %s was not succesful. JSON output: %v",
-				setRecoveryPeriodOp, scaleDownPodName, jsonResult)
+		reqLogger.Info("Setting up back-off period and orphan detection properties for scaledown transaction reocovery", "Pod Name", scaleDownPodName)
+		setPeriodOps := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyRecoveryBackoffPeriod, "1") + "," + fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyOrphanSafetyInterval, "1")
+		jsonResult, _ := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setPeriodOps)
+
+		// command may end-up with error with status 'rolled-back' which means duplication, thus do not check for error as error could be possitive outcome
+
+		isOperationRolledBack := wildflyutil.ReadJSONDataByIndex(jsonResult, "rolled-back")
+		isOperationRolledBackAsString, _ := wildflyutil.ConvertToString(isOperationRolledBack)
+		if !wildflyutil.IsMgmtOutcomeSuccesful(jsonResult) && isOperationRolledBackAsString != "true" {
+			return false, fmt.Errorf("Setting up the back-off period and orphan detection properties by env property "+
+				"with operation '%s' at pod %s was not succesful. JSON output: %v", setPeriodOps, scaleDownPodName, jsonResult)
 		}
 
-		if _, err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(wildflyutil.MgmtOpRestart, scaleDownPod, resources.JBossHome); err != nil {
-			return false, fmt.Errorf("Cannot restart application server after setting up the periodic recovery properties, error: %v", err)
-		}
-
-		// Marking the pod as the server was already setup for the recovery
-		scaleDownPod.Annotations[markerRecoveryPropertiesSetup] = "true"
+		reqLogger.Info("Marking pod as being setup for transaction recovery. Adding annotation "+markerRecoveryPropertiesSetup, "Pod Name", scaleDownPodName)
+		annotations := wildflyutil.MapMerge(
+			scaleDownPod.GetAnnotations(), map[string]string{markerRecoveryPropertiesSetup: "true"})
+		scaleDownPod.SetAnnotations(annotations)
 		if err := resources.Update(w, r.client, scaleDownPod); err != nil {
 			return false, fmt.Errorf("Failed to update pod annotations, pod name %v, annotations to be set %v, error: %v",
 				scaleDownPodName, scaleDownPod.Annotations, err)
 		}
-	} else {
-		reqLogger.Info("Recovery properties for app server at pod were already defined. Skipping server restart.", "Pod Name", scaleDownPodName)
+
+		reqLogger.Info("Restarting application server to apply the env properies", "Pod Name", scaleDownPodName)
+		if _, err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(reqLogger, wildflyutil.MgmtOpRestart, scaleDownPod, resources.JBossHome); err != nil {
+			return false, fmt.Errorf("Cannot restart application server after setting up the periodic recovery properties, error: %v", err)
+		}
+
+		return true, nil
 	}
-	return true, nil
+	reqLogger.Info("Recovery properties at pod were already defined. Skipping server restart.", "Pod Name", scaleDownPodName)
+	return false, nil
 }
 
 func (r *ReconcileWildFlyServer) updatePodLabel(w *wildflyv1alpha1.WildFlyServer, scaleDownPod *corev1.Pod, labelName, labelValue string) (bool, error) {
@@ -283,9 +284,21 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 					"IP Address", scaleDownPodIP, "Pod State", podState, "Pod Phase", scaleDownPod.Status.Phase)
 
 				// TODO: check if it's possible to set graceful shutdown here
+
+				// For full and correct recovery we need to first, run two recovery checks and second, having the orphan detection interval set to minimum
+				_, err := r.setupRecoveryPropertiesAndRestart(reqLogger, &scaleDownPod, w)
+				if err != nil {
+					scaleDownErrors.Store(scaleDownPodName, err)
+					return
+				}
+				// Running recovery twice for orphan detection will be kicked-in
+				_, _, err = r.checkRecovery(reqLogger, &scaleDownPod, w)
+				if err != nil {
+					scaleDownErrors.Store(scaleDownPodName, err)
+					return
+				}
 				success, message, err := r.checkRecovery(reqLogger, &scaleDownPod, w)
 				if err != nil {
-					// An error happened during recovery
 					scaleDownErrors.Store(scaleDownPodName, err)
 					return
 				}
@@ -296,8 +309,6 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 					// Some in-doubt transaction left in store, the pod is still dirty
 					reqLogger.Info("In-doubt transactions in object store", "Pod Name", scaleDownPodName, "Message", message)
 					scaleDownPodsStates.Store(scaleDownPodName, wildflyv1alpha1.PodStateScalingDownRecoveryDirty)
-					// Let's setup recovery peroperties, restart the app server and thus speed-up the recovery
-					r.setupRecoveryPropertiesAndRestart(reqLogger, &scaleDownPod, w)
 				}
 			}
 		}() // execution of the go routine for one pod

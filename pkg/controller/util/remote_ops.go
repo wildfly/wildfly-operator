@@ -76,10 +76,10 @@ func ExecRemote(pod *corev1.Pod, command string) (string, error) {
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("cannot execute '%v': %v", command, err)
+		return execOut.String(), fmt.Errorf("error on execution '%v': %v", command, err)
 	}
 	if execErr.Len() > 0 {
-		return "", fmt.Errorf("command execution '%v' got stderr: %v", command, execErr.String())
+		return execOut.String(), fmt.Errorf("command execution '%v' got stderr: %v", command, execErr.String())
 	}
 	return execOut.String(), nil
 }
