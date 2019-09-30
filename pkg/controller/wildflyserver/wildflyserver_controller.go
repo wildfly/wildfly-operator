@@ -129,8 +129,13 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
+	// If statefulset was deleted during processing recovery scaledown the number of replicas in WildflyServer spec
+	//  does not defines the number of pods which should be left active until recovered
+	desiredReplicaSizeForNewStatefulSet := wildflyServer.Spec.Size + wildflyServer.Status.ScalingdownPods
+
 	// Check if the statefulSet already exists, if not create a new one
-	statefulSet, err := statefulsets.GetOrCreateNewStatefulSet(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer))
+	statefulSet, err := statefulsets.GetOrCreateNewStatefulSet(wildflyServer, r.client, r.scheme,
+		LabelsForWildFly(wildflyServer), desiredReplicaSizeForNewStatefulSet)
 	if err != nil {
 		return reconcile.Result{}, err
 	} else if statefulSet == nil {
@@ -146,17 +151,25 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	wildflyServerSpecSize := wildflyServer.Spec.Size
 	statefulsetSpecSize := *statefulSet.Spec.Replicas
 	numberOfDeployedPods := int32(len(podList.Items))
+	numberOfPodsToScaleDown := statefulsetSpecSize - wildflyServerSpecSize // difference between desired pod count and the current number of pods
 
+	// if the number of desired replica size (aka. WildflyServer.Spec.Size) is different from the number of active pods
+	//  and the statefulset replica size was already changed to follow the value defined by the wildflyserver spec then wait for sts to reconcile
 	if statefulsetSpecSize == wildflyServerSpecSize && numberOfDeployedPods != wildflyServerSpecSize {
 		reqLogger.Info("Number of pods does not match the WildFlyServer specification. Waiting to get numbers in sync.",
 			"WildflyServer specification", wildflyServer.Name, "Expected number of pods", wildflyServerSpecSize, "Number of deployed pods", numberOfDeployedPods,
 			"StatefulSet spec size", statefulsetSpecSize)
 		return reconcile.Result{Requeue: true}, nil
 	}
+	// the recovers scaledown process requires all pods will be active and running otherwise it's not able to clean them
+	if numberOfDeployedPods < statefulsetSpecSize {
+		reqLogger.Info("Number of pods is lower than the StatefulSet replica size. Waiting to get number in sync.",
+			"Number of deployed pods", numberOfDeployedPods, "StatefulSet spec size", statefulsetSpecSize)
+		return reconcile.Result{Requeue: true}, nil
+	}
 
 	// Processing scaled down
-	numberOfPodsToScaleDown := statefulsetSpecSize - wildflyServerSpecSize // difference between desired pod count and the current number of pods
-	// Update pods which are to be scaled down to not be getting requests through loadbalancer
+	//   updating scaling-down pods for not being requests through loadbalancer
 	updated, err := r.setLabelAsDisabled(wildflyServer, reqLogger, resources.MarkerOperatedByLoadbalancer, int(numberOfPodsToScaleDown), podList, nil, "")
 	if updated || err != nil { // labels were updated (updated == true) or some error occured (err != nil)
 		return reconcile.Result{Requeue: updated}, err
@@ -321,7 +334,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 	}
 
 	if !resources.IsCurrentGeneration(wildflyServer, foundStatefulSet) {
-		statefulSet := statefulsets.NewStatefulSet(wildflyServer, LabelsForWildFly(wildflyServer))
+		statefulSet := statefulsets.NewStatefulSet(wildflyServer, LabelsForWildFly(wildflyServer), desiredStatefulSetReplicaSize)
 		delete := false
 		// changes to VolumeClaimTemplates can not be updated and requires a delete/create of the statefulset
 		if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {

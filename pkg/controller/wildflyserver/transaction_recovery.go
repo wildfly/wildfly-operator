@@ -83,7 +83,8 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 			scaleDownPodRecoveryPort = queriedScaleDownPodRecoveryPort
 		}
 		if err != nil {
-			reqLogger.Error(err, "Error on reading transaction recovery port with management command", "Pod name", scaleDownPodName)
+			reqLogger.Error(err, "Error on reading transaction recovery port with management command. Using default port: "+scaleDownPodName,
+				"Pod name", scaleDownPodName)
 		}
 
 		// The pod was already searched for the recovery port, marking that into the annotations
@@ -350,6 +351,10 @@ func (r *ReconcileWildFlyServer) setLabelAsDisabled(w *wildflyv1alpha1.WildFlySe
 	updated := false
 
 	for scaleDownIndex := 1; scaleDownIndex <= numberOfPodsToScaleDown; scaleDownIndex++ {
+		if wildflyServerNumberOfPods-scaleDownIndex >= len(podList.Items) || wildflyServerNumberOfPods-scaleDownIndex < 0 {
+			return false, fmt.Errorf("Cannot update pod label for pod number %v as there is no such active pod in list: %v, ",
+				wildflyServerNumberOfPods-scaleDownIndex, podList)
+		}
 		scaleDownPod := podList.Items[wildflyServerNumberOfPods-scaleDownIndex]
 		scaleDownPodName := scaleDownPod.ObjectMeta.Name
 		// updating the label on pod only if the pod is in particular one state

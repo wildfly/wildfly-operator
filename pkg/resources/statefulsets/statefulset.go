@@ -27,11 +27,11 @@ import (
 var log = logf.Log.WithName("wildlfyserver_statefulsets")
 
 // GetOrCreateNewStatefulSet either returns the statefulset or create it
-func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*appsv1.StatefulSet, error) {
+func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string, desiredReplicaSize int32) (*appsv1.StatefulSet, error) {
 	statefulSet := &appsv1.StatefulSet{}
 	if err := resources.Get(w, types.NamespacedName{Name: w.Name, Namespace: w.Namespace}, client, statefulSet); err != nil {
 		if errors.IsNotFound(err) {
-			if err := resources.Create(w, client, scheme, NewStatefulSet(w, labels)); err != nil {
+			if err := resources.Create(w, client, scheme, NewStatefulSet(w, labels, desiredReplicaSize)); err != nil {
 				return nil, err
 			}
 			return nil, nil
@@ -41,8 +41,8 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 }
 
 // NewStatefulSet retunrs a new statefulset
-func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *appsv1.StatefulSet {
-	replicas := w.Spec.Size
+func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, desiredReplicaSize int32) *appsv1.StatefulSet {
+	replicas := desiredReplicaSize
 	applicationImage := w.Spec.ApplicationImage
 	volumeName := w.Name + "-volume"
 	labesForActiveWildflyPod := wildflyutil.CopyMap(labels)
