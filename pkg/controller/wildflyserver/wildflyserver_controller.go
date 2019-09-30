@@ -151,7 +151,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		reqLogger.Info("Number of pods does not match the WildFlyServer specification. Waiting to get numbers in sync.",
 			"WildflyServer specification", wildflyServer.Name, "Expected number of pods", wildflyServerSpecSize, "Number of deployed pods", numberOfDeployedPods,
 			"StatefulSet spec size", statefulsetSpecSize)
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// Processing scaled down
