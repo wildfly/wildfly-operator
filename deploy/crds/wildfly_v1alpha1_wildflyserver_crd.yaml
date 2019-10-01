@@ -12,6 +12,8 @@ spec:
     shortNames:
     - wfly
   scope: ""
+  subresources:
+    status: {}
   version: v1alpha1
   versions:
   - name: v1alpha1

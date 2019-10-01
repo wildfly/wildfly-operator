@@ -76,6 +76,12 @@ func SortPodListByName(podList *corev1.PodList) *corev1.PodList {
 	return podList
 }
 
+// CopyMap duplicates map as it creates new map and puts there all the
+//   key value pairs that were included in the first map
+func CopyMap(originalMap map[string]string) map[string]string {
+	return MapMerge(originalMap, nil)
+}
+
 // MapMerge merges the two maps together and returns the result.
 // If one of them is nil then is ommitted from the merged result
 // If both maps are null then an empty initialized map is returned

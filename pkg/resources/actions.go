@@ -80,7 +80,7 @@ func Update(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefini
 
 // UpdateStatus updates status of the resource specified by the objectDefinition.
 func UpdateStatus(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition runtime.Object) error {
-	logger := log.WithValues(w, objectDefinition)
+	logger := logWithValues(w, objectDefinition)
 	logger.Info("Updating status of resource")
 
 	if err := client.Status().Update(context.Background(), objectDefinition); err != nil {
@@ -108,7 +108,7 @@ func UpdateWildFlyServerStatus(w *wildflyv1alpha1.WildFlyServer, client client.C
 
 // Delete deletes the resource specified by the objectDefinition.
 func Delete(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition runtime.Object) error {
-	logger := log.WithValues(w, objectDefinition)
+	logger := logWithValues(w, objectDefinition)
 	logger.Info("Deleting Resource")
 
 	if err := client.Delete(context.TODO(), objectDefinition); err != nil {
