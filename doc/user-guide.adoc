@@ -32,13 +32,13 @@ The `applicationImage` accepts different references to Docker image:
 [[size]]
 ## Specify the Size of the Application
 
-The `size` specifies the size of the application, i.e. the number of pods that runs the application image.
+The `replicas` specifies the size of the application, i.e. the number of pods that runs the application image.
 
 [source,yaml]
 .Example of size configuration
 ----
 spec:
-  size:2
+  replicas:2
 ----
 
 [[storage]]

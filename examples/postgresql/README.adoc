@@ -46,7 +46,7 @@ metadata:
   name: taskrs-app
 spec:
   applicationImage: "quay.io/wildfly-quickstarts/taskrs-app:17.0"
-  size: 2
+  replicas: 2
   env:
   - name: POSTGRESQL_SERVICE_HOST
     value: postgresql
@@ -129,7 +129,7 @@ Spec:
       Secret Key Ref:
         Key:   database-password
         Name:  postgresql
-  Size:        2
+  Replicas:    2
 Status:
   Hosts:
     taskrs-app-myproject.192.168.64.32.nip.io

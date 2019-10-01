@@ -23,7 +23,7 @@ metadata:
   name: clusterbench
 spec:
   applicationImage: "quay.io/wildfly-quickstarts/clusterbench-ee7:17.0"
-  size: 2
+  replicas: 2
   standaloneConfigMap:
     name: clusterbench-config-map
     key: standalone-openshift.xml
@@ -93,7 +93,7 @@ Metadata:
   UID:                 e8c262f8-6096-11e9-b73e-fa4519ff0e36
 Spec:
   Application Image:  quay.io/wildfly-quickstarts/clusterbench-ee7:17.0
-  Size:               2
+  Replicas:           2
   Standalone Config Map:
     Key:   standalone-openshift.xml
     Name:  clusterbench-config-map
@@ -213,12 +213,12 @@ $ curl  -b cookie.txt -c cookie.txt "http://$(oc get route clusterbench-loadbala
 We will now scale down the application from 2 nodes to 1.
 This implies that the session on `clusterbench-1` will be moved to the `clusterbench-0` pod and our session will continue to be incremented as expected.
 
-Edit the WildFlyServer custom resource to change its size from `2` to `1`:
+Edit the WildFlyServer custom resource to change its replicas size from `2` to `1`:
 
 [source,shell]
 ----
 $ kubectl edit wildflyserver clusterbench
-# Change the `size: 2` spec to `size: 1` and save
+# Change the `replicas: 2` spec to `replicas: 1` and save
 
 wildflyserver.wildfly.org/clusterbench edited
 ----
@@ -246,7 +246,7 @@ Metadata:
   UID:                 e8c262f8-6096-11e9-b73e-fa4519ff0e36
 Spec:
   Application Image:  quay.io/wildfly-quickstarts/clusterbench-ee7:17.0
-  Size:               1
+  Replicas:           1
   Standalone Config Map:
     Key:   standalone-openshift.xml
     Name:  clusterbench-config-map

@@ -131,7 +131,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// If statefulset was deleted during processing recovery scaledown the number of replicas in WildflyServer spec
 	//  does not defines the number of pods which should be left active until recovered
-	desiredReplicaSizeForNewStatefulSet := wildflyServer.Spec.Size + wildflyServer.Status.ScalingdownPods
+	desiredReplicaSizeForNewStatefulSet := wildflyServer.Spec.Replicas + wildflyServer.Status.ScalingdownPods
 
 	// Check if the statefulSet already exists, if not create a new one
 	statefulSet, err := statefulsets.GetOrCreateNewStatefulSet(wildflyServer, r.client, r.scheme,
@@ -148,12 +148,12 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		reqLogger.Error(err, "Failed to list pods.", "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
 		return reconcile.Result{}, err
 	}
-	wildflyServerSpecSize := wildflyServer.Spec.Size
+	wildflyServerSpecSize := wildflyServer.Spec.Replicas
 	statefulsetSpecSize := *statefulSet.Spec.Replicas
 	numberOfDeployedPods := int32(len(podList.Items))
 	numberOfPodsToScaleDown := statefulsetSpecSize - wildflyServerSpecSize // difference between desired pod count and the current number of pods
 
-	// if the number of desired replica size (aka. WildflyServer.Spec.Size) is different from the number of active pods
+	// if the number of desired replica size (aka. WildflyServer.Spec.Replicas) is different from the number of active pods
 	//  and the statefulset replica size was already changed to follow the value defined by the wildflyserver spec then wait for sts to reconcile
 	if statefulsetSpecSize == wildflyServerSpecSize && numberOfDeployedPods != wildflyServerSpecSize {
 		reqLogger.Info("Number of pods does not match the WildFlyServer specification. Waiting to get numbers in sync.",
@@ -260,6 +260,11 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		reqLogger.Info("Updating the pod status with new status", "Pod statuses", podsStatus)
 	}
 
+	if wildflyServer.Status.Replicas != statefulSet.Status.Replicas {
+		wildflyServer.Status.Replicas = statefulSet.Status.Replicas
+		updateWildflyServer = true
+	}
+
 	if updateWildflyServer {
 		if err := resources.UpdateWildFlyServerStatus(wildflyServer, r.client); err != nil {
 			reqLogger.Error(err, "Failed to update WildFlyServer status.")
@@ -278,7 +283,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 	podList *corev1.PodList) (mustReconcile bool, err error) {
 	var update, requeue bool
 	// Ensure the statefulset replicas is up to date (driven by scaledown processing)
-	wildflyServerSpecSize := wildflyServer.Spec.Size
+	wildflyServerSpecSize := wildflyServer.Spec.Replicas
 	desiredStatefulSetReplicaSize := wildflyServerSpecSize
 	// - for scale up
 	if wildflyServerSpecSize > *foundStatefulSet.Spec.Replicas {
