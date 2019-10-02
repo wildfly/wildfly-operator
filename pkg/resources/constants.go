@@ -17,6 +17,8 @@ const (
 	MarkerOperatedByHeadless = "wildfly.org/operated-by-headless"
 	// SecretsDir is the the directory to mount volumes from Secrets
 	SecretsDir = "/etc/secrets/"
+	// ConfigMapsDir is the the directory to mount volumes from ConfigMaps
+	ConfigMapsDir = "/etc/configmaps/"
 )
 
 var (

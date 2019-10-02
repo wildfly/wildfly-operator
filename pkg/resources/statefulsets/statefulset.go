@@ -17,7 +17,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -122,7 +121,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		emptyDir := storageSpec.EmptyDir
 		volumes = append(volumes, corev1.Volume{
 			Name: standaloneDataVolumeName,
-			VolumeSource: v1.VolumeSource{
+			VolumeSource: corev1.VolumeSource{
 				EmptyDir: emptyDir,
 			},
 		})
@@ -162,12 +161,12 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 
 		volumes = append(volumes, corev1.Volume{
 			Name: "standalone-config-volume",
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
 						Name: configMapName,
 					},
-					Items: []v1.KeyToPath{
+					Items: []corev1.KeyToPath{
 						{
 							Key:  configMapKey,
 							Path: "standalone.xml",
@@ -185,18 +184,39 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 
 	// mount volumes from secrets
 	for _, s := range w.Spec.Secrets {
-		volumes = append(volumes, v1.Volume{
-			Name: wildflyutil.SanitizeVolumeName("secret-" + s),
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
+		volumeName := wildflyutil.SanitizeVolumeName("secret-" + s)
+		volumes = append(volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
 					SecretName: s,
 				},
 			},
 		})
-		volumeMounts = append(volumeMounts, v1.VolumeMount{
-			Name:      wildflyutil.SanitizeVolumeName("secret-" + s),
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      volumeName,
 			ReadOnly:  true,
 			MountPath: resources.SecretsDir + s,
+		})
+	}
+
+	// mount volumes from config maps
+	for _, cm := range w.Spec.ConfigMaps {
+		volumeName := wildflyutil.SanitizeVolumeName("configmap-" + cm)
+		volumes = append(volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: cm,
+					},
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      volumeName,
+			ReadOnly:  true,
+			MountPath: resources.ConfigMapsDir + cm,
 		})
 	}
 
@@ -216,7 +236,7 @@ func createLivenessProbe() *corev1.Probe {
 	if defined {
 		return &corev1.Probe{
 			Handler: corev1.Handler{
-				Exec: &v1.ExecAction{
+				Exec: &corev1.ExecAction{
 					Command: []string{"/bin/bash", "-c", livenessProbeScript},
 				},
 			},
@@ -225,7 +245,7 @@ func createLivenessProbe() *corev1.Probe {
 	}
 	return &corev1.Probe{
 		Handler: corev1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
+			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/health",
 				Port: intstr.FromString("admin"),
 			},
@@ -244,7 +264,7 @@ func createReadinessProbe() *corev1.Probe {
 	if defined {
 		return &corev1.Probe{
 			Handler: corev1.Handler{
-				Exec: &v1.ExecAction{
+				Exec: &corev1.ExecAction{
 					Command: []string{"/bin/bash", "-c", readinessProbeScript},
 				},
 			},

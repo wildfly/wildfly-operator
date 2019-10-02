@@ -47,6 +47,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envfromsource-v1-core[corev1.EnvFromSource] |false
 | `env` | List of environment variable present in the containers | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envvar-v1-core[corev1.EnvVar] | false
 | `secrets` | List of secret names to mount as volumes in the containers. Each secret is mounted as a read-only volume under `/etc/secrets/<secret name>` | string[] | false 
+| `configMaps` | List of ConfigMap names to mount as volumes in the containers. Each config map is mounted as a read-only volume under `/etc/configmaps/<config map name>` | string[] | false
 | `disableHTTPRoute`| Disable the creation a route to the HTTP port of the application service (false if omitted) | bool | false
 | `sessionAffinity`| If connections from the same client IP are passed to the same WildFlyServer instance/pod each time (false if omitted) | bool | false
 |=======================
