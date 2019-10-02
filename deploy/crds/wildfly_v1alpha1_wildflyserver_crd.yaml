@@ -59,6 +59,13 @@ spec:
               description: Replicas is the desired number of replicas for the application
               format: int32
               type: integer
+            secrets:
+              description: Secrets is a list of Secrets in the same namespace as the
+                WildFlyServer object, which shall be mounted into the WildFlyServer
+                Pods. The Secrets are mounted into /etc/secrets/<secret-name>.
+              items:
+                type: string
+              type: array
             serviceAccountName:
               type: string
             sessionAffinity:

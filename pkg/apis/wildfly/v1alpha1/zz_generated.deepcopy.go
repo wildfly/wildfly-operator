@@ -151,6 +151,11 @@ func (in *WildFlyServerSpec) DeepCopyInto(out *WildFlyServerSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Secrets != nil {
+		in, out := &in.Secrets, &out.Secrets
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

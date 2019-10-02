@@ -44,7 +44,6 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, desiredReplicaSize int32) *appsv1.StatefulSet {
 	replicas := desiredReplicaSize
 	applicationImage := w.Spec.ApplicationImage
-	volumeName := w.Name + "-volume"
 	labesForActiveWildflyPod := wildflyutil.CopyMap(labels)
 	labesForActiveWildflyPod[resources.MarkerOperatedByHeadless] = resources.MarkerServiceActive
 	labesForActiveWildflyPod[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive
@@ -87,10 +86,6 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 						LivenessProbe: createLivenessProbe(),
 						// Readiness Probe is options
 						ReadinessProbe: createReadinessProbe(),
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      volumeName,
-							MountPath: resources.StandaloneServerDataDirPath,
-						}},
 					}},
 					ServiceAccountName: w.Spec.ServiceAccountName,
 				},
@@ -110,19 +105,23 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	// the application uses clustering and KUBE_PING.
 	statefulSet.Spec.Template.Spec.Containers[0].Env = append(statefulSet.Spec.Template.Spec.Containers[0].Env, envForClustering(k8slabels.SelectorFromSet(labels).String())...)
 
+	volumes := []corev1.Volume{}
+	volumeMounts := []corev1.VolumeMount{}
+
 	storageSpec := w.Spec.Storage
+	standaloneDataVolumeName := w.Name + "-volume"
 
 	if storageSpec == nil {
-		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: volumeName,
+		volumes = append(volumes, corev1.Volume{
+			Name: standaloneDataVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		})
 	} else if storageSpec.EmptyDir != nil {
 		emptyDir := storageSpec.EmptyDir
-		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: volumeName,
+		volumes = append(volumes, corev1.Volume{
+			Name: standaloneDataVolumeName,
 			VolumeSource: v1.VolumeSource{
 				EmptyDir: emptyDir,
 			},
@@ -130,7 +129,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	} else {
 		pvcTemplate := storageSpec.VolumeClaimTemplate
 		if pvcTemplate.Name == "" {
-			pvcTemplate.Name = volumeName
+			pvcTemplate.Name = standaloneDataVolumeName
 		}
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 		pvcTemplate.Spec.Resources = storageSpec.VolumeClaimTemplate.Spec.Resources
@@ -145,6 +144,13 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		statefulSet.Spec.VolumeClaimTemplates = append(statefulSet.Spec.VolumeClaimTemplates, pvcTemplate)
 	}
 
+	// mount the volume for the server standatalone data directory
+	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		Name:      standaloneDataVolumeName,
+		MountPath: resources.StandaloneServerDataDirPath,
+	})
+
+	// mount the volume to read the standalone XML configuration from a ConfigMap
 	standaloneConfigMap := w.Spec.StandaloneConfigMap
 	if standaloneConfigMap != nil {
 		configMapName := standaloneConfigMap.Name
@@ -154,7 +160,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		}
 		log.Info("Reading standalone configuration from configmap", "StandaloneConfigMap.Name", configMapName, "StandaloneConfigMap.Key", configMapKey)
 
-		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, corev1.Volume{
+		volumes = append(volumes, corev1.Volume{
 			Name: "standalone-config-volume",
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
@@ -170,12 +176,32 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 				},
 			},
 		})
-		statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "standalone-config-volume",
 			MountPath: resources.JBossHome + "/standalone/configuration/standalone.xml",
 			SubPath:   "standalone.xml",
 		})
 	}
+
+	// mount volumes from secrets
+	for _, s := range w.Spec.Secrets {
+		volumes = append(volumes, v1.Volume{
+			Name: wildflyutil.SanitizeVolumeName("secret-" + s),
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: s,
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      wildflyutil.SanitizeVolumeName("secret-" + s),
+			ReadOnly:  true,
+			MountPath: resources.SecretsDir + s,
+		})
+	}
+
+	statefulSet.Spec.Template.Spec.Volumes = volumes
+	statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
 	return statefulSet
 }

@@ -6,13 +6,16 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 var (
 	regexpPatternEndsWithNumber = regexp.MustCompile(`[0-9]+$`)
+	invalidDNS1123Characters    = regexp.MustCompile("[^-a-z0-9]+")
 )
 
 // ContainsInMap returns true if the map m contains at least one of the string
@@ -168,4 +171,15 @@ func ConvertToString(intf interface{}) (string, error) {
 	default:
 		return "", fmt.Errorf("Un-expected type of passed value %v, actual type is %T", intf, intf)
 	}
+}
+
+// SanitizeVolumeName ensures that the given volume name is a valid DNS-1123 label
+// accepted by Kubernetes.
+func SanitizeVolumeName(name string) string {
+	name = strings.ToLower(name)
+	name = invalidDNS1123Characters.ReplaceAllString(name, "-")
+	if len(name) > validation.DNS1123LabelMaxLength {
+		name = name[0:validation.DNS1123LabelMaxLength]
+	}
+	return strings.Trim(name, "-")
 }

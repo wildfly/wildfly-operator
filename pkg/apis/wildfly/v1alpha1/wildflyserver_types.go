@@ -28,6 +28,10 @@ type WildFlyServerSpec struct {
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty,list_type=corev1.EnvFromSource"`
 	// Env contains environment variables for the containers running the WildFlyServer application
 	Env []corev1.EnvVar `json:"env,omitempty"`
+	// Secrets is a list of Secrets in the same namespace as the WildFlyServer
+	// object, which shall be mounted into the WildFlyServer Pods.
+	// The Secrets are mounted into /etc/secrets/<secret-name>.
+	Secrets []string `json:"secrets,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer

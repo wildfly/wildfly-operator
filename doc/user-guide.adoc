@@ -96,6 +96,41 @@ spec:
         name: postgresql
 ----
 
+[[secret]]
+## Configure Secrets
+
+Secrets can be mounted as volumes to be accessed from the application.
+
+The secrets must be created *before* the WildFly Operator deploys the application. For example we can create a secret named `my-secret` with a command such as:
+
+[source,shell]
+----
+$ kubectl create secret generic my-secret --from-literal=my-key=devuser --from-literal=my-password='my-very-secure-pasword'
+----
+
+Once the secret has been created, we can specify its name in the WildFlyServer Spec to have it mounted as a volume in the pods running the application:
+
+[source,yaml]
+.Example of mounting secrets
+----
+spec:
+  secrets:
+    - my-secret
+----
+
+The secrets will then be mounted under `/etc/secrets/<secret name>` and each key/value will be stored in a file (whose name is the key and the content is the value).
+
+[source,shell]
+.Secret is mounted as a volume inside the Pod
+----
+[jboss@quickstart-0 ~]$ ls /etc/secrets/my-secret/
+my-key  my-password
+[jboss@quickstart-0 ~]$ cat /etc/secrets/my-secret/my-key
+devuser
+[jboss@quickstart-0 ~]$ cat /etc/secrets/my-secret/my-password
+my-very-secure-pasword
+----
+
 [[standalone-config-map]]
 ## Bring Your Own Standalone XML Configuation
 
