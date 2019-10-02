@@ -144,7 +144,7 @@ $ kubectl create configmap my-config --from-literal=key1=value1 --from-literal=k
 configmap/my-config created
 ----
 
-Once the secret has been created, we can specify its name in the WildFlyServer Spec to have it mounted as a volume in the pods running the application:
+Once the config map has been created, we can specify its name in the WildFlyServer Spec to have it mounted as a volume in the pods running the application:
 
 [source,yaml]
 .Example of mounting config maps
