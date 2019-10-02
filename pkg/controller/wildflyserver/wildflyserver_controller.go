@@ -226,15 +226,24 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// Update WildFly Server host status
 	updateWildflyServer := false
-	if r.isOpenShift && !wildflyServer.Spec.DisableHTTPRoute {
-		hosts := make([]string, len(route.Status.Ingress))
-		for i, ingress := range route.Status.Ingress {
-			hosts[i] = ingress.Host
-		}
-		if !reflect.DeepEqual(hosts, wildflyServer.Status.Hosts) {
-			updateWildflyServer = true
-			wildflyServer.Status.Hosts = hosts
-			reqLogger.Info("Updating hosts", "WildFlyServer", wildflyServer.Name, "WildflyServer hosts", wildflyServer.Status.Hosts)
+	if r.isOpenShift {
+		if !wildflyServer.Spec.DisableHTTPRoute {
+			hosts := make([]string, len(route.Status.Ingress))
+			for i, ingress := range route.Status.Ingress {
+				hosts[i] = ingress.Host
+			}
+			if !reflect.DeepEqual(hosts, wildflyServer.Status.Hosts) {
+				updateWildflyServer = true
+				wildflyServer.Status.Hosts = hosts
+				reqLogger.Info("Updating hosts", "WildFlyServer", wildflyServer.Name, "WildflyServer hosts", wildflyServer.Status.Hosts)
+			}
+		} else {
+			// if HTTP routes have been disabled, remove the hosts field from the status
+			if len(wildflyServer.Status.Hosts) > 0 {
+				updateWildflyServer = true
+				wildflyServer.Status.Hosts = nil
+				reqLogger.Info("Removing hosts", "WildFlyServer", wildflyServer.Name)
+			}
 		}
 	}
 
