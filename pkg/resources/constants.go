@@ -15,6 +15,8 @@ const (
 	MarkerOperatedByLoadbalancer = "wildfly.org/operated-by-loadbalancer"
 	// MarkerOperatedByHeadless is a label used to remove a pod from receiving load from headless service when it's cleaned to shutdown
 	MarkerOperatedByHeadless = "wildfly.org/operated-by-headless"
+	// SecretsDir is the the directory to mount volumes from Secrets
+	SecretsDir = "/etc/secrets/"
 )
 
 var (
