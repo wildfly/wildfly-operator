@@ -131,6 +131,42 @@ devuser
 my-very-secure-pasword
 ----
 
+[[configmaps]]
+## Configure ConfigMaps
+
+ConfigMaps can be mounted as volumes to be accessed from the application.
+
+The config maps must be created *before* the WildFly Operator deploys the application. For example we can create a config map named `my-config` with a command such as:
+
+[source,shell]
+----
+$ kubectl create configmap my-config --from-literal=key1=value1 --from-literal=key2=value2
+configmap/my-config created
+----
+
+Once the secret has been created, we can specify its name in the WildFlyServer Spec to have it mounted as a volume in the pods running the application:
+
+[source,yaml]
+.Example of mounting config maps
+----
+spec:
+  configMaps:
+  - my-config
+----
+
+The config maps will then be mounted under `/etc/configmaps/<config map name>` and each key/value will be stored in a file (whose name is the key and the content is the value).
+
+[source,shell]
+.Config Map is mounted as a volume inside the Pod
+----
+[jboss@quickstart-0 ~]$ ls /etc/configmaps/my-config/
+key1 key2
+[jboss@quickstart-0 ~]$ cat /etc/configmaps/my-config/key1
+value1
+[jboss@quickstart-0 ~]$ cat /etc/configmaps/my-config/key2
+value2
+----
+
 [[standalone-config-map]]
 ## Bring Your Own Standalone XML Configuation
 

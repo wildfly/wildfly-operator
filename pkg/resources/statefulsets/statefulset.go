@@ -185,8 +185,9 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 
 	// mount volumes from secrets
 	for _, s := range w.Spec.Secrets {
+		volumeName := wildflyutil.SanitizeVolumeName("secret-" + s)
 		volumes = append(volumes, v1.Volume{
-			Name: wildflyutil.SanitizeVolumeName("secret-" + s),
+			Name: volumeName,
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
 					SecretName: s,
@@ -194,9 +195,29 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 			},
 		})
 		volumeMounts = append(volumeMounts, v1.VolumeMount{
-			Name:      wildflyutil.SanitizeVolumeName("secret-" + s),
+			Name:      volumeName,
 			ReadOnly:  true,
 			MountPath: resources.SecretsDir + s,
+		})
+	}
+
+	// mount volumes from config maps
+	for _, cm := range w.Spec.ConfigMaps {
+		volumeName := wildflyutil.SanitizeVolumeName("configmap-" + cm)
+		volumes = append(volumes, v1.Volume{
+			Name: volumeName,
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: cm,
+					},
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      volumeName,
+			ReadOnly:  true,
+			MountPath: resources.ConfigMapsDir + cm,
 		})
 	}
 

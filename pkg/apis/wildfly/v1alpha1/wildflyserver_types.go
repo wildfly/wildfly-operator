@@ -32,6 +32,10 @@ type WildFlyServerSpec struct {
 	// object, which shall be mounted into the WildFlyServer Pods.
 	// The Secrets are mounted into /etc/secrets/<secret-name>.
 	Secrets []string `json:"secrets,omitempty"`
+	// ConfigMaps is a list of ConfigMaps in the same namespace as the WildFlyServer
+	// object, which shall be mounted into the WildFlyServer Pods.
+	// The ConfigMaps are mounted into /etc/configmaps/<configmap-name>.
+	ConfigMaps []string `json:"configMaps,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer
