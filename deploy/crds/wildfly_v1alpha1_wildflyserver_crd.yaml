@@ -103,6 +103,12 @@ spec:
                 emptyDir:
                   type: object
                 volumeClaimTemplate:
+                  description: VolumeClaimTemplate defines the template to store WildFlyServer
+                    standalone data directory. The name of the template is derived
+                    from the WildFlyServer name.  The corresponding volume will be
+                    mounted in ReadWriteOnce access mode. This template should be
+                    used to specify specific Resources requirements in the template
+                    spec.
                   type: object
               type: object
           required:

@@ -54,7 +54,11 @@ type StandaloneConfigMapSpec struct {
 // StorageSpec defines the desired storage for WildFlyServer
 // +k8s:openapi-gen=true
 type StorageSpec struct {
-	EmptyDir            *corev1.EmptyDirVolumeSource `json:"emptyDir,omitempty"`
+	EmptyDir *corev1.EmptyDirVolumeSource `json:"emptyDir,omitempty"`
+	// VolumeClaimTemplate defines the template to store WildFlyServer standalone data directory.
+	// The name of the template is derived from the WildFlyServer name.
+	//  The corresponding volume will be mounted in ReadWriteOnce access mode.
+	// This template should be used to specify specific Resources requirements in the template spec.
 	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
 

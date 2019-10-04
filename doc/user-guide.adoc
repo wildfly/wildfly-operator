@@ -44,11 +44,15 @@ spec:
 [[storage]]
 ## Specify the Storage Requirements for the Server Data Directory
 
-The `storage` defines the storage requirements for the application data.
+The `storage` defines the storage requirements for WildFly's own data.
 The application may require persistent storage for some data (e.g. transaction or messaging logs) that must persist across Pod restarts.
 
-If the `storage` spec is empty, an `EmptyDir` volume will be used by each pod of the application (but this volume will not persist after its corresponding pod is stopped)
-The `storage` spec is defined in the link:../apis.adoc#StorageSpec[StorageSpec API Documentation]
+If the `storage` spec is empty, an `EmptyDir` volume will be used by each pod of the application (but this volume will not persist after its corresponding pod is stopped).
+
+A `volumeClaimTemplate` cna be specifed to configure `Resources` requirements to store WildFly standalone data directory.
+The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode.
+
+The `storage` spec is defined in the link:../apis.adoc#StorageSpec[StorageSpec API Documentation].
 
 [source,yaml]
 .Example of storage requirement
