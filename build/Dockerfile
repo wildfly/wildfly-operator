@@ -1,7 +1,7 @@
 FROM registry.access.redhat.com/ubi7/ubi-minimal:latest
 
 ENV OPERATOR=/usr/local/bin/wildfly-operator \
-    JBOSS_HOME=/opt/jboss/wildfly \
+    JBOSS_HOME=/opt/wildfly \
     USER_UID=1001 \
     USER_NAME=wildfly-operator \
     LABEL_APP_MANAGED_BY=wildfly-operator \
