@@ -174,15 +174,15 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 	if scaleDownPod.Annotations[markerRecoveryPropertiesSetup] == "" {
 		reqLogger.Info("Setting up back-off period and orphan detection properties for scaledown transaction reocovery", "Pod Name", scaleDownPodName)
 		setPeriodOps := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyRecoveryBackoffPeriod, "1") + "," + fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyOrphanSafetyInterval, "1")
-		jsonResult, _ := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setPeriodOps)
+		jsonResult, errExecution := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setPeriodOps)
 
 		// command may end-up with error with status 'rolled-back' which means duplication, thus do not check for error as error could be possitive outcome
-
 		isOperationRolledBack := wildflyutil.ReadJSONDataByIndex(jsonResult, "rolled-back")
 		isOperationRolledBackAsString, _ := wildflyutil.ConvertToString(isOperationRolledBack)
 		if !wildflyutil.IsMgmtOutcomeSuccesful(jsonResult) && isOperationRolledBackAsString != "true" {
-			return false, fmt.Errorf("Setting up the back-off period and orphan detection properties by env property "+
-				"with operation '%s' at pod %s was not succesful. JSON output: %v", setPeriodOps, scaleDownPodName, jsonResult)
+			return false, fmt.Errorf("Error on setting up the back-off and orphan detection periods. "+
+				"The jboss-cli.sh operation '%s' at pod %s failed. JSON output: %v, command error: %v",
+				setPeriodOps, scaleDownPodName, jsonResult, errExecution)
 		}
 
 		reqLogger.Info("Marking pod as being setup for transaction recovery. Adding annotation "+markerRecoveryPropertiesSetup, "Pod Name", scaleDownPodName)
