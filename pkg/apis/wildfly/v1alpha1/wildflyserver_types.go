@@ -14,6 +14,7 @@ type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
 	ApplicationImage string `json:"applicationImage"`
 	// Replicas is the desired number of replicas for the application
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
 	// SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time (false if omitted)
 	SessionAffinity bool `json:"sessionAffinity,omitempty"`
@@ -25,16 +26,20 @@ type WildFlyServerSpec struct {
 	Storage            *StorageSpec `json:"storage,omitempty"`
 	ServiceAccountName string       `json:"serviceAccountName,omitempty"`
 	// EnvFrom contains environment variables from a source such as a ConfigMap or a Secret
+	// +kubebuilder:validation:MinItems=1
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty,list_type=corev1.EnvFromSource"`
 	// Env contains environment variables for the containers running the WildFlyServer application
+	// +kubebuilder:validation:MinItems=1
 	Env []corev1.EnvVar `json:"env,omitempty"`
 	// Secrets is a list of Secrets in the same namespace as the WildFlyServer
 	// object, which shall be mounted into the WildFlyServer Pods.
 	// The Secrets are mounted into /etc/secrets/<secret-name>.
+	// +kubebuilder:validation:MinItems=1
 	Secrets []string `json:"secrets,omitempty"`
 	// ConfigMaps is a list of ConfigMaps in the same namespace as the WildFlyServer
 	// object, which shall be mounted into the WildFlyServer Pods.
 	// The ConfigMaps are mounted into /etc/configmaps/<configmap-name>.
+	// +kubebuilder:validation:MinItems=1
 	ConfigMaps []string `json:"configMaps,omitempty"`
 }
 
@@ -92,10 +97,8 @@ const (
 type PodStatus struct {
 	Name  string `json:"name"`
 	PodIP string `json:"podIP"`
-	// Represent the state of the Pod, it's used especially during scale down
-	// the expected values are represented by the PodState* constants
-	//
-	// Read-only.
+	// Represent the state of the Pod, it is used especially during scale down.
+	// +kubebuilder:validation:Enum=ACTIVE,SCALING_DOWN_RECOVERY_INVESTIGATION,SCALING_DOWN_RECOVERY_DIRTY,SCALING_DOWN_CLEAN
 	State string `json:"state"`
 }
 

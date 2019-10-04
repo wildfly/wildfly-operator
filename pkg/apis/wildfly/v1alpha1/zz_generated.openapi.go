@@ -40,7 +40,7 @@ func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) co
 					},
 					"state": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Represent the state of the Pod, it's used especially during scale down the expected values are represented by the PodState* constants\n\nRead-only.",
+							Description: "Represent the state of the Pod, it is used especially during scale down.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
