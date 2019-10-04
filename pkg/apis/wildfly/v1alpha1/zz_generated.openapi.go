@@ -93,7 +93,8 @@ func schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref common.ReferenceCallback) 
 					},
 					"volumeClaimTemplate": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/api/core/v1.PersistentVolumeClaim"),
+							Description: "VolumeClaimTemplate defines the template to store WildFlyServer standalone data directory. The name of the template is derived from the WildFlyServer name.\n The corresponding volume will be mounted in ReadWriteOnce access mode.\nThis template should be used to specify specific Resources requirements in the template spec.",
+							Ref:         ref("k8s.io/api/core/v1.PersistentVolumeClaim"),
 						},
 					},
 				},
