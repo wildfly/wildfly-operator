@@ -11,11 +11,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const (
-	reloadRetryCount = 10 // number of retries when waiting for container reload is done
-)
-
 var (
+	// number of retries when waiting for container restart/reload is done
+	restartRetryCounter = GetEnvAsInt("SERVER_RESTART_RETRY_COUNTER", 10)
+
 	// MgmtOpServerStateRead is a JBoss CLI command for reading WFLY server
 	MgmtOpServerStateRead = ":read-attribute(name=server-state)"
 	// MgmtOpReload is a JBoss CLI command for reloading WFLY server
@@ -161,8 +160,8 @@ func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, p
 		return false, fmt.Errorf("Unsuccessful management operation '%v' for pod %s. JSON output: %v",
 			mgmtOp, podName, jsonResult)
 	}
-	for serverStateCheckCounter := 1; serverStateCheckCounter <= reloadRetryCount; serverStateCheckCounter++ {
-		reqLogger.Info(fmt.Sprintf("Waiting for server to be reinitialized. Iteration %v/%v", serverStateCheckCounter, reloadRetryCount), "Pod Name", podName)
+	for serverStateCheckCounter := 1; serverStateCheckCounter <= int(restartRetryCounter); serverStateCheckCounter++ {
+		reqLogger.Info(fmt.Sprintf("Waiting for server to be reinitialized. Iteration %v/%v", serverStateCheckCounter, restartRetryCounter), "Pod Name", podName)
 		jsonResult, err = ExecuteMgmtOp(pod, jbossHome, MgmtOpServerStateRead)
 		if err == nil && IsMgmtOutcomeSuccesful(jsonResult) && jsonResult["result"] == "running" {
 			// when the execution of the state read was succesful and the server is active then continue

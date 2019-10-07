@@ -104,6 +104,9 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	// the application uses clustering and KUBE_PING.
 	statefulSet.Spec.Template.Spec.Containers[0].Env = append(statefulSet.Spec.Template.Spec.Containers[0].Env, envForClustering(k8slabels.SelectorFromSet(labels).String())...)
 
+	// the setup for the ejb remoting works fine the client binding is needed to be setup with the stateless headless service which is done in s2i
+	statefulSet.Spec.Template.Spec.Containers[0].Env = append(statefulSet.Spec.Template.Spec.Containers[0].Env, envForEJBRecovery(w)...)
+
 	volumes := []corev1.Volume{}
 	volumeMounts := []corev1.VolumeMount{}
 
@@ -287,6 +290,15 @@ func envForClustering(labels string) []corev1.EnvVar {
 		{
 			Name:  "KUBERNETES_LABELS",
 			Value: labels,
+		},
+	}
+}
+
+func envForEJBRecovery(w *wildflyv1alpha1.WildFlyServer) []corev1.EnvVar {
+	return []corev1.EnvVar{
+		{
+			Name:  "STATEFULSET_HEADLESS_SERVICE_NAME",
+			Value: services.HeadlessServiceName(w),
 		},
 	}
 }
