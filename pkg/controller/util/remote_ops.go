@@ -28,7 +28,8 @@ var (
 	// start of the time timestamp
 	startOfTheTimeTimestamp = time.Unix(0, 0)
 	// socket dial timeout
-	socketDialTimeout = GetEnvAsDuration("SOCKET_DIAL_TIMEOUT", 10, time.Second)
+	socketDialTimeout = GetEnvAsDuration("SOCKET_DIAL_TIMEOUT", 30, time.Second)
+	socketDeadTimeout = GetEnvAsDuration("SOCKET_DEAD_TIMEOUT", 10*60, time.Second)
 )
 
 //ExecRemote executes a command inside the remote pod
@@ -94,6 +95,7 @@ func SocketConnect(hostname string, port int32, command string) (string, error) 
 		return "", fmt.Errorf("Cannot process TCP connection to %v, error: %v",
 			toConnectTo, err)
 	}
+	conn.SetDeadline(time.Now().Add(socketDeadTimeout))
 	// send to socket
 	fmt.Fprintf(conn, command+"\n")
 	// blocking operation, listen for reply
