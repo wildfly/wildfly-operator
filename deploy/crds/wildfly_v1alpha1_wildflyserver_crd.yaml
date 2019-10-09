@@ -85,16 +85,7 @@ spec:
                 if omitted)
               type: boolean
             standaloneConfigMap:
-              properties:
-                key:
-                  description: Key of the config map whose value is the standalone
-                    XML configuration file ("standalone.xml" if omitted)
-                  type: string
-                name:
-                  type: string
-              required:
-              - name
-              type: object
+              type: string
             storage:
               description: StorageSpec defines specific storage required for the server
                 own data directory. If omitted, an EmptyDir is used (that will not

@@ -19,8 +19,8 @@ type WildFlyServerSpec struct {
 	// SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time (false if omitted)
 	SessionAffinity bool `json:"sessionAffinity,omitempty"`
 	// DisableHTTPRoute disables the creation a route to the HTTP port of the application service (false if omitted)
-	DisableHTTPRoute    bool                     `json:"disableHTTPRoute,omitempty"`
-	StandaloneConfigMap *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
+	DisableHTTPRoute    bool   `json:"disableHTTPRoute,omitempty"`
+	StandaloneConfigMap string `json:"standaloneConfigMap,omitempty"`
 	// StorageSpec defines specific storage required for the server own data directory. If omitted, an EmptyDir is used (that will not
 	// persist data across pod restart).
 	Storage            *StorageSpec `json:"storage,omitempty"`
@@ -41,14 +41,6 @@ type WildFlyServerSpec struct {
 	// The ConfigMaps are mounted into /etc/configmaps/<configmap-name>.
 	// +kubebuilder:validation:MinItems=1
 	ConfigMaps []string `json:"configMaps,omitempty"`
-}
-
-// StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer
-// +k8s:openapi-gen=true
-type StandaloneConfigMapSpec struct {
-	Name string `json:"name"`
-	// Key of the config map whose value is the standalone XML configuration file ("standalone.xml" if omitted)
-	Key string `json:"key,omitempty"`
 }
 
 // StorageSpec defines the desired storage for WildFlyServer

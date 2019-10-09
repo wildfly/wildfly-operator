@@ -348,7 +348,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 	}
 
 	if !resources.IsCurrentGeneration(wildflyServer, foundStatefulSet) {
-		statefulSet := statefulsets.NewStatefulSet(wildflyServer, LabelsForWildFly(wildflyServer), desiredStatefulSetReplicaSize)
+		statefulSet := statefulsets.NewStatefulSet(wildflyServer, r.client, LabelsForWildFly(wildflyServer), desiredStatefulSetReplicaSize)
 		delete := false
 		// changes to VolumeClaimTemplates can not be updated and requires a delete/create of the statefulset
 		if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {

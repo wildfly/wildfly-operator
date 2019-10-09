@@ -9,7 +9,6 @@ import (
 	"time"
 
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -95,7 +94,7 @@ func wildflyClusterViewTest(t *testing.T, f *framework.Framework, ctx *framework
 	}
 
 	name := "clusterbench-" + unixEpoch()
-	standaloneConfigXML, err := ioutil.ReadFile("test/e2e/" + applicationTag + "/standalone-clustering-test.xml")
+	standaloneConfigXML, err := ioutil.ReadFile("test/e2e/" + applicationTag + "/standalone.xml")
 	if err != nil {
 		return err
 	}
@@ -127,13 +126,10 @@ func wildflyClusterViewTest(t *testing.T, f *framework.Framework, ctx *framework
 	}
 
 	// create config map for the standalone config
-	CreateStandaloneConfigMap(f, ctx, namespace, "clusterbench-configmap", "standalone-openshift.xml", standaloneConfigXML)
+	CreateStandaloneConfigMap(f, ctx, namespace, "clusterbench-configmap", "standalone.xml", standaloneConfigXML)
 	// create wildflyserver custom resource
 	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/clusterbench-ee7:"+applicationTag, 2)
-	wildflyServer.Spec.StandaloneConfigMap = &wildflyv1alpha1.StandaloneConfigMapSpec{
-		Name: "clusterbench-configmap",
-		Key:  "standalone-openshift.xml",
-	}
+	wildflyServer.Spec.StandaloneConfigMap = "clusterbench-configmap"
 
 	err = CreateAndWaitUntilReady(f, ctx, t, wildflyServer)
 	if err != nil {

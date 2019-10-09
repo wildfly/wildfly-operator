@@ -30,7 +30,7 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 	statefulSet := &appsv1.StatefulSet{}
 	if err := resources.Get(w, types.NamespacedName{Name: w.Name, Namespace: w.Namespace}, client, statefulSet); err != nil {
 		if errors.IsNotFound(err) {
-			if err := resources.Create(w, client, scheme, NewStatefulSet(w, labels, desiredReplicaSize)); err != nil {
+			if err := resources.Create(w, client, scheme, NewStatefulSet(w, client, labels, desiredReplicaSize)); err != nil {
 				return nil, err
 			}
 			return nil, nil
@@ -40,7 +40,7 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 }
 
 // NewStatefulSet retunrs a new statefulset
-func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, desiredReplicaSize int32) *appsv1.StatefulSet {
+func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.Client, labels map[string]string, desiredReplicaSize int32) *appsv1.StatefulSet {
 	replicas := desiredReplicaSize
 	applicationImage := w.Spec.ApplicationImage
 	labesForActiveWildflyPod := wildflyutil.CopyMap(labels)
@@ -152,37 +152,38 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		MountPath: resources.StandaloneServerDataDirPath,
 	})
 
-	// mount the volume to read the standalone XML configuration from a ConfigMap
 	standaloneConfigMap := w.Spec.StandaloneConfigMap
-	if standaloneConfigMap != nil {
-		configMapName := standaloneConfigMap.Name
-		configMapKey := standaloneConfigMap.Key
-		if configMapKey == "" {
-			configMapKey = "standalone.xml"
-		}
-		log.Info("Reading standalone configuration from configmap", "StandaloneConfigMap.Name", configMapName, "StandaloneConfigMap.Key", configMapKey)
-
-		volumes = append(volumes, corev1.Volume{
-			Name: "standalone-config-volume",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: configMapName,
-					},
-					Items: []corev1.KeyToPath{
-						{
-							Key:  configMapKey,
-							Path: "standalone.xml",
+	if len(standaloneConfigMap) > 0 {
+		log.Info("Store standalone configuration from configmap", standaloneConfigMap)
+		keyPath := []corev1.KeyToPath{}
+		keyPath, err := getKeyPath(w, client, keyPath)
+		if err != nil {
+			log.Error(err, "Failed to read key/path from configmap")
+		} else {
+			if len(keyPath) > 0 {
+				volumes = append(volumes, corev1.Volume{
+					Name: "standalone-config-volume",
+					VolumeSource: corev1.VolumeSource{
+						ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: standaloneConfigMap,
+							},
 						},
 					},
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "standalone-config-volume",
-			MountPath: resources.JBossHome + "/standalone/configuration/standalone.xml",
-			SubPath:   "standalone.xml",
-		})
+				})
+				for _, v := range keyPath {
+
+					volumeMounts = append(volumeMounts, corev1.VolumeMount{
+						Name:      "standalone-config-volume",
+						MountPath: resources.JBossHome + "/standalone/configuration/" + v.Path,
+						SubPath:   v.Path,
+					})
+				}
+			} else {
+				log.Info("Ignore this configmap and there is no configuration files found")
+			}
+		}
+
 	}
 
 	// mount volumes from secrets
@@ -301,4 +302,24 @@ func envForEJBRecovery(w *wildflyv1alpha1.WildFlyServer) []corev1.EnvVar {
 			Value: services.HeadlessServiceName(w),
 		},
 	}
+}
+
+func getKeyPath(w *wildflyv1alpha1.WildFlyServer, client client.Client, keypath []corev1.KeyToPath) ([]corev1.KeyToPath, error) {
+	config := &corev1.ConfigMap{}
+	err := resources.Get(w, types.NamespacedName{Name: w.Spec.StandaloneConfigMap, Namespace: w.Namespace}, client, config)
+	if err != nil {
+		return keypath, nil
+	}
+	for k := range config.Data {
+		//ConfigMapVolumeSource can be only accessed with 644 mode (https://github.com/kubernetes/kubernetes/issues/62099)
+		//Wildfly server writes back to logging.properites when it starts and filter out this file
+		if k != "logging.properties" {
+			keypath = append(keypath, corev1.KeyToPath{Key: k, Path: k})
+		}
+	}
+	for k := range config.BinaryData {
+		keypath = append(keypath, corev1.KeyToPath{Key: k, Path: k})
+	}
+	return keypath, nil
+
 }
