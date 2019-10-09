@@ -172,29 +172,27 @@ value2
 ----
 
 [[standalone-config-map]]
-## Bring Your Own Standalone XML Configuation
+##  Standalone Configuation
 
 It is possible to directly provide WildFly standalone configuration instead of the one in the application image (that comes from WildFly S2I).
 
-The standalone XML file must be put in a ConfigMap that is accessible by the operator.
-The `standaloneConfigMap` must provide the `name` of this ConfigMap as well as the `key` corresponding to the name of standalone XML file.
+The standalone XML file and other configuraiton files can be put in a ConfigMap that is accessible by the operator.
+The `standaloneConfigMap` must provide the `name` of this ConfigMap.
 
 [source,yaml]
 .Example of bringing its own standalone configuration
 ----
 spec:
-  standaloneConfigMap:
-    name: clusterbench-config-map
-    key: standalone-openshift.xml
+  standaloneConfigMap: wildflyconfig
 ----
 
-In this example, the `clusterbench-config-map` must be created *before* the WildFly Operator deploys the application.
+In this example, the `wildflyconfig` must be created *before* the WildFly Operator deploys the application.
 
 [source,shell]
-.Example of reating a ConfigMap from a standalone XML file
+.Example of creating a ConfigMap from a standalone configuration directory
 ----
-$ kubectl create configmap clusterbench-config-map --from-file examples/clustering/config/standalone-openshift.xml
-configmap/clusterbench-config-map created
+$ kubectl create configmap  wildflyconfig --from-file=examples/standalone/configuration
+configmap/wildflyconfig created
 ----
 
 ## OpenShift Features

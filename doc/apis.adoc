@@ -41,7 +41,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | Field  | Description |Scheme| Required
 | `applicationImage` | Name of the application image to be deployed | string | true
 | `replicas` | Replicas is the desired number of replicas for the application | int32 | true
-| `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
+| `standaloneConfigMap` | spec to specify a `ConfigMap` name to read standalone.xml or other configuration files | string |false
 | `storage` | Storage spec to specify how storage should be used. If omitted, an `EmptyDir` is used (that will not persist data across pod restart) | *<<storagespec>> |false
 | `serviceAccountName` | Name of the ServiceAccount to use to run the WildFlyServer Pods | string | false
 | `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envfromsource-v1-core[corev1.EnvFromSource] |false
@@ -69,19 +69,6 @@ transaction, make sure to specify a `volumeClaimTemplate` that so that the same 
 | `emptyDir` | EmptyDirVolumeSource to be used by the WildFly `StatefulSet` | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#emptydirvolumesource-v1-core[*corev1.EmptyDirVolumeSource] | false
 | `volumeClaimTemplate` | A PersistentVolumeClaim spec to configure `Resources` requirements to store WildFly standalone data directory. The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode. | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#persistentvolumeclaim-v1-core[corev1.PersistentVolumeClaim] | false
 |=======================
-
-[[standaloneconfigmapspec]]
-## `StandaloneConfigMapSpec`
-
-`StandaloneConfigMapSpec` defines how WildFly standalone configuration can be read from a `ConfigMap`. If omitted, WildFly uses its `standalone.xml` configuration from its image.
-
-[options="header,footer"]
-|=======================
-| Field  | Description |Scheme| Required
-| `name` | Name of the `ConfigMap` containing the standalone configuration XML file. | string | true
-| `key` | Key of the ConfigMap whose value is the standalone configuration XML file. If omitted, the spec will look for the `standalone.xml` key. | string |false
-|=======================
-
 
 [[wildflyserverstatus]]
 ## `WildFlyServerStatus`
