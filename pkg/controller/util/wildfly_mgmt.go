@@ -49,8 +49,8 @@ func IsMgmtOutcomeSuccesful(jsonBody map[string]interface{}) bool {
 // ExecuteMgmtOp executes WildFly managemnt operation represented as a string
 //  the execution runs as shh remote command with jboss-cli.sh executed on the pod
 //  returns the JSON as the return value from the operation
-func ExecuteMgmtOp(pod *corev1.Pod, jbossHome string, mgmtOpString string) (map[string]interface{}, error) {
-	jbossCliCommand := fmt.Sprintf("%s/bin/jboss-cli.sh --output-json -c --commands='%s'", jbossHome, mgmtOpString)
+func ExecuteMgmtOp(pod *corev1.Pod, mgmtOpString string) (map[string]interface{}, error) {
+	jbossCliCommand := fmt.Sprintf("${JBOSS_HOME}/bin/jboss-cli.sh --output-json -c --commands='%s'", mgmtOpString)
 	resString, err := ExecRemote(pod, jbossCliCommand)
 	if err != nil && resString == "" {
 		return nil, fmt.Errorf("Cannot execute JBoss CLI command %s at pod %v. Cause: %v", jbossCliCommand, pod.Name, err)
@@ -106,8 +106,8 @@ func ReadJSONDataByIndex(json interface{}, indexes ...string) interface{} {
 }
 
 // GetTransactionRecoveryPort reads management to find out the recovery port
-func GetTransactionRecoveryPort(pod *corev1.Pod, jbossHome string) (int32, error) {
-	jsonResult, err := ExecuteMgmtOp(pod, jbossHome, MgmtOpTxnRecoverySocketBindingRead)
+func GetTransactionRecoveryPort(pod *corev1.Pod) (int32, error) {
+	jsonResult, err := ExecuteMgmtOp(pod, MgmtOpTxnRecoverySocketBindingRead)
 	if err != nil {
 		return 0, fmt.Errorf("Error on management operation to read transaction recovery socket binding with command %v, error: %v",
 			MgmtOpTxnRecoverySocketBindingRead, err)
@@ -122,7 +122,7 @@ func GetTransactionRecoveryPort(pod *corev1.Pod, jbossHome string) (int32, error
 			nameOfSocketBinding, MgmtOpTxnRecoverySocketBindingRead, jsonResult)
 	}
 
-	jsonResult, err = ExecuteMgmtOp(pod, jbossHome, MgmtOpSocketBindingRead)
+	jsonResult, err = ExecuteMgmtOp(pod, MgmtOpSocketBindingRead)
 	if err != nil {
 		return 0, fmt.Errorf("Error on management operation to read socket binding group with command %v, error: %v",
 			MgmtOpSocketBindingRead, err)
@@ -149,10 +149,10 @@ func GetTransactionRecoveryPort(pod *corev1.Pod, jbossHome string) (int32, error
 // ExecuteOpAndWaitForServerBeingReady executes WildFly management operation on the pod
 //  this operation is checked to succeed and then waits for the container is ready
 //  this method is assumed to be used for reload/restart operations
-func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, pod *corev1.Pod, jbossHome string) (bool, error) {
+func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, pod *corev1.Pod) (bool, error) {
 	podName := pod.ObjectMeta.Name
 
-	jsonResult, err := ExecuteMgmtOp(pod, jbossHome, mgmtOp)
+	jsonResult, err := ExecuteMgmtOp(pod, mgmtOp)
 	if err != nil {
 		return false, fmt.Errorf("Cannot run operation '%v' at application container for down pod %s, error: %v", mgmtOp, podName, err)
 	}
@@ -162,7 +162,7 @@ func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, p
 	}
 	for serverStateCheckCounter := 1; serverStateCheckCounter <= int(restartRetryCounter); serverStateCheckCounter++ {
 		reqLogger.Info(fmt.Sprintf("Waiting for server to be reinitialized. Iteration %v/%v", serverStateCheckCounter, restartRetryCounter), "Pod Name", podName)
-		jsonResult, err = ExecuteMgmtOp(pod, jbossHome, MgmtOpServerStateRead)
+		jsonResult, err = ExecuteMgmtOp(pod, MgmtOpServerStateRead)
 		if err == nil && IsMgmtOutcomeSuccesful(jsonResult) && jsonResult["result"] == "running" {
 			// when the execution of the state read was succesful and the server is active then continue
 			break
