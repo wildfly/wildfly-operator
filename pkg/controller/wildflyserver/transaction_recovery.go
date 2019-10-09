@@ -53,12 +53,8 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	if scaleDownPod.Annotations[markerRecoveryPort] == "" {
 		reqLogger.Info("Verification the recovery listener is setup to run transaction recovery at " + scaleDownPodName)
 		// Verify the recovery listener is setup
-		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, wildflyutil.MgmtOpTxnCheckRecoveryListener)
+		jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, wildflyutil.MgmtOpTxnCheckRecoveryListener)
 		if err != nil {
-			if strings.Contains(strings.ToLower(err.Error()), "cannot execute") {
-				reqLogger.Error(err, "Verify if operator JBOSS_HOME variable determines the place where the application server is installed",
-					w.Name+".JBOSS_HOME", resources.JBossHome)
-			}
 			return false, "", fmt.Errorf("Cannot check if the transaction recovery listener is enabled for recovery at pod %v, error: %v", scaleDownPodName, err)
 		}
 		if !wildflyutil.IsMgmtOutcomeSuccesful(jsonResult) {
@@ -78,7 +74,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 
 		// Reading recovery port from the app server with management port
 		reqLogger.Info("Query to find the transaction recovery port to force scan at pod " + scaleDownPodName)
-		queriedScaleDownPodRecoveryPort, err := wildflyutil.GetTransactionRecoveryPort(scaleDownPod, resources.JBossHome)
+		queriedScaleDownPodRecoveryPort, err := wildflyutil.GetTransactionRecoveryPort(scaleDownPod)
 		if err == nil && queriedScaleDownPodRecoveryPort != 0 {
 			scaleDownPodRecoveryPort = queriedScaleDownPodRecoveryPort
 		}
@@ -132,12 +128,12 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 		return false, retString, nil
 	}
 	// Probing transaction log to verify there is not in-doubt transaction in the log
-	_, err = wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, wildflyutil.MgmtOpTxnProbe)
+	_, err = wildflyutil.ExecuteMgmtOp(scaleDownPod, wildflyutil.MgmtOpTxnProbe)
 	if err != nil {
 		return false, "", fmt.Errorf("Error in probing transaction log for scaling down pod %v, error: %v", scaleDownPodName, err)
 	}
 	// Transaction log was probed, now we read the set of transactions which are in-doubt
-	jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, wildflyutil.MgmtOpTxnRead)
+	jsonResult, err := wildflyutil.ExecuteMgmtOp(scaleDownPod, wildflyutil.MgmtOpTxnRead)
 	if err != nil {
 		return false, "", fmt.Errorf("Cannot read transactions from the transaction log for pod scaling down %v, error: %v", scaleDownPodName, err)
 	}
@@ -174,7 +170,7 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 	if scaleDownPod.Annotations[markerRecoveryPropertiesSetup] == "" {
 		reqLogger.Info("Setting up back-off period and orphan detection properties for scaledown transaction reocovery", "Pod Name", scaleDownPodName)
 		setPeriodOps := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyRecoveryBackoffPeriod, "1") + "," + fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyOrphanSafetyInterval, "1")
-		jsonResult, errExecution := wildflyutil.ExecuteMgmtOp(scaleDownPod, resources.JBossHome, setPeriodOps)
+		jsonResult, errExecution := wildflyutil.ExecuteMgmtOp(scaleDownPod, setPeriodOps)
 
 		// command may end-up with error with status 'rolled-back' which means duplication, thus do not check for error as error could be possitive outcome
 		isOperationRolledBack := wildflyutil.ReadJSONDataByIndex(jsonResult, "rolled-back")
@@ -195,7 +191,7 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 		}
 
 		reqLogger.Info("Restarting application server to apply the env properies", "Pod Name", scaleDownPodName)
-		if _, err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(reqLogger, wildflyutil.MgmtOpRestart, scaleDownPod, resources.JBossHome); err != nil {
+		if _, err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(reqLogger, wildflyutil.MgmtOpRestart, scaleDownPod); err != nil {
 			return false, fmt.Errorf("Cannot restart application server after setting up the periodic recovery properties, error: %v", err)
 		}
 
