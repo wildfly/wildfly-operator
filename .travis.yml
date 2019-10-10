@@ -25,3 +25,9 @@ script:
   - make setup
   - make test-e2e-16 KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
   - make test-e2e-17 KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
+
+deploy:
+  provider: script
+  script: bash build/docker_push.sh
+  on:
+    branch: master
