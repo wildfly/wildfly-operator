@@ -4,6 +4,7 @@ import (
 	goctx "context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -201,4 +202,17 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 
 func unixEpoch() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10)
+}
+
+// IsOperatorLocal returns true if the LOCAL_OPERATOR env var is set to true.
+func IsOperatorLocal() bool {
+	val, ok := os.LookupEnv("LOCAL_OPERATOR")
+	if !ok {
+		return false
+	}
+	local, err := strconv.ParseBool(val)
+	if err != nil {
+		return false
+	}
+	return local
 }
