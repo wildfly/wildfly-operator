@@ -26,7 +26,18 @@ func TestWildFly18Server(t *testing.T) {
 	// run subtests
 	t.Run("BasicTest", wildFlyBasicTest)
 	t.Run("ClusterTest", wildFlyClusterTest)
-	//t.Run("ScaleDownTest", wildflyScaleDownTest)
+
+	if !wildflyframework.IsOperatorLocal() {
+		// This test is is disabled with a local operator
+		// as it requires a network connection from the
+		//operator to the application pod.
+		//
+		// It can be run when the operator is inside the container platform.
+		// However for the CI tests, that means that it will not use the operator code
+		// from the same commit but the latest image from wildfly/wildfly-operator
+		// (corresponding to the latest commit on master branch)
+		t.Run("ScaleDownTest", wildflyScaleDownTest)
+	}
 }
 
 func wildFlyBasicTest(t *testing.T) {

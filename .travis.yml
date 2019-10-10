@@ -23,7 +23,8 @@ after_failure:
 script:
   - make image
   - make setup
-  - make test-e2e-17 KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
+  - make test-e2e-17-local KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
+  - make test-e2e-18-local KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
   - make test-e2e-18 KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
 
 deploy:
