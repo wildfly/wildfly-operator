@@ -68,6 +68,8 @@ func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client 
 	// service is found, update it if it does not match the wildlfyServer generation
 	if !resources.IsCurrentGeneration(w, loadBalancer) {
 		newLB := newLoadBalancerService(w, labels)
+		// copy the ClusterIP that was set after the route is created.
+		newLB.Spec.ClusterIP = loadBalancer.Spec.ClusterIP
 		loadBalancer.Labels = labels
 		loadBalancer.Spec = newLB.Spec
 		if err := resources.Update(w, client, loadBalancer); err != nil {
