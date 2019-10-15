@@ -19,6 +19,9 @@ func GetOrCreateNewRoute(w *wildflyv1alpha1.WildFlyServer, client client.Client,
 	if err := resources.Get(w, types.NamespacedName{Name: routeServiceName(w), Namespace: w.Namespace}, client, route); err != nil {
 		if errors.IsNotFound(err) {
 			if err := resources.Create(w, client, scheme, newRoute(w, labels)); err != nil {
+				if errors.IsAlreadyExists(err) {
+					return nil, nil
+				}
 				return nil, err
 			}
 			return nil, nil
