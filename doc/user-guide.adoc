@@ -13,7 +13,7 @@ The features and capabilities of **Basic Install (Phase I)** deals with the prov
 [[application-image]]
 ## Specify the Docker Application Image
 
-The `applicationImage` specifies the Docker application image that contains the Java application. The image must have been built 
+The `applicationImage` specifies the Docker application image that contains the Java application. The image must have been built
 https://github.com/wildfly/wildfly-s2i[WildFly S2I].
 
 [source,yaml]
@@ -214,4 +214,100 @@ This route creation can be disabled by setting `disableHTTPRoute` to `true` if y
 spec:
   disableHTTPRoute: true
 ----
+
+[[scaledown-transaction-recovery]]
+## Transaction recovery during scaledown
+
+As the application deployed in the WildFly application server
+may use JTA transactions there and the question emerges: what does happen when the cluster is scaled down?
+When the number of active WildFly replicas is decreased, still there may be some in-doubt transactions in the transaction log.
+When the pod is removed then all the in-progress transactions are stopped and rolled back.
+A more troublesome situation occurs when XA transactions are used.
+When the XA transaction declares it's prepared it's a promise to finish the transaction successfully.
+But the transaction manager which made this promise is running inside the WildFly server.
+Then simply shutting down such pod may lead to data inconsistencies or data locks.
+
+It must be ensured that all transactions are finished before the number of replicas is really decreased.
+For that purpose, the WildFly Operator provides scale down functionality which verifies if all transactions were finished
+and only then marks the pod as clean for termination.
+
+Decreasing the replica size in the `WildFlyServer` customer resource is done at field `WildFlyServer.Spec.Replicas` (see <<size>>).
+You can use for example patch command like
+
+```
+oc patch wildflyserver <name> -p '[{"op":"replace", "path":"/spec/replicas", "value":0}]' --type json
+```
+
+or you can manually edit and change the replica number with `oc edit wildflyserver <name>`.
+
+NOTE: Decreasing replica size at the `StatefulSet` or deleting the Pod itself has no effect and as such changes will be reverted.
+
+WARNING: if you decide to delete whole `WildflyServer` definition (`oc delete wildflyserver <deployment_name>`)
+         then no transaction recovery process is started and the pod is terminated regardless of unfinished transactions.
+         If you want to remove the deployment in a safe way without data inconsistencies,
+         you need first to scale down the number of pods to 0, wait until all pods are terminated
+         and only after that you can delete the `WildFlyServer` instance
+
+WARNING: Narayana recovery listener has to be enabled in the WildFly transaction subsystem.
+         Otherwise, scaledown transaction recovery processing is skipped for the particular WildFly pod.
+         See the link:https://wildscribe.github.io/WildFly/18.0/subsystem/transactions/index.html[`recovery-listener` attribute of the transaction subsystem].
+
+when the scaledown process begins the pod state (`oc get pod <pod_name>``) is still marked as `Running`.
+The reason is that that the pod needs to be able to finish all the unfinished transactions and which includes the remote EJB calls that target it.
+If you want to observe the state of the scaledown processing you need to observe the status of the `WildFlyServer` instance.
+When running `oc describe wildflyserver <name>` you can see the status of the Pods.
+
+The `WildFlyServer.Status.Pods[].State` can be one of the following values:
+
+|===
+| Status.Pod.State | Description
+
+| ACTIVE
+| The pod is active and processing requests.
+
+| SCALING_DOWN_RECOVERY_INVESTIGATION
+| The pod is about to be scaled down. The scale-down process is under investigation about the state of transactions in WildFly.
+
+| SCALING_DOWN_RECOVERY_DIRTY
+| The WildFly contains some unfinished transactions. The pod cannot be terminated until they are cleaned.
+  The transaction recovery is periodically run at WildFly and it waits the transactions are finished eventually.
+
+| SCALING_DOWN_CLEAN
+| The pod was processed by transaction scaled down processing and is marked as clean to be removed from the cluster.
+
+|===
+
+
+You can observe the overall state of the active and no-active pods by looking at the
+`WildFlyServer.Status.'Scalingdown Pods'` and `WildFlyServer.Status.Replicas` fields.
+The `'Scalingdown Pods'` defines the number of pods which are about to be terminated when they are clean of unfinished transactions.
+The `Replicas` defines the current number of running pods.
+The `WildFlyServer.Spec.Replicas` (see <<size>>) defines the desired number of the active pods.
+If there are no pods in scaledown process the numbers of `WildFlyServer.Status.Replicas` and `WildFlyServer.Spec.Replicas` are equals.
+
+### Transaction scaledown special cases
+
+#### Heuristics transactions
+
+As it's well-known the transaction may finish either with commit or roll-back.
+Unfortunately there is a third outcome which is _unknown_.
+It’s a state when there is no way of automatic transaction recovery and human intervention is needed.
+If the transaction is in state of heuristics the pod is marked as `SCALING_DOWN_RECOVERY_DIRTY`
+and the administrator needs to manually connect with the `jboss-cli` to the particular WildFly instance
+and to resolve the heuristic transaction.
+
+When all the formerly heuristics records are removed from the transaction object store then the operator
+marks the pod as `SCALING_DOWN_CLEAN` and the pod is terminated.
+
+#### SCALING_DOWN_CLEAN state and StatefulSet behaviour
+
+There is a special case coming from the design of the `StatefulSet` that ensures that the network hostname is stable
+(it does not change on the pod restart). The `StatefulSet` depends on ordering of the pods. The pod are named by the defined order.
+The `StatefulSet` then requires the pod-0 not being terminated before the pod-1. First pod-1 is terminated and then pod-0.
+
+From that rule we can observe that if the pod-1 is in state `SCALING_DOWN_RECOVERY_DIRTY` (contains some unfinished, e.g. heuristic transactions)
+then if pod-0 is in the state of `SCALING_DOWN_CLEAN` in will be lingering at that state until the pod-1 is terminated.
+
+But even the pod is in state `SCALING_DOWN_CLEAN` the pod is not receiving any new requests
+so it's practically idle.
 
