@@ -34,7 +34,6 @@ func Create(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runt
 	logger.Info("Set controller reference for new resource")
 
 	if err := client.Create(context.TODO(), objectDefinition); err != nil {
-		logger.Error(err, "Failed to create new resource")
 		return err
 	}
 

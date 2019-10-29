@@ -97,8 +97,9 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 		queriedScaleDownPodRecoveryPort, err := strconv.Atoi(queriedScaleDownPodRecoveryPortString)
 		if err != nil {
 			delete(scaleDownPod.Annotations, markerRecoveryPort)
-			if err := resources.Update(w, r.client, scaleDownPod); err != nil {
-				reqLogger.Info("Cannot update scaledown pod %v while resetting the annotation map to %v", scaleDownPodName, scaleDownPod.Annotations)
+			if errUpdate := resources.Update(w, r.client, scaleDownPod); errUpdate != nil {
+				reqLogger.Info("Cannot update scaledown pod while resetting the recovery port annotation",
+					"Scale down Pod", scaleDownPodName, "Annotations", scaleDownPod.Annotations, "Error", errUpdate)
 			}
 			return false, "", fmt.Errorf("Cannot convert recovery port value '%s' to integer for the scaling down pod %v, error: %v",
 				queriedScaleDownPodRecoveryPortString, scaleDownPodName, err)
@@ -111,8 +112,9 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	_, err = wildflyutil.SocketConnect(scaleDownPodIP, scaleDownPodRecoveryPort, txnRecoveryScanCommand)
 	if err != nil {
 		delete(scaleDownPod.Annotations, markerRecoveryPort)
-		if err := r.client.Update(context.TODO(), scaleDownPod); err != nil {
-			reqLogger.Info("Cannot update scaledown pod %v while resetting the annotation map to %v", scaleDownPodName, scaleDownPod.Annotations)
+		if errUpdate := r.client.Update(context.TODO(), scaleDownPod); errUpdate != nil {
+			reqLogger.Info("Cannot update scaledown pod while resetting the recovery port annotation",
+				"Scale down Pod", scaleDownPodName, "Annotations", scaleDownPod.Annotations, "Error", errUpdate)
 		}
 		return false, "", fmt.Errorf("Failed to run transaction recovery scan for scaling down pod %v. "+
 			"Please, verify the pod log file. Error: %v", scaleDownPodName, err)

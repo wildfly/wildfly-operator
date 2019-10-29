@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestWildFly16Server(t *testing.T) {
+func TestWildFly18Server(t *testing.T) {
 	wildflyServerList := &wildflyv1alpha1.WildFlyServerList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "WildFlyServer",
@@ -25,13 +25,29 @@ func TestWildFly16Server(t *testing.T) {
 	}
 	// run subtests
 	t.Run("BasicTest", wildFlyBasicTest)
-	//t.Run("ClusterTest", wildFlyClusterTest)
+	t.Run("ClusterTest", wildFlyClusterTest)
+
+	if !wildflyframework.IsOperatorLocal() {
+		// This test is is disabled with a local operator
+		// as it requires a network connection from the
+		//operator to the application pod.
+		//
+		// It can be run when the operator is inside the container platform.
+		// However for the CI tests, that means that it will not use the operator code
+		// from the same commit but the latest image from wildfly/wildfly-operator
+		// (corresponding to the latest commit on master branch)
+		t.Run("ScaleDownTest", wildflyScaleDownTest)
+	}
 }
 
 func wildFlyBasicTest(t *testing.T) {
-	wildflyframework.WildFlyBasicTest(t, "16.0")
+	wildflyframework.WildFlyBasicTest(t, "18.0")
 }
 
 func wildFlyClusterTest(t *testing.T) {
-	wildflyframework.WildFlyClusterTest(t, "16.0")
+	wildflyframework.WildFlyClusterTest(t, "18.0")
+}
+
+func wildflyScaleDownTest(t *testing.T) {
+	wildflyframework.WildflyScaleDownTest(t, "18.0")
 }

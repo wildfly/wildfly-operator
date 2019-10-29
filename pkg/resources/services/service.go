@@ -25,6 +25,9 @@ func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client clie
 	// create the service if it is not found
 	if errors.IsNotFound(err) {
 		if err := resources.Create(w, client, scheme, newHeadlessService(w, labels)); err != nil {
+			if errors.IsAlreadyExists(err) {
+				return nil, nil
+			}
 			return nil, err
 		}
 		return nil, nil
@@ -61,6 +64,12 @@ func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client 
 	// create the service if it is not found
 	if errors.IsNotFound(err) {
 		if err := resources.Create(w, client, scheme, newLoadBalancerService(w, labels)); err != nil {
+			// the resource may already exist if it was just created before and the reconcile loop is requesting
+			// the resource right after. In that case, we return nil, so the reconcile loop will run again
+			// and get the existing resource?
+			if errors.IsAlreadyExists(err) {
+				return nil, nil
+			}
 			return nil, err
 		}
 		return nil, nil
@@ -68,6 +77,8 @@ func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client 
 	// service is found, update it if it does not match the wildlfyServer generation
 	if !resources.IsCurrentGeneration(w, loadBalancer) {
 		newLB := newLoadBalancerService(w, labels)
+		// copy the ClusterIP that was set after the route is created.
+		newLB.Spec.ClusterIP = loadBalancer.Spec.ClusterIP
 		loadBalancer.Labels = labels
 		loadBalancer.Spec = newLB.Spec
 		if err := resources.Update(w, client, loadBalancer); err != nil {

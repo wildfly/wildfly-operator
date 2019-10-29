@@ -48,21 +48,25 @@ run-openshift:
 run-local-operator: codegen build
 	echo "Deploy WildFlyServer CRD on Kubernetes"
 	kubectl apply -f deploy/crds/wildfly_v1alpha1_wildflyserver_crd.yaml
-	JBOSS_HOME=/opt/jboss/wildfly OPERATOR_NAME=wildfly-operator operator-sdk up local --namespace=default
+	JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator operator-sdk up local --namespace=default
 
 ## test                  Perform all tests.
 test: unit-test scorecard test-e2e
 
-## test-e2e              Run e2e test
-test-e2e: test-e2e-16 test-e2e-17
+## test-e2e-local        Run e2e tests locally
+test-e2e: test-e2e-17-local test-e2e-17-local
 
-## test-e2e              Run e2e test for WildFly 16.0
-test-e2e-16: setup
-	JBOSS_HOME=/opt/jboss/wildfly OPERATOR_NAME=wildfly-operator operator-sdk test local ./test/e2e/16.0 --verbose --debug  --namespace default --up-local
+## test-e2e-17-local     Run e2e test for WildFly 17.0 with a local operator
+test-e2e-17-local: setup
+	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator operator-sdk test local ./test/e2e/17.0 --verbose --debug  --namespace default --up-local
 
-## test-e2e              Run e2e test for WildFly 17.0
-test-e2e-17: setup
-	JBOSS_HOME=/opt/jboss/wildfly OPERATOR_NAME=wildfly-operator operator-sdk test local ./test/e2e/17.0 --verbose --debug  --namespace default --up-local
+## test-e2e-18-local     Run e2e test for WildFly 18.0 with a local operator
+test-e2e-18-local: setup
+	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator operator-sdk test local ./test/e2e/18.0 --verbose --debug  --namespace default --up-local
+
+## test-e2e-18           Run e2e test for WildFly 18.0 with a containerized operator
+test-e2e-18: setup
+	operator-sdk test local ./test/e2e/18.0 --verbose --debug
 
 ## scorecard             Run operator-sdk scorecard.
 scorecard: setup

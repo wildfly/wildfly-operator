@@ -196,13 +196,13 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	if err != nil {
 		return reconcile.Result{}, err
 	} else if loadBalancer == nil {
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: true}, nil
 	}
 	// Check if the headless service already exists, if not create a new one
 	if headlessService, err := services.CreateOrUpdateHeadlessService(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
 		return reconcile.Result{}, err
 	} else if headlessService == nil {
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// Check if the HTTP route must be created
@@ -212,7 +212,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 			if route, err = routes.GetOrCreateNewRoute(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
 				return reconcile.Result{}, err
 			} else if route == nil {
-				return reconcile.Result{}, nil
+				return reconcile.Result{Requeue: true}, nil
 			}
 		} else {
 			// delete the route that may have been created by a previous generation of the WildFlyServer

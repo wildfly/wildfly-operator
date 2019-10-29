@@ -3,7 +3,7 @@ kind: WildFlyServer
 metadata:
   name: quickstart
 spec:
-  applicationImage: "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:17.0"
+  applicationImage: "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0"
   size: 2
   storage:
     volumeClaimTemplate:

@@ -170,7 +170,7 @@ func WaitUntilWildFlyServerIstarted(f *framework.Framework, t *testing.T, server
 // WaitUntilClusterIsFormed wait until a cluster is formed with all the podNames
 func WaitUntilClusterIsFormed(f *framework.Framework, t *testing.T, server *wildflyv1alpha1.WildFlyServer, podName1 string, podName2 string) error {
 
-	pattern := fmt.Sprintf(".*ISPN000094: Received new cluster view.*(%s, %s|%[2]s, %[1]s).*", podName1, podName2)
+	pattern := fmt.Sprintf(".*ISPN000094: Received new cluster view.*(.*%s, .*%s|.*%[2]s, .*%[1]s).*", podName1[len(podName1)-23:], podName2[len(podName2)-23:])
 
 	err := wait.Poll(30*time.Second, 5*time.Minute, func() (done bool, err error) {
 		var clusterFormed bool
