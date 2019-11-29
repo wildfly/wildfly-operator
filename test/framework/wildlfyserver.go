@@ -87,7 +87,7 @@ func CreateAndWaitUntilReady(f *framework.Framework, ctx *framework.TestCtx, t *
 				namespacedName := types.NamespacedName{Name: name, Namespace: namespace}
 				if errPoll := f.Client.Get(context.TODO(), namespacedName, foundWildflyServer); errPoll != nil {
 					if apierrors.IsNotFound(errPoll) {
-						t.Logf("Cannot obtain object of the WildflyServer '%v' as it does not exist\n", name)
+						t.Logf("No WildFlyServer object '%v' to remove the finalizer at. Probably all cleanly finished before.\n", name)
 						return true, nil
 					}
 					t.Logf("Cannot obtain object of the WildflyServer '%v', cause: %v\n", name, errPoll)
@@ -249,7 +249,7 @@ func DeleteWildflyServer(context goctx.Context, wildflyServer *wildflyv1alpha1.W
 		_, err := f.KubeClient.AppsV1().StatefulSets(namespace).Get(name, metav1.GetOptions{IncludeUninitialized: true})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				t.Logf("Statefulset %s not found", name)
+				t.Logf("Statefulset %s was not found. It was probably successfully deleted already.", name)
 				return true, nil
 			}
 			t.Logf("Got error when getting statefulset %s: %s", name, err)

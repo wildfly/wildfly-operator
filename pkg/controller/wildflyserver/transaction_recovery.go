@@ -151,7 +151,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 		return false, retString, nil
 	}
 	// Verification of the unfinished data of the WildFly transaction client (verification of the directory content)
-	lsCommand := fmt.Sprintf(`ls %s/%s/ 2> /dev/null || true`, resources.StandaloneServerDataDirPath, wftcDataDirName)
+	lsCommand := fmt.Sprintf(`ls ${JBOSS_HOME}/%s/%s/ 2> /dev/null || true`, resources.StandaloneServerDataDirRelativePath, wftcDataDirName)
 	commandResult, err := wildflyutil.ExecRemote(scaleDownPod, lsCommand)
 	if err != nil {
 		return false, "", fmt.Errorf("Cannot query filesystem at scaling down pod %v to check existing remote transactions. "+
@@ -159,8 +159,8 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	}
 	if commandResult != "" {
 		retString := fmt.Sprintf("WildFly Transaction Client data dir is not empty and scaling down of the pod '%v' will be retried."+
-			"Wildfly Transacton Client data dir path '%v', output listing: %v",
-			scaleDownPodName, resources.StandaloneServerDataDirPath+"/"+wftcDataDirName, commandResult)
+			"Wildfly Transacton Client data dir path '${JBOSS_HOME}/%v/%v', output listing: %v",
+			scaleDownPodName, resources.StandaloneServerDataDirRelativePath, wftcDataDirName, commandResult)
 		return false, retString, nil
 	}
 	return true, "", nil
