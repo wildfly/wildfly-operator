@@ -99,6 +99,47 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 
 }
 
+func TestWildFlyServerWithoutApplicationImageOrSourceRepository(t *testing.T) {
+	// Set the logger to development mode for verbose logs.
+	logf.SetLogger(logf.ZapLogger(true))
+
+	// A WildFlyServer resource with metadata and spec.
+	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			Replicas: replicas,
+		},
+	}
+	// Objects to track in the fake client.
+	objs := []runtime.Object{
+		wildflyServer,
+	}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
+	// Create a fake client to mock API calls.
+	cl := fake.NewFakeClient(objs...)
+	// Create a ReconcileWildFlyServer object with the scheme and fake client.
+	r := &ReconcileWildFlyServer{client: cl, scheme: s}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	// an error will be returned as either ApplicationImage or SourceRepository must be defined
+	// statefulset will be created
+	_, err := r.Reconcile(req)
+	require.Error(t, err)
+}
+
 func TestEnvUpdate(t *testing.T) {
 	// Set the logger to development mode for verbose logs.
 	logf.SetLogger(logf.ZapLogger(true))

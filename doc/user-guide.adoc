@@ -29,6 +29,147 @@ The `applicationImage` accepts different references to Docker image:
 * a tag: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0`
 * a digest: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart@sha256:0af38bc38be93116b6a1d86a9c78bd14cd527121970899d719baf78e5dc7bfd2`
 
+[[application-source]]
+## Specify the Application Source
+
+The WildFly Operator can also take as input the source code of the application and use https://github.com/openshift/source-to-image[OpenShift Source-to-Image (S2I)] to build the Java applications and create a Docker image from it.
+
+[IMPORTANT]
+====
+This feature is available on OpenShift only.
+
+It relies on OpenShift-specific resources such as `BuildConfig` and `ImageStreams` that are not available on a plain Kubernetes cluster.
+====
+
+[source,yaml]
+.Example of application source configuration
+----
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: quickstart
+spec:
+  applicationSource:
+    # The application will be built from the Web application at
+    # https://github.com/wildfly/quickstart/tree/19.0.0.Final/helloworld-rs
+    sourceRepository:
+      url: "https://github.com/wildfly/quickstart.git"
+      ref: "19.0.0.Final"
+    source2Image:
+      builderImage: "wildfly-centos7:19.0"
+      runtimeImage: "wildfly-runtime-centos7:19.0"
+      env:
+      # cloud-server provision a WildFly server that can runs JAX-RS application
+      - name: GALLEON_PROVISION_LAYERS
+        value: "cloud-server"
+      - name: MAVEN_ARGS
+        value: "install -pl org.wildfly.quickstarts:helloworld-rs -am "
+      - name: ARTIFACT_DIR
+        value: "helloworld-rs/target"
+  replicas: 1
+
+----
+
+The application will be built from the project at https://github.com/wildfly/quickstart/tree/19.0.0.Final/helloworld-rs (`ref` corresponds to the branch or tag to checkout). The Git repository at https://github.com/wildfly/quickstart contains many Java application but we only want to build and run one of them from the module
+`helloworld-rs`. We provide the `MAVEN_ARGS`and `ARTIFACT_DIR` environment variables to S2I to build only this Web application.
+
+Once the application image is build and deployed, the Operator will install it on the OpenShift cluster and create a Route for it.
+The application can then be accessed with:
+
+[source,shell]
+----
+$ curl $(oc get wfly/quickstart -o jsonpath='{.status.hosts[0]}')/helloworld-rs/rest/json
+{"result":"Hello World!"}
+----
+
+[[source-2-image]]
+### Specify Source2Image Configuration
+
+To build the application image, the WildFly S2I images must be installed in the OpenShift cluster before the WildFly Operator deploys the application.
+As an example, to install the WildFly 19 S2I images in the `openshift` cluster, you can run the commands:
+
+[source,shell]
+----
+$ oc import-image wildfly/wildfly-centos7:19.0 --from=quay.io/wildfly/wildfly-centos7:19.0 -n openshift --confirm
+$ oc import-image wildfly/wildfly-runtime-centos7:19.0 --from=quay.io/wildfly/wildfly-runtime-centos7:19.0 -n openshift --confirm
+----
+
+To be able to build an application from its source, the `builderImage`
+must be set in the `source2Image` section. It must correspond to an Image Stream tag of the WildFly S2I Builder image stream.
+
+Optionally, if the `runtimeImage` is set, a 2nd application image will be built that only contains the runtime parts required to run the application on WildFly. This `runtimeImage` must correspond to an Image Stream tag of the WildFly S2I Runtime image stream.
+
+If an image stream tag referenced by a `WildFlyServer` resource is updated (for example, when a new image fixes a CVE), the Operator will detect this image change and trigger the build of a new application image and deploy it on OpenShift.
+
+[[source-webhook]]
+### Specify WebHook for Application Code changes
+
+When the Operator deploys an application that is configured with `applicationSource`, it provides Webhooks to trigger new builds of the application image upon code changes.
+The `WildFlyServer` custom resource definition supports GitHub and Generic Webhooks. For more information on these Webhooks, please consult the latest https://docs.openshift.com/container-platform/4.3/builds/triggering-builds-build-hooks.html[OpenShift documentation].
+
+The GitHub and Generic Webhooks rely on secret with a key named `WebHookSecretKey` whose value is supplied when invoking the webhook.
+When a `WildFlyServer` is created, you can specify the secret that holds this key with either `gitHubWebHookSecret` or `genericHubWebHookSecret`. If these fields are not specified, the Operator will automatically create two secrets named `<wildflyserver name>-github-webhook` and `<wildflyserver name>-generic-webhook` in the same namespace as the `WildFlyServer` resource and use a random string as the value of their `WebHookSecretKey`.
+
+[source,shell]
+-----
+$ oc describe wfly/quickstart
+Name:         quickstart
+Namespace:    default
+...
+Spec:
+  Application Source:
+    Source Repository:
+      Generic Web Hook Secret:  quickstart-generic-webhook
+      Git Hub Web Hook Secret:  quickstart-github-webhook
+      Ref:                      19.0.0.Final
+      URL:                      https://github.com/wildfly/quickstart.git
+...
+
+$ oc describe  secret/quickstart-github-webhook
+Name:         quickstart-github-webhook
+Namespace:    default
+...
+
+Type:  Opaque
+
+Data
+====
+WebHookSecretKey:  36 bytes
+-----
+
+To get the value of the `WebHookSecretKey` key, you need to decode it with:
+
+[source,shell]
+----
+$ oc get secret/quickstart-github-webhook -o jsonpath="{.data.WebHookSecretKey}" | base64 -d
+b1ca664f-fe26-4410-87c5-deb35cfb4d64
+----
+
+You then need to query the `BuildConfig` created by the Operator that builds the application image from the Git repository to retrieve the corresponding Webhooks:
+
+[source,shell]
+----
+$ oc describe bc/quickstart
+Name:           quickstart
+Namespace:      default
+
+...
+
+Webhook GitHub:
+        URL:    https://api.crc.testing:6443/apis/build.openshift.io/v1/namespaces/default/buildconfigs/quickstart/webhooks/<secret>/github
+Webhook Generic:
+        URL:            https://api.crc.testing:6443/apis/build.openshift.io/v1/namespaces/default/buildconfigs/quickstart/webhooks/<secret>/generic
+...
+----
+
+The actual Webhook URL to use will be formed of the URLs returned by the `BuildConfig` with the `<secret>` part replaced by the value of the corresponding
+WebHookSecretKey hook.
+
+In this case, it then would be: https://api.crc.testing:6443/apis/build.openshift.io/v1/namespaces/default/buildconfigs/quickstart/webhooks/b1ca664f-fe26-4410-87c5-deb35cfb4d64/github
+
+You can then configure the GitHub project that hosts the application code with that Webhook.
+Any time a change is pushed to the branch that holds the code, this Webhook will be invoked and a new application will be built and deployed on the OpenShift cluster.
+
 [[size]]
 ## Specify the Size of the Application
 

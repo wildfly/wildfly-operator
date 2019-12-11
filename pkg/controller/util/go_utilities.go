@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -182,4 +183,9 @@ func SanitizeVolumeName(name string) string {
 		name = name[0:validation.DNS1123LabelMaxLength]
 	}
 	return strings.Trim(name, "-")
+}
+
+// NewUUID returns a new UUID string
+func NewUUID() string {
+	return uuid.New().String()
 }

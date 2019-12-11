@@ -1,0 +1,23 @@
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: quickstart
+spec:
+  applicationSource:
+    # The application will be built from the Web application at
+    # https://github.com/wildfly/quickstart/tree/19.0.0.Final/helloworld-rs
+    sourceRepository:
+      url: "https://github.com/wildfly/quickstart.git"
+      ref: "19.0.0.Final"
+    source2Image:
+      builderImage: "wildfly-centos7:19.0"
+      runtimeImage: "wildfly-runtime-centos7:19.0"
+      env:
+      # cloud-server provision a WildFly server that can runs JAX-RS application
+      - name: GALLEON_PROVISION_LAYERS
+        value: "cloud-server"
+      - name: MAVEN_ARGS
+        value: "install -pl org.wildfly.quickstarts:helloworld-rs -am "
+      - name: ARTIFACT_DIR
+        value: "helloworld-rs/target"
+  replicas: 1

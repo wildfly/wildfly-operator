@@ -13,12 +13,40 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"./pkg/apis/wildfly/v1alpha1.ApplicationSourceSpec":   schema_pkg_apis_wildfly_v1alpha1_ApplicationSourceSpec(ref),
 		"./pkg/apis/wildfly/v1alpha1.PodStatus":               schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref),
+		"./pkg/apis/wildfly/v1alpha1.Source2ImageSpec":        schema_pkg_apis_wildfly_v1alpha1_Source2ImageSpec(ref),
+		"./pkg/apis/wildfly/v1alpha1.SourceRepositorySpec":    schema_pkg_apis_wildfly_v1alpha1_SourceRepositorySpec(ref),
 		"./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec": schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref),
 		"./pkg/apis/wildfly/v1alpha1.StorageSpec":             schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
 		"./pkg/apis/wildfly/v1alpha1.WildFlyServer":           schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
 		"./pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
 		"./pkg/apis/wildfly/v1alpha1.WildFlyServerStatus":     schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
+	}
+}
+
+func schema_pkg_apis_wildfly_v1alpha1_ApplicationSourceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSourceSpec defines the specification to build the image from source code",
+				Properties: map[string]spec.Schema{
+					"sourceRepository": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./pkg/apis/wildfly/v1alpha1.SourceRepositorySpec"),
+						},
+					},
+					"source2Image": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./pkg/apis/wildfly/v1alpha1.Source2ImageSpec"),
+						},
+					},
+				},
+				Required: []string{"sourceRepository", "source2Image"},
+			},
+		},
+		Dependencies: []string{
+			"./pkg/apis/wildfly/v1alpha1.Source2ImageSpec", "./pkg/apis/wildfly/v1alpha1.SourceRepositorySpec"},
 	}
 }
 
@@ -49,6 +77,109 @@ func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) co
 					},
 				},
 				Required: []string{"name", "podIP", "state"},
+			},
+		},
+		Dependencies: []string{},
+	}
+}
+
+func schema_pkg_apis_wildfly_v1alpha1_Source2ImageSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Source2ImageSpec defines which S2I builder and runtime images to use to build the application image",
+				Properties: map[string]spec.Schema{
+					"builderImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Image Stream Tag of the builder image",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"runtimeImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Image Stream Tag of the runtime image. If omitted, the application image will be built directly from the builder image.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace where the builder (and potentially runtime) images streams are defined. If omitted, the \"openshift\" namespace is used",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Env contains environment variables for the containers building the application image from the SourceRepository",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"builderImage"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.EnvVar"},
+	}
+}
+
+func schema_pkg_apis_wildfly_v1alpha1_SourceRepositorySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SourceRepositorySpec defines the Git repository of the application source code",
+				Properties: map[string]spec.Schema{
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URL of the Git repository",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ref": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reference in the Git repository (can be a branch, a tag or a SHA-1 checksum)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"contextDir": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Sub-directory where the source code for the application exists",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"gitHubWebHookSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Secret for GitHub WebHook. This references a Secret in the same namespace which has a key named WebHookSecretKey whose value is supplied when invoking the webhook. If omitted, a secret will be automatically generated.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"genericWebHookSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Secret for Generic WebHook. This references a Secret in the same namespace which has a key named WebHookSecretKey whose value is supplied when invoking the webhook. If omitted, a secret will be automatically generated.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"url"},
 			},
 		},
 		Dependencies: []string{},
@@ -163,6 +294,12 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"applicationSource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApplicationSource contains the specification to build the image from source code",
+							Ref:         ref("./pkg/apis/wildfly/v1alpha1.ApplicationSourceSpec"),
+						},
+					},
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Replicas is the desired number of replicas for the application",
@@ -202,6 +339,11 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 						},
 					},
 					"envFrom": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "EnvFrom contains environment variables from a source such as a ConfigMap or a Secret",
 							Type:        []string{"array"},
@@ -271,11 +413,11 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"applicationImage", "replicas"},
+				Required: []string{"replicas"},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "./pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
+			"./pkg/apis/wildfly/v1alpha1.ApplicationSourceSpec", "./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "./pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
 	}
 }
 

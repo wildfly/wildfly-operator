@@ -39,7 +39,8 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `applicationImage` | Name of the application image to be deployed | string | true
+| `applicationImage` | Name of the application image to be deployed | string | false (if `applicationSource` is defined)
+| `applicationSource` | spec to define the source of the application (OpenShift-only) | *<<applicationsourcespec>> | false (if `applicationImage` is defined)
 | `replicas` | Replicas is the desired number of replicas for the application | int32 | true
 | `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
 | `storage` | Storage spec to specify how storage should be used. If omitted, an `EmptyDir` is used (that will not persist data across pod restart) | *<<storagespec>> |false
@@ -51,6 +52,53 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | `disableHTTPRoute`| Disable the creation a route to the HTTP port of the application service (false if omitted) | bool | false
 | `sessionAffinity`| If connections from the same client IP are passed to the same WildFlyServer instance/pod each time (false if omitted) | bool | false
 |=======================
+
+[[applicationsourcespec]]
+## `ApplicationSourceSpec`
+
+WARNING: Building the application from its source requires to run on OpenShift.
+
+It uses https://github.com/wildfly/wildfly-s2i[WildFly Source-to-Image (S2I)] to create the application image from the source code
+
+The Operator will configure OpenShift resources such as `ImageStream` and `BuildConfig` in order to build the application image.
+
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+| `sourceRepository` | The Git repository containing the code source of the application | *<<sourcerepositoryspec>> | true
+| `source2Image` | Settings for the Source-to-Image (S2I) images used to build the application image | *<<source2imagespec>> | true
+|=======================
+
+
+[[sourcerepositoryspec]]
+## `SourceRepositorySpec`
+
+`SourceRepositorySpec` defines the Git repository containing the source code of the application.
+
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+| `url` | URL of the Git repository hosting the application code | string | true
+| `ref` | Reference in the Git repository (can be a branch, a tag or a SHA-1 checksum) | string | false
+| `contextDir` | Sub-directory where the source code for the application exists | string | false
+| `gitHubWebHookSecret` | Secret for GitHub WebHook. This references a Secret in the same namespace which has a key named `WebHookSecretKey` whose value is supplied when invoking the webhook. If omitted, a secret will be automatically generated | string | false
+| `genericWebHookSecret` | Secret for Generic WebHook. This references a Secret in the same namespace which has a key named `WebHookSecretKey` whose value is supplied when invoking the webhook. If omitted, a secret will be automatically generated | string | false
+|=======================
+
+[[source2imagespec]]
+## `Source2ImageSpec`
+
+`Source2ImagSpec` defines the specification to use Source-to-Image (S2I) to build the application image.
+
+|=======================
+| Field  | Description | Scheme | Required
+| `builderImage` | The image stream tag for the S2I Builder image | string | true
+| `runtimeImage` | The image stream tag for the S2I Runtime image. If omitted, the application image is built directly from the S2I Builder image | string | false
+| `namespace` | The namespace where the image streams for the S2I Builder and Runtime images are defined. If omitted, the Operator will use the `openshift` namespace | string| false
+| `env` | List of environment variables used to build the application | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envvar-v1-core[corev1.EnvVar] | false
+|=======================
+
+The `env` array can be used to configure the application building. These environment variables are passed to the `BuildConfig` resources and will be processed during the `S2I` build process. They will not be available in the application image
 
 
 [[storagespec]]

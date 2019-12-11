@@ -37,9 +37,9 @@ $ kubectl apply -f deploy/crds/wildfly_v1alpha1_wildflyserver_crd.yaml
 $ kubectl create -f deploy/operator.yaml
 ----
 
-### Install a custom resource
+### Install a custom resource from an existing Docker Image
 
-An example of a custom resource of `WildFlyServer` is described in https://github.com/wildfly/wildfly-operator/blob/master/deploy/crds/quickstart-cr.yaml[quickstart-cr.yaml]:
+An example of a custom resource of `WildFlyServer` is described in https://github.com/wildfly/wildfly-operator/blob/master/deploy/crds/quickstart-image.yaml[quickstart-image.yaml]:
 
 [source,yaml]
 ----

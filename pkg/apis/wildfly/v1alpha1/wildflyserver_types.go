@@ -12,7 +12,9 @@ import (
 // +k8s:openapi-gen=true
 type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
-	ApplicationImage string `json:"applicationImage"`
+	ApplicationImage string `json:"applicationImage,omitempty"`
+	// ApplicationSource contains the specification to build the image from source code
+	ApplicationSource *ApplicationSourceSpec `json:"applicationSource,omitempty"`
 	// Replicas is the desired number of replicas for the application
 	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
@@ -27,6 +29,7 @@ type WildFlyServerSpec struct {
 	ServiceAccountName string       `json:"serviceAccountName,omitempty"`
 	// EnvFrom contains environment variables from a source such as a ConfigMap or a Secret
 	// +kubebuilder:validation:MinItems=1
+	// +listType=set
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty,list_type=corev1.EnvFromSource"`
 	// Env contains environment variables for the containers running the WildFlyServer application
 	// +kubebuilder:validation:MinItems=1
@@ -44,6 +47,43 @@ type WildFlyServerSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	// +listType=set
 	ConfigMaps []string `json:"configMaps,omitempty"`
+}
+
+// ApplicationSourceSpec defines the specification to build the image from source code
+// +k8s:openapi-gen=true
+type ApplicationSourceSpec struct {
+	SourceRepository *SourceRepositorySpec `json:"sourceRepository"`
+	Source2Image     *Source2ImageSpec     `json:"source2Image"`
+}
+
+// SourceRepositorySpec defines the Git repository of the application source code
+// +k8s:openapi-gen=true
+type SourceRepositorySpec struct {
+	// URL of the Git repository
+	URL string `json:"url"`
+	// Reference in the Git repository (can be a branch, a tag or a SHA-1 checksum)
+	Ref string `json:"ref,omitempty"`
+	// Sub-directory where the source code for the application exists
+	ContextDir string `json:"contextDir,omitempty"`
+	// Secret for GitHub WebHook. This references a Secret in the same namespace which has a key named WebHookSecretKey whose value is supplied when invoking the webhook. If omitted, a secret will be automatically generated.
+	GitHubWebHookSecret string `json:"gitHubWebHookSecret,omitempty"`
+	// Secret for Generic WebHook. This references a Secret in the same namespace which has a key named WebHookSecretKey whose value is supplied when invoking the webhook. If omitted, a secret will be automatically generated.
+	GenericWebHookSecret string `json:"genericWebHookSecret,omitempty"`
+}
+
+// Source2ImageSpec defines which S2I builder and runtime images to use to build the application image
+// +k8s:openapi-gen=true
+type Source2ImageSpec struct {
+	// Image Stream Tag of the builder image
+	BuilderImage string `json:"builderImage"`
+	// Image Stream Tag of the runtime image. If omitted, the application image will be built directly from the builder image.
+	RuntimeImage string `json:"runtimeImage,omitempty"`
+	// Namespace where the builder (and potentially runtime) images streams are defined. If omitted, the "openshift" namespace is used
+	Namespace string `json:"namespace,omitempty"`
+	// Env contains environment variables for the containers building the application image from the SourceRepository
+	// +kubebuilder:validation:MinItems=1
+	// +listType=set
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer

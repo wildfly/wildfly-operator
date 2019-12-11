@@ -7,14 +7,20 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
+	"github.com/wildfly/wildfly-operator/pkg/resources/builds"
+	"github.com/wildfly/wildfly-operator/pkg/resources/imagestreams"
 	"github.com/wildfly/wildfly-operator/pkg/resources/routes"
+	"github.com/wildfly/wildfly-operator/pkg/resources/secrets"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 	"github.com/wildfly/wildfly-operator/pkg/resources/statefulsets"
 
+	buildv1 "github.com/openshift/api/build/v1"
+	imagev1 "github.com/openshift/api/image/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -84,9 +91,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}
 	}
 
-	// watch for Route only on OpenShift
+	// watch for Route, ImageStream & BuildConfig only on OpenShift
 	if isOpenShift(mgr.GetConfig()) {
 		if err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &enqueueRequestForOwner); err != nil {
+			return err
+		}
+		if err = c.Watch(&source.Kind{Type: &imagev1.ImageStream{}}, &enqueueRequestForOwner); err != nil {
+			return err
+		}
+		if err = c.Watch(&source.Kind{Type: &buildv1.BuildConfig{}}, &enqueueRequestForOwner); err != nil {
 			return err
 		}
 	}
@@ -129,13 +142,113 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
+	applicationImage := wildflyServer.Spec.ApplicationImage
+
+	if wildflyServer.Spec.ApplicationSource != nil {
+		if !r.isOpenShift {
+			err := errors.NewInvalid(wildflyServer.GroupVersionKind().GroupKind(), wildflyServer.Name, field.ErrorList{
+				field.Invalid(field.NewPath("ApplicationSource"), "", "This field requires to run on OnpenShift"),
+			})
+			reqLogger.Error(err, err.Error(), "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
+			return reconcile.Result{}, err
+		}
+
+		labels := LabelsForWildFly(wildflyServer)
+
+		// if the name of the secret for the GitHub WebHook is not provided, create the name from the WildFlyServer's name and update the spec
+		if wildflyServer.Spec.ApplicationSource.SourceRepository.GitHubWebHookSecret == "" {
+			wildflyServer.Spec.ApplicationSource.SourceRepository.GitHubWebHookSecret = wildflyServer.Name + "-github-webhook"
+			err = resources.Update(wildflyServer, r.client, wildflyServer)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			return reconcile.Result{Requeue: true}, nil
+		}
+		requeue, err := createOrUpdateWebHookSecret(wildflyServer, r, labels, wildflyServer.Spec.ApplicationSource.SourceRepository.GitHubWebHookSecret)
+		if err != nil {
+			return reconcile.Result{}, err
+		} else if requeue {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		// if the name of the secret for the Generic WebHook is not provided, create the name from the WildFlyServer's name and update the spec
+		if wildflyServer.Spec.ApplicationSource.SourceRepository.GenericWebHookSecret == "" {
+			wildflyServer.Spec.ApplicationSource.SourceRepository.GenericWebHookSecret = wildflyServer.Name + "-generic-webhook"
+			err = resources.Update(wildflyServer, r.client, wildflyServer)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			return reconcile.Result{Requeue: true}, nil
+		}
+		requeue, err = createOrUpdateWebHookSecret(wildflyServer, r, labels, wildflyServer.Spec.ApplicationSource.SourceRepository.GenericWebHookSecret)
+		if err != nil {
+			return reconcile.Result{}, err
+		} else if requeue {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		// Setup using S2I with an image stream
+		builderImageStream, err := imagestreams.GetOrCreateNewBuilderImageStream(wildflyServer, r.client, r.scheme, labels)
+		if err != nil {
+			return reconcile.Result{}, err
+		} else if builderImageStream == nil {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		builderBuildConfig, err := builds.GetOrCreateNewBuilderBuildConfig(wildflyServer, r.client, r.scheme, labels)
+		if err != nil {
+			return reconcile.Result{}, err
+		} else if builderBuildConfig == nil {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		var imageStream *imagev1.ImageStream
+		if wildflyServer.Spec.ApplicationSource.Source2Image.RuntimeImage != "" {
+			runtimeImageStream, err := imagestreams.GetOrCreateNewRuntimeImageStream(wildflyServer, r.client, r.scheme, labels)
+			if err != nil {
+				return reconcile.Result{}, err
+			} else if runtimeImageStream == nil {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			runtimeBuildConfig, err := builds.GetOrCreateNewRuntimeBuildConfig(wildflyServer, r.client, r.scheme, labels)
+			if err != nil {
+				return reconcile.Result{}, err
+			} else if runtimeBuildConfig == nil {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			imageStream = runtimeImageStream
+		} else {
+			imageStream = builderImageStream
+		}
+
+		// wait until the image is built at least once before proceeding with the creation of the statefulset
+		found := false
+		for _, tag := range imageStream.Status.Tags {
+			if tag.Tag == "latest" {
+				found = true
+			}
+		}
+		if !found {
+			return reconcile.Result{RequeueAfter: 30 * time.Second}, nil
+		}
+		applicationImage = imageStream.Status.DockerImageRepository + ":latest"
+
+	} else if wildflyServer.Spec.ApplicationImage == "" {
+		err := errors.NewInvalid(wildflyServer.GroupVersionKind().GroupKind(), wildflyServer.Name, field.ErrorList{
+			field.Invalid(field.NewPath("applicationSource"), "", "one of these fields must be defined"),
+			field.Invalid(field.NewPath("applicationImage"), "", "one of these fields must be defined"),
+		})
+		reqLogger.Error(err, err.Error(), "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
+		return reconcile.Result{}, err
+	}
+
 	// If statefulset was deleted during processing recovery scaledown the number of replicas in WildflyServer spec
 	//  does not defines the number of pods which should be left active until recovered
 	desiredReplicaSizeForNewStatefulSet := wildflyServer.Spec.Replicas + wildflyServer.Status.ScalingdownPods
 
 	// Check if the statefulSet already exists, if not create a new one
 	statefulSet, err := statefulsets.GetOrCreateNewStatefulSet(wildflyServer, r.client, r.scheme,
-		LabelsForWildFly(wildflyServer), desiredReplicaSizeForNewStatefulSet)
+		LabelsForWildFly(wildflyServer), desiredReplicaSizeForNewStatefulSet, applicationImage)
 	if err != nil {
 		return reconcile.Result{}, err
 	} else if statefulSet == nil {
@@ -184,7 +297,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 			"Number of pods to be removed", numberOfPodsToScaleDown)
 	}
 
-	mustReconcile, err = r.checkStatefulSet(wildflyServer, statefulSet, podList)
+	mustReconcile, err = r.checkStatefulSet(wildflyServer, statefulSet, podList, applicationImage)
 	if mustReconcile {
 		return reconcile.Result{Requeue: true}, err
 	} else if err != nil {
@@ -289,7 +402,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 // it returns true if a reconcile result must be returned.
 // A non-nil error if an error happend while updating/deleting the statefulset.
 func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1.WildFlyServer, foundStatefulSet *appsv1.StatefulSet,
-	podList *corev1.PodList) (mustReconcile bool, err error) {
+	podList *corev1.PodList, applicationImage string) (mustReconcile bool, err error) {
 	var update, requeue bool
 	// Ensure the statefulset replicas is up to date (driven by scaledown processing)
 	wildflyServerSpecSize := wildflyServer.Spec.Replicas
@@ -348,7 +461,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 	}
 
 	if !resources.IsCurrentGeneration(wildflyServer, foundStatefulSet) {
-		statefulSet := statefulsets.NewStatefulSet(wildflyServer, LabelsForWildFly(wildflyServer), desiredStatefulSetReplicaSize)
+		statefulSet := statefulsets.NewStatefulSet(wildflyServer, LabelsForWildFly(wildflyServer), desiredStatefulSetReplicaSize, applicationImage)
 		delete := false
 		// changes to VolumeClaimTemplates can not be updated and requires a delete/create of the statefulset
 		if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {
@@ -502,4 +615,25 @@ func isOpenShift(c *rest.Config) bool {
 		return false
 	}
 	return isOpenShift
+}
+
+// create of update a secret for a WebHook. If the secret is created, it will be generating a UUID for the secret value.
+// The method returns true to requeue.
+func createOrUpdateWebHookSecret(w *wildflyv1alpha1.WildFlyServer, r *ReconcileWildFlyServer, labels map[string]string, name string) (bool, error) {
+	secret, err := secrets.GetOrCreateNewSecret(w, r.client, r.scheme, labels, name)
+	if err != nil {
+		return false, err
+	} else if secret == nil {
+		return true, nil
+	}
+	if secret.Data["WebHookSecretKey"] == nil {
+		secret.StringData = map[string]string{
+			"WebHookSecretKey": wildflyutil.NewUUID(),
+		}
+		if err = resources.Update(w, r.client, secret); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
 }
