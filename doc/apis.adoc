@@ -39,7 +39,9 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `applicationImage` | Name of the application image to be deployed | string | true
+| `sourceRepository` | spec to define the source of the application (OpenShift-only) | *<<sourcerepositoryspec>> | false (if `applicationImage` is defined)
+| `buildEnv` | List of environment variables used to build the application | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envvar-v1-core[corev1.EnvVar] | false
+| `applicationImage` | Name of the application image to be deployed | string | false (if `sourceRepository` is defined)
 | `replicas` | Replicas is the desired number of replicas for the application | int32 | true
 | `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
 | `storage` | Storage spec to specify how storage should be used. If omitted, an `EmptyDir` is used (that will not persist data across pod restart) | *<<storagespec>> |false
@@ -52,6 +54,28 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | `sessionAffinity`| If connections from the same client IP are passed to the same WildFlyServer instance/pod each time (false if omitted) | bool | false
 |=======================
 
+[[sourcerepositoryspec]]
+## `SourceRepositorySpec`
+
+WARNING: Building the application from its source requires to run on OpenShift.
+
+`SourceRepositorySpec` defined the source of the application.
+It uses https://github.com/wildfly/wildfly-s2i[WildFly Source-to-Image (S2I)] to create the application image from the source code
+
+The Operator will configure OpenShift `ImageStream` and `BuildConfig` in order to build the application image.
+
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+| `url` | URL of the Git repository hosting the application code | string | true
+| `ref` | Reference in the Git repository (can be a branch, a tag or a SHA-1 checksum) | string | false
+| `contextDir` | Sub-directory where the source code for the application exists | string | false
+| `gitHubWebHookSecret` | Secret used to validate requests from GitHub WebHook | string | false
+| `genericWebHookSecret` | Secret used to validate requests from a generic WebHook | string | false
+|=======================
+
+The `BuildEnv` array can be used to configure the application building. These environment variables are passed to the `BuildConfig` resource
+and will be processed during the `S2I` build process.
 
 [[storagespec]]
 ## `StorageSpec`

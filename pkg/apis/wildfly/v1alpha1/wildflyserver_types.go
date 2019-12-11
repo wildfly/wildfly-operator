@@ -12,7 +12,12 @@ import (
 // +k8s:openapi-gen=true
 type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
-	ApplicationImage string `json:"applicationImage"`
+	ApplicationImage string `json:"applicationImage,omitempty"`
+	// SourceRepository is the Git repository containing the application source code
+	SourceRepository *SourceRepositorySpec `json:"sourceRepository,omitempty"`
+	// Env contains environment variables for the containers building the application image from the SourceRepository
+	// +kubebuilder:validation:MinItems=1
+	BuildEnv []corev1.EnvVar `json:"buildEnv,omitempty"`
 	// Replicas is the desired number of replicas for the application
 	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
@@ -41,6 +46,19 @@ type WildFlyServerSpec struct {
 	// The ConfigMaps are mounted into /etc/configmaps/<configmap-name>.
 	// +kubebuilder:validation:MinItems=1
 	ConfigMaps []string `json:"configMaps,omitempty"`
+}
+
+// SourceRepositorySpec defines the Git repository of the application source code
+// +k8s:openapi-gen=true
+type SourceRepositorySpec struct {
+	// URL of the Git repository
+	URL string `json:"url"`
+	// Reference in the Git repository (can be a branch, a tag or a SHA-1 checksum)
+	Ref                  string `json:"ref,omitempty"`
+	ImageStreamNamespace string `json:"imageStreamNamespace,omitempty"`
+	ContextDir           string `json:"contextDir,omitempty"`
+	GitHubWebHookSecret  string `json:"gitHubWebHookSecret,omitempty"`
+	GenericWebHookSecret string `json:"genericWebHookSecret,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer

@@ -1,0 +1,12 @@
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: quickstart
+spec:
+  sourceRepository:
+    url: "https://github.com/jmesnil/wildfly-operator-quickstart.git"
+    gitHubWebHookSecret: "mysecret"
+  buildEnv:
+    - name: GALLEON_PROVISION_LAYERS
+      value: "cloud-server"
+  replicas: 1

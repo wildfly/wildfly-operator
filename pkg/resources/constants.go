@@ -26,4 +26,6 @@ var (
 	JBossHome = os.Getenv("JBOSS_HOME")
 	// StandaloneServerDataDirPath is the path to the server standalone data directory
 	StandaloneServerDataDirPath = JBossHome + "/standalone/data"
+	// S2IBuilderImage defines the S2I Builder image to use in the BuildConfig
+	S2IBuilderImage = os.Getenv("S2I_BUILDER_IMAGE")
 )

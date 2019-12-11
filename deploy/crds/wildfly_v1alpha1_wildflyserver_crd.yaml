@@ -45,6 +45,13 @@ spec:
               description: ApplicationImage is the name of the application image to
                 be deployed
               type: string
+            buildEnv:
+              description: Env contains environment variables for the containers building
+                the application image from the SourceRepository
+              items:
+                type: object
+              minItems: 1
+              type: array
             configMaps:
               description: ConfigMaps is a list of ConfigMaps in the same namespace
                 as the WildFlyServer object, which shall be mounted into the WildFlyServer
@@ -84,6 +91,28 @@ spec:
                 ip are passed to the same WildFlyServer instance/pod each time (false
                 if omitted)
               type: boolean
+            sourceRepository:
+              description: SourceRepository is the Git repository containing the application
+                source code
+              properties:
+                contextDir:
+                  type: string
+                genericWebHookSecret:
+                  type: string
+                gitHubWebHookSecret:
+                  type: string
+                imageStreamNamespace:
+                  type: string
+                ref:
+                  description: Reference in the Git repository (can be a branch, a
+                    tag or a SHA-1 checksum)
+                  type: string
+                url:
+                  description: URL of the Git repository
+                  type: string
+              required:
+              - url
+              type: object
             standaloneConfigMap:
               properties:
                 key:
@@ -112,7 +141,6 @@ spec:
                   type: object
               type: object
           required:
-          - applicationImage
           - replicas
           type: object
         status:

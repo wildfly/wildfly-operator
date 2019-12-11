@@ -52,3 +52,15 @@ rules:
   - routes
   verbs:
   - "*"
+- apiGroups:
+  - image.openshift.io
+  resources:
+  - imagestreams
+  verbs:
+  - "*"
+- apiGroups:
+  - build.openshift.io
+  resources:
+  - buildconfigs
+  verbs:
+  - "*"

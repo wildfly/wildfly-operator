@@ -26,11 +26,11 @@ import (
 var log = logf.Log.WithName("wildlfyserver_statefulsets")
 
 // GetOrCreateNewStatefulSet either returns the statefulset or create it
-func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string, desiredReplicaSize int32) (*appsv1.StatefulSet, error) {
+func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string, desiredReplicaSize int32, applicationImage string) (*appsv1.StatefulSet, error) {
 	statefulSet := &appsv1.StatefulSet{}
 	if err := resources.Get(w, types.NamespacedName{Name: w.Name, Namespace: w.Namespace}, client, statefulSet); err != nil {
 		if errors.IsNotFound(err) {
-			if err := resources.Create(w, client, scheme, NewStatefulSet(w, labels, desiredReplicaSize)); err != nil {
+			if err := resources.Create(w, client, scheme, NewStatefulSet(w, labels, desiredReplicaSize, applicationImage)); err != nil {
 				return nil, err
 			}
 			return nil, nil
@@ -40,9 +40,9 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 }
 
 // NewStatefulSet retunrs a new statefulset
-func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, desiredReplicaSize int32) *appsv1.StatefulSet {
+func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, desiredReplicaSize int32, applicationImage string) *appsv1.StatefulSet {
 	replicas := desiredReplicaSize
-	applicationImage := w.Spec.ApplicationImage
+
 	labesForActiveWildflyPod := wildflyutil.CopyMap(labels)
 	labesForActiveWildflyPod[resources.MarkerOperatedByHeadless] = resources.MarkerServiceActive
 	labesForActiveWildflyPod[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive
@@ -58,8 +58,11 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 			Labels:    labels,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			Replicas:            &replicas,
-			ServiceName:         services.HeadlessServiceName(w),
+			Replicas:    &replicas,
+			ServiceName: services.HeadlessServiceName(w),
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
+				Type: appsv1.RollingUpdateStatefulSetStrategyType,
+			},
 			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
@@ -98,6 +101,14 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 
 	if len(w.Spec.Env) > 0 {
 		statefulSet.Spec.Template.Spec.Containers[0].Env = append(statefulSet.Spec.Template.Spec.Containers[0].Env, w.Spec.Env...)
+	}
+
+	// application image is built using S2I, add annotation to trigger statefulset update
+	if w.Spec.SourceRepository != nil {
+		if statefulSet.Annotations == nil {
+			statefulSet.Annotations = make(map[string]string)
+		}
+		statefulSet.Annotations["image.openshift.io/triggers"] = "[{ \"from\": { \"kind\":\"ImageStreamTag\", \"name\":\"" + w.Name + ":latest\"}, \"fieldPath\": \"spec.template.spec.containers[?(@.name==\\\"" + w.Name + "\\\")].image\"}]"
 	}
 
 	// TODO the KUBERNETES_NAMESPACE and KUBERNETES_LABELS env should only be set if

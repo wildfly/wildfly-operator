@@ -5,7 +5,8 @@ ENV OPERATOR=/usr/local/bin/wildfly-operator \
     USER_UID=1001 \
     USER_NAME=wildfly-operator \
     LABEL_APP_MANAGED_BY=wildfly-operator \
-    LABEL_APP_RUNTIME=wildfly
+    LABEL_APP_RUNTIME=wildfly \
+    S2I_BUILDER_IMAGE=wildfly-centos7:18.0
 
 # install operator binary
 COPY build/_output/bin/wildfly-operator ${OPERATOR}

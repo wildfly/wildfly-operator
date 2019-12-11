@@ -7,14 +7,19 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
+	"github.com/wildfly/wildfly-operator/pkg/resources/builds"
+	"github.com/wildfly/wildfly-operator/pkg/resources/imagestreams"
 	"github.com/wildfly/wildfly-operator/pkg/resources/routes"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 	"github.com/wildfly/wildfly-operator/pkg/resources/statefulsets"
 
+	buildv1 "github.com/openshift/api/build/v1"
+	imagev1 "github.com/openshift/api/image/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -84,9 +90,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}
 	}
 
-	// watch for Route only on OpenShift
+	// watch for Route, ImageStream & BuildConfig only on OpenShift
 	if isOpenShift(mgr.GetConfig()) {
 		if err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &enqueueRequestForOwner); err != nil {
+			return err
+		}
+		if err = c.Watch(&source.Kind{Type: &imagev1.ImageStream{}}, &enqueueRequestForOwner); err != nil {
+			return err
+		}
+		if err = c.Watch(&source.Kind{Type: &buildv1.BuildConfig{}}, &enqueueRequestForOwner); err != nil {
 			return err
 		}
 	}
@@ -129,13 +141,63 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
+	applicationImage := wildflyServer.Spec.ApplicationImage
+
+	if wildflyServer.Spec.SourceRepository != nil {
+		if !r.isOpenShift {
+			err := errors.NewInvalid(wildflyServer.GroupVersionKind().GroupKind(), wildflyServer.Name, field.ErrorList{
+				field.Invalid(field.NewPath("sourceReposistory"), "", "This field requires to run on OnpenShift"),
+			})
+			reqLogger.Error(err, err.Error(), "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
+			return reconcile.Result{}, err
+		}
+
+		// Setup using S2I with an image stream
+		imageStream, err := imagestreams.GetOrCreateNewImageStream(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer))
+		if err != nil {
+			return reconcile.Result{}, err
+		} else if imageStream == nil {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		buildConfig, err := builds.GetOrCreateNewBuildConfig(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer))
+		LabelsForWildFly(wildflyServer)
+		if err != nil {
+			return reconcile.Result{}, err
+		} else if buildConfig == nil {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		// wait until the image is built at least once before proceeding with the creation of the statefulset
+		found := false
+		for _, tag := range imageStream.Status.Tags {
+			if tag.Tag == "latest" {
+				found = true
+			}
+		}
+		if !found {
+			return reconcile.Result{RequeueAfter: 30 * time.Second}, nil
+		}
+		applicationImage = imageStream.Status.DockerImageRepository + ":latest"
+	} else {
+		if wildflyServer.Spec.ApplicationImage == "" {
+			err := errors.NewInvalid(wildflyServer.GroupVersionKind().GroupKind(), wildflyServer.Name, field.ErrorList{
+				field.Invalid(field.NewPath("sourceReposistory"), "", "one of these fields must be defined"),
+				field.Invalid(field.NewPath("applicationImage"), "", "one of these fields must be defined"),
+			})
+			reqLogger.Error(err, err.Error(), "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
+			return reconcile.Result{}, err
+
+		}
+	}
+
 	// If statefulset was deleted during processing recovery scaledown the number of replicas in WildflyServer spec
 	//  does not defines the number of pods which should be left active until recovered
 	desiredReplicaSizeForNewStatefulSet := wildflyServer.Spec.Replicas + wildflyServer.Status.ScalingdownPods
 
 	// Check if the statefulSet already exists, if not create a new one
 	statefulSet, err := statefulsets.GetOrCreateNewStatefulSet(wildflyServer, r.client, r.scheme,
-		LabelsForWildFly(wildflyServer), desiredReplicaSizeForNewStatefulSet)
+		LabelsForWildFly(wildflyServer), desiredReplicaSizeForNewStatefulSet, applicationImage)
 	if err != nil {
 		return reconcile.Result{}, err
 	} else if statefulSet == nil {
@@ -184,7 +246,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 			"Number of pods to be removed", numberOfPodsToScaleDown)
 	}
 
-	mustReconcile, err = r.checkStatefulSet(wildflyServer, statefulSet, podList)
+	mustReconcile, err = r.checkStatefulSet(wildflyServer, statefulSet, podList, applicationImage)
 	if mustReconcile {
 		return reconcile.Result{Requeue: true}, err
 	} else if err != nil {
@@ -289,7 +351,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 // it returns true if a reconcile result must be returned.
 // A non-nil error if an error happend while updating/deleting the statefulset.
 func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1.WildFlyServer, foundStatefulSet *appsv1.StatefulSet,
-	podList *corev1.PodList) (mustReconcile bool, err error) {
+	podList *corev1.PodList, applicationImage string) (mustReconcile bool, err error) {
 	var update, requeue bool
 	// Ensure the statefulset replicas is up to date (driven by scaledown processing)
 	wildflyServerSpecSize := wildflyServer.Spec.Replicas
@@ -348,7 +410,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 	}
 
 	if !resources.IsCurrentGeneration(wildflyServer, foundStatefulSet) {
-		statefulSet := statefulsets.NewStatefulSet(wildflyServer, LabelsForWildFly(wildflyServer), desiredStatefulSetReplicaSize)
+		statefulSet := statefulsets.NewStatefulSet(wildflyServer, LabelsForWildFly(wildflyServer), desiredStatefulSetReplicaSize, applicationImage)
 		delete := false
 		// changes to VolumeClaimTemplates can not be updated and requires a delete/create of the statefulset
 		if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {
