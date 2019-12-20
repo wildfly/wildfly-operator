@@ -1,6 +1,6 @@
 module github.com/wildfly/wildfly-operator
 
-go 1.12
+go 1.13
 
 require (
 	cloud.google.com/go v0.36.0 // indirect
