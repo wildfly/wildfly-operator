@@ -1,17 +1,16 @@
 set -o errexit
 set -o nounset
 
-if ! [ -x "$(command -v operator-sdk)" ]; then
+if ! [ -e "./operator-sdk" ]; then
   echo 'Install operator-sdk' >&2
-  CWD="$(pwd)"
-  mkdir -p $GOPATH/src/github.com/operator-framework
-  cd $GOPATH/src/github.com/operator-framework
-  git clone https://github.com/operator-framework/operator-sdk
-  cd operator-sdk
-  git checkout master
-  make tidy
-  make install
-  cd $CWD
+  RELEASE_VERSION=v0.14.0
+  case "$(uname)" in
+    Darwin*)    file=operator-sdk-${RELEASE_VERSION}-x86_64-apple-darwin;;
+    *)          file=operator-sdk-${RELEASE_VERSION}-x86_64-linux-gnu;;
+  esac
+
+  curl -LO https://github.com/operator-framework/operator-sdk/releases/download/${RELEASE_VERSION}/${file}
+  chmod +x ${file} && mv ${file} ./operator-sdk
 fi
 
-operator-sdk version
+./operator-sdk version
