@@ -151,7 +151,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 		return false, retString, nil
 	}
 	// Verification of the unfinished data of the WildFly transaction client (verification of the directory content)
-	lsCommand := fmt.Sprintf(`ls %s/%s/ 2> /dev/null || true`, resources.StandaloneServerDataDirPath, wftcDataDirName)
+	lsCommand := fmt.Sprintf(`ls ${JBOSS_HOME}/%s/%s/ 2> /dev/null || true`, resources.StandaloneServerDataDirRelativePath, wftcDataDirName)
 	commandResult, err := wildflyutil.ExecRemote(scaleDownPod, lsCommand)
 	if err != nil {
 		return false, "", fmt.Errorf("Cannot query filesystem at scaling down pod %v to check existing remote transactions. "+
@@ -159,8 +159,8 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	}
 	if commandResult != "" {
 		retString := fmt.Sprintf("WildFly Transaction Client data dir is not empty and scaling down of the pod '%v' will be retried."+
-			"Wildfly Transacton Client data dir path '%v', output listing: %v",
-			scaleDownPodName, resources.StandaloneServerDataDirPath+"/"+wftcDataDirName, commandResult)
+			"Wildfly Transacton Client data dir path '${JBOSS_HOME}/%v/%v', output listing: %v",
+			scaleDownPodName, resources.StandaloneServerDataDirRelativePath, wftcDataDirName, commandResult)
 		return false, retString, nil
 	}
 	return true, "", nil
@@ -170,9 +170,10 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 	scaleDownPodName := scaleDownPod.ObjectMeta.Name
 	// Setup and restart only if it was not done in the prior reconcile cycle
 	if scaleDownPod.Annotations[markerRecoveryPropertiesSetup] == "" {
-		reqLogger.Info("Setting up back-off period and orphan detection properties for scaledown transaction reocovery", "Pod Name", scaleDownPodName)
+		reqLogger.Info("Setting up back-off period and orphan detection properties for scaledown transaction recovery", "Pod Name", scaleDownPodName)
 		setPeriodOps := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyRecoveryBackoffPeriod, "1") + "," + fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyOrphanSafetyInterval, "1")
-		jsonResult, errExecution := wildflyutil.ExecuteMgmtOp(scaleDownPod, setPeriodOps)
+		disableTMOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyTransactionManagerEnabled, "false")
+		jsonResult, errExecution := wildflyutil.ExecuteMgmtOp(scaleDownPod, setPeriodOps+","+disableTMOp)
 
 		// command may end-up with error with status 'rolled-back' which means duplication, thus do not check for error as error could be possitive outcome
 		isOperationRolledBack := wildflyutil.ReadJSONDataByIndex(jsonResult, "rolled-back")

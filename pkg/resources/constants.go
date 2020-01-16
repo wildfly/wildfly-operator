@@ -24,6 +24,6 @@ const (
 var (
 	// JBossHome is read from the env var JBOSS_HOME
 	JBossHome = os.Getenv("JBOSS_HOME")
-	// StandaloneServerDataDirPath is the path to the server standalone data directory
-	StandaloneServerDataDirPath = JBossHome + "/standalone/data"
+	// StandaloneServerDataDirRelativePath is the path to the server standalone data directory
+	StandaloneServerDataDirRelativePath = "standalone/data"
 )

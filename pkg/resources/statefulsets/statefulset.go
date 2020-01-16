@@ -149,7 +149,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	// mount the volume for the server standatalone data directory
 	volumeMounts = append(volumeMounts, corev1.VolumeMount{
 		Name:      standaloneDataVolumeName,
-		MountPath: resources.StandaloneServerDataDirPath,
+		MountPath: resources.JBossHome + "/" + resources.StandaloneServerDataDirRelativePath,
 	})
 
 	// mount the volume to read the standalone XML configuration from a ConfigMap
