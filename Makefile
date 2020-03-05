@@ -17,8 +17,11 @@ tidy:
 
 ## codegen               Ensure code is generated.
 codegen: setup
-	operator-sdk generate k8s
-	operator-sdk generate openapi
+    # see https://github.com/operator-framework/operator-sdk/issues/1854#issuecomment-525132306
+	GOROOT="$(shell dirname `which go`)" ./operator-sdk generate k8s
+	./operator-sdk generate crds
+	which ./openapi-gen > /dev/null || go build -o ./openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
+	./openapi-gen --logtostderr=true -o "" -i ./pkg/apis/wildfly/v1alpha1 -O zz_generated.openapi -p ./pkg/apis/wildfly/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
 ## build                 Compile and build the WildFly operator.
 build: tidy unit-test
@@ -48,7 +51,7 @@ run-openshift:
 run-local-operator: codegen build
 	echo "Deploy WildFlyServer CRD on Kubernetes"
 	kubectl apply -f deploy/crds/wildfly_v1alpha1_wildflyserver_crd.yaml
-	JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator operator-sdk up local --namespace=default
+	JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator ./operator-sdk up local --namespace=default
 
 ## test                  Perform all tests.
 test: unit-test scorecard test-e2e
@@ -58,19 +61,19 @@ test-e2e: test-e2e-17-local test-e2e-17-local
 
 ## test-e2e-17-local     Run e2e test for WildFly 17.0 with a local operator
 test-e2e-17-local: setup
-	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator operator-sdk test local ./test/e2e/17.0 --verbose --debug  --namespace default --up-local
+	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator ./operator-sdk test local ./test/e2e/17.0 --verbose --debug  --namespace default --up-local
 
 ## test-e2e-18-local     Run e2e test for WildFly 18.0 with a local operator
 test-e2e-18-local: setup
-	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator operator-sdk test local ./test/e2e/18.0 --verbose --debug  --namespace default --up-local
+	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator ./operator-sdk test local ./test/e2e/18.0 --verbose --debug  --namespace default --up-local
 
 ## test-e2e-18           Run e2e test for WildFly 18.0 with a containerized operator
 test-e2e-18: setup
-	operator-sdk test local ./test/e2e/18.0 --verbose --debug
+	./operator-sdk test local ./test/e2e/18.0 --verbose --debug
 
 ## scorecard             Run operator-sdk scorecard.
 scorecard: setup
-	operator-sdk scorecard --verbose
+	./operator-sdk scorecard --verbose
 
 ## unit-test             Perform unit tests.
 unit-test:
