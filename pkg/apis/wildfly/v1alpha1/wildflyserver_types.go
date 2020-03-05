@@ -30,16 +30,19 @@ type WildFlyServerSpec struct {
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty,list_type=corev1.EnvFromSource"`
 	// Env contains environment variables for the containers running the WildFlyServer application
 	// +kubebuilder:validation:MinItems=1
+	// +listType=set
 	Env []corev1.EnvVar `json:"env,omitempty"`
 	// Secrets is a list of Secrets in the same namespace as the WildFlyServer
 	// object, which shall be mounted into the WildFlyServer Pods.
 	// The Secrets are mounted into /etc/secrets/<secret-name>.
 	// +kubebuilder:validation:MinItems=1
+	// +listType=set
 	Secrets []string `json:"secrets,omitempty"`
 	// ConfigMaps is a list of ConfigMaps in the same namespace as the WildFlyServer
 	// object, which shall be mounted into the WildFlyServer Pods.
 	// The ConfigMaps are mounted into /etc/configmaps/<configmap-name>.
 	// +kubebuilder:validation:MinItems=1
+	// +listType=set
 	ConfigMaps []string `json:"configMaps,omitempty"`
 }
 
@@ -66,9 +69,11 @@ type StorageSpec struct {
 // +k8s:openapi-gen=true
 type WildFlyServerStatus struct {
 	// Replicas is the actual number of replicas for the application
-	Replicas int32       `json:"replicas"`
-	Pods     []PodStatus `json:"pods,omitempty"`
-	Hosts    []string    `json:"hosts,omitempty"`
+	Replicas int32 `json:"replicas"`
+	// +listType=set
+	Pods []PodStatus `json:"pods,omitempty"`
+	// +listType=set
+	Hosts []string `json:"hosts,omitempty"`
 	// Represents the number of pods which are in scaledown process
 	// what particular pod is scaling down can be verified by PodStatus
 	//
@@ -102,7 +107,7 @@ type PodStatus struct {
 	Name  string `json:"name"`
 	PodIP string `json:"podIP"`
 	// Represent the state of the Pod, it is used especially during scale down.
-	// +kubebuilder:validation:Enum=ACTIVE,SCALING_DOWN_RECOVERY_INVESTIGATION,SCALING_DOWN_RECOVERY_DIRTY,SCALING_DOWN_CLEAN
+	// +kubebuilder:validation:Enum=ACTIVE;SCALING_DOWN_RECOVERY_INVESTIGATION;SCALING_DOWN_RECOVERY_DIRTY;SCALING_DOWN_CLEAN
 	State string `json:"state"`
 }
 
