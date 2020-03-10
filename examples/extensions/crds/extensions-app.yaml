@@ -1,0 +1,10 @@
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: extensions-app
+spec:
+  applicationImage: "quay.io/wildfly/wildfly-centos7:latest"
+  replicas: 2
+  configMaps:
+    - name: extensions-configmap
+      mountPath: extensions

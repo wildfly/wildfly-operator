@@ -1,0 +1,151 @@
+= The Extension mechanism
+
+This example shows how to use the extension mechanism available on the WildFly images by using the WildFly Operator.
+
+The extension mechanism allows the execution of arbitrary bash scripts before and after server configuration by using environment variables.
+
+When the server is launched, the `$JBOSS_HOME/extensions` directory on the image filesystem is examined to look for any of these two files:
+
+* `$JBOSS_HOME/extensions/preconfigure.sh`
+* `$JBOSS_HOME/extensions/postconfigure.sh`
+
+If `preconfigure.sh` exists, then it is executed as an initial step before configuring the server by using the environment variables. Similarly, once the server is configured, if `postconfigure.sh` exists, it is executed. Those specific scripts give you the opportunity to prepare the image for the server configuration and to execute any task once the server is configured.
+
+In this example, we will use the WildFly Operator to place our scripts under `$JBOSS_HOME/extensions/`. We can do it by using a config map to supply the scripts to the image. The WildFly Operator allows specifying the mount path where a config map should be mounted. That makes the use  of the extension mechanism pretty simply; the files on the config map must be mounted under `$JBOSS_HOME/extensions/`, that is all.
+
+== Prerequisites
+
+* Install OpenShift (or Code Ready Containers, minishift or minikube)
+* Install the WildFly Operator as explained in the https://github.com/wildfly/wildfly-operator#install-the-operator-and-associate-resources[README].
+
+== Create a ConfigMap to supply our scripts
+
+The `preconfigure.sh` and `postconfigure.sh` scripts are under the https://github.com/wildfly/wildfly-operator/tree/master/examples/extensions/config[config] directory of this example. The command to add both to a config map is the following:
+
+[source,shell]
+----
+$ oc create configmap extensions-configmap --from-file=./config/
+configmap/extensions-configmap created
+----
+
+Let us examine its content:
+
+https://github.com/wildfly/wildfly-operator/blob/master/examples/extensions/config/preconfigure.sh[preconfigure.sh]
+[source,shell]
+....
+#!/bin/bash
+
+echo "========== Executing preconfigure.sh =========="
+
+for ((i=0;i<5;i++)); do echo ${i}; sleep 1; done
+
+echo "========== End preconfigure.sh =========="
+....
+
+https://github.com/wildfly/wildfly-operator/blob/master/examples/extensions/config/postconfigure.sh[postconfigure.sh]
+[source,shell]
+....
+#!/bin/bash
+
+echo "========== Executing postconfigure.sh =========="
+
+for ((i=0;i<5;i++)); do echo ${i}; sleep 1; done
+
+echo "========== End postconfigure.sh =========="
+....
+
+The files are regular bash scripts for testing purposes that print messages simulating a task being executed before and after the server is configured.
+
+Once we have configured the config map, we can post our custom resource to the Openshift cluster. This resource will be instantiated by the WildFly Operator.
+
+== Deploy the image
+
+The custom resource for this example is defined in the https://github.com/wildfly/wildfly-operator/blob/master/examples/extensions/crds/extensions-app.yaml[extensions-app.yaml file]:
+
+[source,yaml]
+----
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: extensions-app
+spec:
+  applicationImage: "quay.io/wildfly/wildfly-centos7:latest"
+  replicas: 2
+  configMaps:
+    - name: extensions-configmap
+      mountPath: extensions
+----
+
+This custom resource will run the https://quay.io/repository/wildfly/wildfly-centos7?tab=tags[wildfly-centos7 image], which is the server image without any application deployed. We do not need an application deployed for this example, so we have used just the server image.
+
+The custom resource defines a config map with a mount path being relative; the mount path does not start with the slash character. Since it is a relative path, this config map will be mounted under `$JBOSS_HOME/extensions`. This directory will include our scripts that will be executed by the extension mechanism.
+
+The image can be deployed on the OpenShift cluster using the WildFly Operator:
+
+[source,shell]
+----
+$ oc apply -f crds/extensions-app.yaml
+wildflyserver.wildfly.org/extensions-app created
+----
+
+You can then check the status of the image:
+
+[source,shell]
+----
+$ oc describe wildflyserver extensions-app
+Name:         extensions-app
+Namespace:    op-default
+Labels:       <none>
+Annotations:  kubectl.kubernetes.io/last-applied-configuration:
+                {"apiVersion":"wildfly.org/v1alpha1","kind":"WildFlyServer","metadata":{"annotations":{},"name":"extensions-app","namespace":"op-default"}...
+API Version:  wildfly.org/v1alpha1
+Kind:         WildFlyServer
+Metadata:
+  Creation Timestamp:  2020-03-10T15:15:31Z
+  Generation:          1
+  Resource Version:    385073
+  Self Link:           /apis/wildfly.org/v1alpha1/namespaces/op-default/wildflyservers/extensions-app
+  UID:                 fb98cc9b-62e1-11ea-86d4-0ef0e3c74fbe
+Spec:
+  Application Image:  quay.io/wildfly/wildfly-centos7:latest
+  Config Maps:
+    Mount Path:  extensions
+    Name:        extensions-configmap
+  Replicas:      2
+Status:
+  Hosts:
+    extensions-app-route-op-default.apps-crc.testing
+  Pods:
+    Name:            extensions-app-0
+    Pod IP:          10.128.1.188
+    State:           ACTIVE
+    Name:            extensions-app-1
+    Pod IP:          10.128.1.187
+    State:           ACTIVE
+  Replicas:          2
+  Scalingdown Pods:  0
+Events:              <none>
+----
+
+
+== Validate the configuration
+
+Once we have created our custom resource, we will see the pods created, each of them running the WildFly server:
+
+[source,shell]
+----
+$ oc get pods
+NAME                                READY   STATUS    RESTARTS   AGE
+extensions-app-0                    1/1     Running   0          17s
+extensions-app-1                    1/1     Running   0          17s
+wildfly-operator-667b5dfb57-b2wp9   1/1     Running   0          98s
+----
+
+We can check the logs of each application pod to verify the echo messages of our scripts were printed:
+
+[source,shell]
+----
+$ oc logs extensions-app-0
+----
+
+You will see how our scripts were executed before and after the server is configured.
