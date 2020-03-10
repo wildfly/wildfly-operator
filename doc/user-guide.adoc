@@ -140,34 +140,53 @@ my-very-secure-pasword
 
 ConfigMaps can be mounted as volumes to be accessed from the application.
 
-The config maps must be created *before* the WildFly Operator deploys the application. For example we can create a config map named `my-config` with a command such as:
+The config maps must be created *before* the WildFly Operator deploys the application. We can configure the Operator to mount multiple config maps.
+
+For example, we can create one config map named `my-literals` to supply two literal values with a command such as:
 
 [source,shell]
 ----
-$ kubectl create configmap my-config --from-literal=key1=value1 --from-literal=key2=value2
-configmap/my-config created
+$ kubectl create configmap my-literals --from-literal=key1=value1 --from-literal=key2=value2
+configmap/my-literals created
 ----
 
-Once the config map has been created, we can specify its name in the WildFlyServer Spec to have it mounted as a volume in the pods running the application:
+We can create another config map named `my-extensions` to supply two files with a command such as:
+
+[source,shell]
+----
+$ kubectl create configmap my-extensions --from-file=preconfigure.sh --from-file=postconfigure.sh
+configmap/extesions created
+----
+
+Once our config maps have been created, we can configure them in the WildFlyServer Spec to have them mounted as a volumes in the pods running the application.
+
+For each config map, we have to specify its name and, optionally, an absolute or relative path where we want them mounted.
+If we do not specify a mount path, then the config map will be mounted by default under `/etc/configmaps/<config map name>`. If the mount path is relative, then the mount path is treated as relative to `JBOSS_HOME`. This path cannot contains ':', if so, the resource creation will be rejected. Notice when the config maps are mounted, if they are mounted to an existing filesystem directory, the files on that directly will not be accessible to the image until the config map is unmounted. It is left to the user to take the precautions to do not override a directory that is used by the container to work properly.
+
+For example, given two config maps `my-literals` and `my-extensions`, we could configure them in the WildFlyServer Spec as:
 
 [source,yaml]
 .Example of mounting config maps
 ----
 spec:
   configMaps:
-  - my-config
+    - name: my-literals
+    - name: my-extensions
+      mountPath: extensions
 ----
 
-The config maps will then be mounted under `/etc/configmaps/<config map name>` and each key/value will be stored in a file (whose name is the key and the content is the value).
+This configuration will result in the following content available in our running pod:
 
 [source,shell]
-.Config Map is mounted as a volume inside the Pod
+.Config Maps  mounted as a volume inside the Pod
 ----
-[jboss@quickstart-0 ~]$ ls /etc/configmaps/my-config/
+[jboss@quickstart-0 ~]$ ls $JBOSS_HOME/extensions
+preconfigure.sh postconfigure.sh
+[jboss@quickstart-0 ~]$ ls /etc/configmaps/my-literals
 key1 key2
-[jboss@quickstart-0 ~]$ cat /etc/configmaps/my-config/key1
+[jboss@quickstart-0 ~]$ cat /etc/configmaps/my-literals/key1
 value1
-[jboss@quickstart-0 ~]$ cat /etc/configmaps/my-config/key2
+[jboss@quickstart-0 ~]$ cat /etc/configmaps/my-literals/key2
 value2
 ----
 

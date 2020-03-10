@@ -2,6 +2,8 @@ package wildflyserver
 
 import (
 	"context"
+	"github.com/wildfly/wildfly-operator/pkg/resources"
+	"path"
 	"testing"
 	"time"
 
@@ -421,7 +423,21 @@ func TestWildFlyServerWithConfigMap(t *testing.T) {
 	logf.SetLogger(logf.ZapLogger(true))
 	assert := assert.New(t)
 
-	configMapName := "my-config"
+	cmNoPath := wildflyv1alpha1.ConfigMapSpec{
+		Name: "my-config",
+	}
+
+	cmAbsPath := wildflyv1alpha1.ConfigMapSpec{
+		Name:      "my-config-two",
+		MountPath: "/test/test/",
+	}
+
+	cmRelPath := wildflyv1alpha1.ConfigMapSpec{
+		Name:      "my-config-three",
+		MountPath: "test/test",
+	}
+
+	configMapsUnderTest := []wildflyv1alpha1.ConfigMapSpec{cmNoPath, cmAbsPath, cmRelPath}
 
 	// A WildFlyServer resource with metadata and spec.
 	wildflyServer := &wildflyv1alpha1.WildFlyServer{
@@ -432,7 +448,7 @@ func TestWildFlyServerWithConfigMap(t *testing.T) {
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
 			Replicas:         replicas,
-			ConfigMaps:       []string{configMapName},
+			ConfigMaps:       configMapsUnderTest,
 		},
 	}
 	// Objects to track in the fake client.
@@ -478,27 +494,36 @@ func TestWildFlyServerWithConfigMap(t *testing.T) {
 	assert.Equal(replicas, *statefulSet.Spec.Replicas)
 	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
 
-	foundVolume := false
-	for _, v := range statefulSet.Spec.Template.Spec.Volumes {
-		if v.Name == "configmap-"+configMapName {
-			source := v.VolumeSource
-			if source.ConfigMap.LocalObjectReference.Name == configMapName {
-				foundVolume = true
-				break
+	for _, cm := range configMapsUnderTest {
+		foundVolume := false
+		for _, v := range statefulSet.Spec.Template.Spec.Volumes {
+			if v.Name == "configmap-"+cm.Name {
+				source := v.VolumeSource
+				if source.ConfigMap.LocalObjectReference.Name == cm.Name {
+					foundVolume = true
+					break
+				}
 			}
 		}
-	}
-	assert.True(foundVolume)
+		assert.True(foundVolume)
 
-	foundVolumeMount := false
-	for _, vm := range statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts {
-		if vm.Name == "configmap-"+configMapName {
-			assert.Equal("/etc/configmaps/"+configMapName, vm.MountPath)
-			assert.True(vm.ReadOnly)
-			foundVolumeMount = true
+		foundVolumeMount := false
+		for _, vm := range statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts {
+			if vm.Name == "configmap-"+cm.Name {
+				switch cm.Name {
+				case cmNoPath.Name:
+					assert.Equal(path.Join(resources.ConfigMapsDir, cm.Name), vm.MountPath)
+				case cmAbsPath.Name:
+					assert.Equal(cmAbsPath.MountPath, vm.MountPath)
+				case cmRelPath.Name:
+					assert.Equal(path.Join(resources.JBossHome, cmRelPath.MountPath), vm.MountPath)
+				}
+				assert.True(vm.ReadOnly)
+				foundVolumeMount = true
+			}
 		}
+		assert.True(foundVolumeMount)
 	}
-	assert.True(foundVolumeMount)
 }
 
 type eventRecorderMock struct {

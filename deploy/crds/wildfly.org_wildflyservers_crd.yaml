@@ -50,9 +50,23 @@ spec:
             configMaps:
               description: ConfigMaps is a list of ConfigMaps in the same namespace
                 as the WildFlyServer object, which shall be mounted into the WildFlyServer
-                Pods. The ConfigMaps are mounted into /etc/configmaps/<configmap-name>.
+                Pods. It can optionally specify the path, as an absolute or relative
+                path, within the container at which the volume should be mounted.
+                If the specified mount path is a relative path, then it will be treated
+                relative to JBOSS_HOME. If a MountPath is not specified, then the
+                ConfigMap is mount by default into /etc/configmaps/<configmap-name>.
               items:
-                type: string
+                description: ConfigMapSpec represents a ConfigMap definition with
+                  a name and a mount path. MountPath cannot contains ':'
+                properties:
+                  mountPath:
+                    pattern: ^[^:]+$
+                    type: string
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
               minItems: 1
               type: array
             disableHTTPRoute:
@@ -502,6 +516,7 @@ spec:
           - replicas
           - scalingdownPods
           type: object
+      type: object
   version: v1alpha1
   versions:
   - name: v1alpha1

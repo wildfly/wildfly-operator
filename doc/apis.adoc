@@ -47,7 +47,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envfromsource-v1-core[corev1.EnvFromSource] |false
 | `env` | List of environment variable present in the containers | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envvar-v1-core[corev1.EnvVar] | false
 | `secrets` | List of secret names to mount as volumes in the containers. Each secret is mounted as a read-only volume under `/etc/secrets/<secret name>` | string[] | false 
-| `configMaps` | List of ConfigMap names to mount as volumes in the containers. Each config map is mounted as a read-only volume under `/etc/configmaps/<config map name>` | string[] | false
+| `configMaps` | List of ConfigMap definitions to mount as volumes in the containers. | []<<configmapspec>> | false
 | `disableHTTPRoute`| Disable the creation a route to the HTTP port of the application service (false if omitted) | bool | false
 | `sessionAffinity`| If connections from the same client IP are passed to the same WildFlyServer instance/pod each time (false if omitted) | bool | false
 |=======================
@@ -82,6 +82,16 @@ transaction, make sure to specify a `volumeClaimTemplate` that so that the same 
 | `key` | Key of the ConfigMap whose value is the standalone configuration XML file. If omitted, the spec will look for the `standalone.xml` key. | string |false
 |=======================
 
+[[configmapspec]]
+## `ConfigMapSpec`
+
+`ConfigMapSpec` defines a `ConfigMap` name to mount as volume in the container. By specifying `mountPath` it is possible to configure the path where this config map should be mounted.
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+| `name` | Name of the `ConfigMap` to mount as a volume. | string | true
+| `mountPath` | Path within the volume from which the container's volume should be mounted. Must not contain ':'. In case of a relative path, the path is treated as relative to `JBOSS_HOME`. It defaults to `/etc/configmaps/<config map name>` | string |false
+|=======================
 
 [[wildflyserverstatus]]
 ## `WildFlyServerStatus`

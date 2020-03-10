@@ -19,6 +19,8 @@ const (
 	SecretsDir = "/etc/secrets/"
 	// ConfigMapsDir is the the directory to mount volumes from ConfigMaps
 	ConfigMapsDir = "/etc/configmaps/"
+	// Mode bits to use on created config maps files
+	ConfigMapFileDefaultMode int32 = 0755
 )
 
 var (
