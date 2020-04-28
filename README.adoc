@@ -3,7 +3,7 @@ image:https://travis-ci.org/wildfly/wildfly-operator.svg?branch=master["Build St
 image:https://goreportcard.com/badge/github.com/wildfly/wildfly-operator["Go Report Card", link="https://goreportcard.com/report/github.com/wildfly/wildfly-operator"]
 image:https://img.shields.io/badge/zulip-join_chat-brightgreen.svg["Join Chat", link="https://wildfly.zulipchat.com/"]
 
-# WildFly Operator for Kubernetes/OpenShift
+# WildFly Operator for Kubernetes/OpenShift - CI test3
 
 The WildFly Operator for Kubernetes provides easy monitoring and configuration for Java applications deployed on http://wildfly.org[WildFly application server] using the https://github.com/wildfly/wildfly-s2i[Source-to-Image (S2I) template for WildFly].
 
