@@ -26,15 +26,15 @@ func WildFlyBasicTest(t *testing.T, applicationTag string) {
 	}
 }
 
-func wildflyTestSetup(t *testing.T) (*framework.TestCtx, *framework.Framework) {
-	ctx := framework.NewTestCtx(t)
+func wildflyTestSetup(t *testing.T) (*framework.Context, *framework.Framework) {
+	ctx := framework.NewContext(t)
 	err := ctx.InitializeClusterResources(&framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
 	if err != nil {
 		defer ctx.Cleanup()
 		t.Fatalf("Failed to initialize cluster resources: %v", err)
 	}
 	t.Log("Initialized cluster resources")
-	namespace, err := ctx.GetNamespace()
+	namespace, err := ctx.GetOperatorNamespace()
 	if err != nil {
 		defer ctx.Cleanup()
 		t.Fatalf("Failed to get namespace for testing context '%v': %v", ctx, err)
@@ -45,8 +45,8 @@ func wildflyTestSetup(t *testing.T) (*framework.TestCtx, *framework.Framework) {
 	return ctx, f
 }
 
-func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *framework.TestCtx, applicationTag string) error {
-	namespace, err := ctx.GetNamespace()
+func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *framework.Context, applicationTag string) error {
+	namespace, err := ctx.GetOperatorNamespace()
 	if err != nil {
 		return fmt.Errorf("could not get namespace: %v", err)
 	}
@@ -89,8 +89,8 @@ func WildFlyClusterTest(t *testing.T, applicationTag string) {
 	}
 }
 
-func wildflyClusterViewTest(t *testing.T, f *framework.Framework, ctx *framework.TestCtx, applicationTag string) error {
-	namespace, err := ctx.GetNamespace()
+func wildflyClusterViewTest(t *testing.T, f *framework.Framework, ctx *framework.Context, applicationTag string) error {
+	namespace, err := ctx.GetOperatorNamespace()
 	if err != nil {
 		return fmt.Errorf("could not get namespace: %v", err)
 	}
@@ -149,7 +149,7 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 	ctx, f := wildflyTestSetup(t)
 	defer ctx.Cleanup()
 
-	namespace, err := ctx.GetNamespace()
+	namespace, err := ctx.GetOperatorNamespace()
 	if err != nil {
 		t.Fatalf("could not get namespace: %v", err)
 	}

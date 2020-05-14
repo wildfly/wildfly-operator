@@ -20,16 +20,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	openshiftutils "github.com/RHsyseng/operator-utils/pkg/utils/openshift"
@@ -55,7 +54,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 		client:      mgr.GetClient(),
 		scheme:      mgr.GetScheme(),
 		isOpenShift: isOpenShift(mgr.GetConfig()),
-		recorder:    mgr.GetRecorder(controllerName),
+		recorder:    mgr.GetEventRecorderFor(controllerName),
 	}
 }
 
@@ -427,12 +426,12 @@ func matches(container *v1.Container, envVar corev1.EnvVar) bool {
 //   the pods are differentiated based on the selectors
 func GetPodsForWildFly(r *ReconcileWildFlyServer, w *wildflyv1alpha1.WildFlyServer) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(LabelsForWildFly(w))
-	listOps := &client.ListOptions{
-		Namespace:     w.Namespace,
-		LabelSelector: labelSelector,
+
+	listOpts := []client.ListOption{
+		client.InNamespace(w.Namespace),
+		client.MatchingLabels(LabelsForWildFly(w)),
 	}
-	err := r.client.List(context.TODO(), listOps, podList)
+	err := r.client.List(context.TODO(), podList, listOpts...)
 
 	if err == nil {
 		// sorting pods by number in the name
