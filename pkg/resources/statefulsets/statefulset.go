@@ -56,6 +56,9 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 			Name:      w.Name,
 			Namespace: w.Namespace,
 			Labels:    labels,
+			Annotations: map[string]string{
+				"image.openshift.io/triggers": "[{ \"from\": { \"kind\":\"ImageStreamTag\", \"name\":\"" + w.Spec.ApplicationImage + "\"}, \"fieldPath\": \"spec.template.spec.containers[?(@.name==\\\"" + w.Name + "\\\")].image\"}]",
+			},
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:            &replicas,
