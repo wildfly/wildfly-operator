@@ -1,5 +1,5 @@
-openapi-gen
-operator-sdk
+./openapi-gen
+./operator-sdk
 
 # Temporary Build Files
 build/_output
