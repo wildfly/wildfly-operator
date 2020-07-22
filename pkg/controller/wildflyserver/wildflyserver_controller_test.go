@@ -2,6 +2,7 @@ package wildflyserver
 
 import (
 	"context"
+	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"testing"
 	"time"
 
@@ -19,8 +20,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var (
@@ -32,8 +33,8 @@ var (
 )
 
 func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
-	// Set the logger to development mode for verbose logs.
-	logf.SetLogger(logf.ZapLogger(true))
+	// Set the loggclearer to development mode for verbose logs.
+	logf.SetLogger(zap.Logger())
 	assert := assert.New(t)
 
 	// A WildFlyServer resource with metadata and spec.
@@ -101,7 +102,7 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 
 func TestEnvUpdate(t *testing.T) {
 	// Set the logger to development mode for verbose logs.
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.Logger())
 	assert := assert.New(t)
 
 	initialEnv := &corev1.EnvVar{
@@ -237,7 +238,7 @@ func TestEnvUpdate(t *testing.T) {
 
 func TestWildFlyServerControllerScaleDown(t *testing.T) {
 	// Set the logger to development mode for verbose logs.
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.Logger())
 	assert := assert.New(t)
 	expectedReplicaSize := int32(1)
 
@@ -331,7 +332,7 @@ func TestWildFlyServerControllerScaleDown(t *testing.T) {
 
 func TestWildFlyServerWithSecret(t *testing.T) {
 	// Set the logger to development mode for verbose logs.
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.Logger())
 	assert := assert.New(t)
 
 	secretName := "mysecret"
@@ -418,7 +419,7 @@ func TestWildFlyServerWithSecret(t *testing.T) {
 
 func TestWildFlyServerWithConfigMap(t *testing.T) {
 	// Set the logger to development mode for verbose logs.
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.Logger())
 	assert := assert.New(t)
 
 	configMapName := "my-config"

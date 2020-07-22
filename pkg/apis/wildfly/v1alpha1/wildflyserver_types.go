@@ -27,10 +27,11 @@ type WildFlyServerSpec struct {
 	ServiceAccountName string       `json:"serviceAccountName,omitempty"`
 	// EnvFrom contains environment variables from a source such as a ConfigMap or a Secret
 	// +kubebuilder:validation:MinItems=1
+	// +listType=atomic
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty,list_type=corev1.EnvFromSource"`
 	// Env contains environment variables for the containers running the WildFlyServer application
 	// +kubebuilder:validation:MinItems=1
-	// +listType=set
+	// +listType=atomic
 	Env []corev1.EnvVar `json:"env,omitempty"`
 	// Secrets is a list of Secrets in the same namespace as the WildFlyServer
 	// object, which shall be mounted into the WildFlyServer Pods.
@@ -70,7 +71,7 @@ type StorageSpec struct {
 type WildFlyServerStatus struct {
 	// Replicas is the actual number of replicas for the application
 	Replicas int32 `json:"replicas"`
-	// +listType=set
+	// +listType=atomic
 	Pods []PodStatus `json:"pods,omitempty"`
 	// +listType=set
 	Hosts []string `json:"hosts,omitempty"`

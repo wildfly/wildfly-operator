@@ -13,12 +13,12 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/wildfly/v1alpha1.PodStatus":               schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref),
-		"./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec": schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref),
-		"./pkg/apis/wildfly/v1alpha1.StorageSpec":             schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
-		"./pkg/apis/wildfly/v1alpha1.WildFlyServer":           schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
-		"./pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
-		"./pkg/apis/wildfly/v1alpha1.WildFlyServerStatus":     schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.PodStatus":               schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec": schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec":             schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServer":           schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerSpec":       schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref),
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerStatus":     schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref),
 	}
 }
 
@@ -27,6 +27,7 @@ func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) co
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "PodStatus defines the observed state of pods running the WildFlyServer application",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -51,7 +52,6 @@ func schema_pkg_apis_wildfly_v1alpha1_PodStatus(ref common.ReferenceCallback) co
 				Required: []string{"name", "podIP", "state"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -60,6 +60,7 @@ func schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref common.Referen
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -78,7 +79,6 @@ func schema_pkg_apis_wildfly_v1alpha1_StandaloneConfigMapSpec(ref common.Referen
 				Required: []string{"name"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -87,6 +87,7 @@ func schema_pkg_apis_wildfly_v1alpha1_StorageSpec(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "StorageSpec defines the desired storage for WildFlyServer",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"emptyDir": {
 						SchemaProps: spec.SchemaProps{
@@ -112,17 +113,18 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref common.ReferenceCallback
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServer is the Schema for the wildflyservers API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"apiVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -134,19 +136,19 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServer(ref common.ReferenceCallback
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/wildfly/v1alpha1.WildFlyServerSpec"),
+							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/wildfly/v1alpha1.WildFlyServerStatus"),
+							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/wildfly/v1alpha1.WildFlyServerSpec", "./pkg/apis/wildfly/v1alpha1.WildFlyServerStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.WildFlyServerStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -155,6 +157,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServerSpec defines the desired state of WildFlyServer",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"applicationImage": {
 						SchemaProps: spec.SchemaProps{
@@ -186,13 +189,13 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 					},
 					"standaloneConfigMap": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec"),
+							Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec"),
 						},
 					},
 					"storage": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StorageSpec defines specific storage required for the server own data directory. If omitted, an EmptyDir is used (that will not persist data across pod restart).",
-							Ref:         ref("./pkg/apis/wildfly/v1alpha1.StorageSpec"),
+							Ref:         ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec"),
 						},
 					},
 					"serviceAccountName": {
@@ -202,6 +205,11 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 						},
 					},
 					"envFrom": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "EnvFrom contains environment variables from a source such as a ConfigMap or a Secret",
 							Type:        []string{"array"},
@@ -217,7 +225,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -275,7 +283,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "./pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
+			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StandaloneConfigMapSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
 	}
 }
 
@@ -284,6 +292,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "WildFlyServerStatus defines the observed state of WildFlyServer",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
@@ -295,7 +304,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 					"pods": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -303,7 +312,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("./pkg/apis/wildfly/v1alpha1.PodStatus"),
+										Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.PodStatus"),
 									},
 								},
 							},
@@ -339,6 +348,6 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/wildfly/v1alpha1.PodStatus"},
+			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1.PodStatus"},
 	}
 }

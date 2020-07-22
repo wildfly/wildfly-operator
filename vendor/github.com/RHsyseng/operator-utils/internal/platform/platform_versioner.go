@@ -2,6 +2,7 @@ package platform
 
 import (
 	"encoding/json"
+	"errors"
 	openapi_v2 "github.com/googleapis/gnostic/OpenAPIv2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
@@ -28,6 +29,23 @@ type Discoverer interface {
 }
 
 type K8SBasedPlatformVersioner struct{}
+
+/*
+MapKnownVersion maps from K8S version of PlatformInfo to equivalent OpenShift version
+
+Result: OpenShiftVersion{ Version: 4.1.2 }
+*/
+func MapKnownVersion(info PlatformInfo) OpenShiftVersion {
+	k8sToOcpMap := map[string]string{
+		"1.10+": "3.10",
+		"1.11+": "3.11",
+		"1.13+": "4.1",
+		"1.14+": "4.2",
+		"1.16+": "4.3",
+		"1.16":  "4.3",
+	}
+	return OpenShiftVersion{Version: k8sToOcpMap[info.K8SVersion]}
+}
 
 // deal with cfg coming from legacy method signature and allow injection for client testing
 func (K8SBasedPlatformVersioner) DefaultArgs(client Discoverer, cfg *rest.Config) (Discoverer, *rest.Config, error) {
@@ -133,4 +151,16 @@ func (pv K8SBasedPlatformVersioner) LookupOpenShiftVersion(client Discoverer, cf
 		osv.Version = cvi.Status.Desired.Version
 	}
 	return osv, nil
+}
+
+func (pv K8SBasedPlatformVersioner) CompareOpenShiftVersion(client Discoverer, cfg *rest.Config, version string) (int, error) {
+	info, err := pv.GetPlatformInfo(client, cfg)
+	if err != nil {
+		return -1, err
+	}
+	if !info.IsOpenShift() {
+		return -1, errors.New("There is no OpenShift platform detected.")
+	}
+	curVersion := MapKnownVersion(info)
+	return curVersion.Compare(OpenShiftVersion{Version: version})
 }
