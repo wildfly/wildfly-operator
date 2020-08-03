@@ -2,6 +2,7 @@ package platform
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -60,6 +61,34 @@ func (info OpenShiftVersion) BuildVersion() string {
 func (info OpenShiftVersion) String() string {
 	return "OpenShiftVersion [" +
 		"Version: " + info.Version + "]"
+}
+
+func (v OpenShiftVersion) Compare(o OpenShiftVersion) (int, error) {
+	if d, err := compareSegment(v.MajorVersion(), o.MajorVersion()); d != 0 {
+		return d, err
+	}
+	if d, err := compareSegment(v.MinorVersion(), o.MinorVersion()); d != 0 {
+		return d, err
+	}
+	return 0, nil
+}
+
+func compareSegment(v, o string) (int, error) {
+	v1, err := strconv.Atoi(v)
+	if err != nil {
+		return -1, err
+	}
+	v2, err := strconv.Atoi(o)
+	if err != nil {
+		return -1, err
+	}
+	if v1 < v2 {
+		return -1, nil
+	}
+	if v1 > v2 {
+		return 1, nil
+	}
+	return 0, nil
 }
 
 // full generated 'version' API fetch result struct @

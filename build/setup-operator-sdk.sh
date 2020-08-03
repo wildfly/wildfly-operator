@@ -3,7 +3,7 @@ set -o nounset
 
 if ! [ -e "./operator-sdk" ]; then
   echo 'Install operator-sdk' >&2
-  RELEASE_VERSION=v0.14.0
+  RELEASE_VERSION=v0.17.2
   case "$(uname)" in
     Darwin*)    file=operator-sdk-${RELEASE_VERSION}-x86_64-apple-darwin;;
     *)          file=operator-sdk-${RELEASE_VERSION}-x86_64-linux-gnu;;
