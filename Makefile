@@ -78,6 +78,16 @@ test-e2e-18: setup
 	./build/setup-operator-sdk-e2e-tests.sh
 	./operator-sdk-e2e-tests test local ./test/e2e/18.0 --verbose --debug
 
+## test-e2e-prow         Run e2e test for WildFly 18.0 with a containerized operator in Prow (OpenShift CI)
+## prow job definitions are in https://github.com/openshift/release/blob/master/ci-operator/config/wildfly/wildfly-operator/
+## and https://github.com/openshift/release/tree/master/ci-operator/jobs/wildfly/wildfly-operator
+test-e2e-prow: export component := wildfly-operator
+test-e2e-prow: export WILDFLY_OPERATOR_IMAGE := "${IMAGE_FORMAT}"
+test-e2e-prow: setup
+# Workaround for e2e test fails with additionalPrinterColumns in v1 CRDs https://github.com/operator-framework/operator-sdk/issues/3005,
+# we need a operator v0.18.2 to run the e2e tests using CRD ApiVersion on apiextensions.k8s.io/v1
+	./build/setup-operator-sdk-e2e-tests.sh
+	./operator-sdk-e2e-tests test local ./test/e2e/18.0 --verbose --debug --image=$(WILDFLY_OPERATOR_IMAGE)
 
 ## scorecard             Run operator-sdk scorecard.
 scorecard: setup
