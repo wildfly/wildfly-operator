@@ -9,6 +9,9 @@ if ! [ -e "./operator-sdk" ]; then
     *)          file=operator-sdk-${RELEASE_VERSION}-x86_64-linux-gnu;;
   esac
 
+ARCH=$(uname -m)
+if [[ ${ARCH} == 'ppc64le' ]]; then file=operator-sdk-${RELEASE_VERSION}-ppc64le-linux-gnu; fi
+
   curl -LO https://github.com/operator-framework/operator-sdk/releases/download/${RELEASE_VERSION}/${file}
   chmod +x ${file} && mv ${file} ./operator-sdk
 fi
