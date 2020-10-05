@@ -2,6 +2,7 @@ package statefulsets
 
 import (
 	"os"
+	"path"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
@@ -152,7 +153,7 @@ func NewStatefulSet(w *wildflyv1alpha2.WildFlyServer, labels map[string]string, 
 	// mount the volume for the server standatalone data directory
 	volumeMounts = append(volumeMounts, corev1.VolumeMount{
 		Name:      standaloneDataVolumeName,
-		MountPath: resources.JBossHome + "/" + resources.StandaloneServerDataDirRelativePath,
+		MountPath: path.Join(resources.JBossHome, resources.StandaloneServerDataDirRelativePath),
 	})
 
 	// mount the volume to read the standalone XML configuration from a ConfigMap
@@ -183,7 +184,7 @@ func NewStatefulSet(w *wildflyv1alpha2.WildFlyServer, labels map[string]string, 
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "standalone-config-volume",
-			MountPath: resources.JBossHome + "/standalone/configuration/standalone.xml",
+			MountPath: path.Join(resources.JBossHome, "/standalone/configuration/standalone.xml"),
 			SubPath:   "standalone.xml",
 		})
 	}
@@ -202,27 +203,29 @@ func NewStatefulSet(w *wildflyv1alpha2.WildFlyServer, labels map[string]string, 
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      volumeName,
 			ReadOnly:  true,
-			MountPath: resources.SecretsDir + s,
+			MountPath: path.Join(resources.SecretsDir, s),
 		})
 	}
 
 	// mount volumes from config maps
+	defaultMode := resources.ConfigMapFileDefaultMode
 	for _, cm := range w.Spec.ConfigMaps {
-		volumeName := wildflyutil.SanitizeVolumeName("configmap-" + cm)
+		volumeName := wildflyutil.SanitizeVolumeName("configmap-" + cm.Name)
 		volumes = append(volumes, corev1.Volume{
 			Name: volumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: cm,
+						Name: cm.Name,
 					},
+					DefaultMode: &defaultMode,
 				},
 			},
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      volumeName,
 			ReadOnly:  true,
-			MountPath: resources.ConfigMapsDir + cm,
+			MountPath: ResolveMountPath(cm),
 		})
 	}
 
@@ -304,4 +307,18 @@ func envForEJBRecovery(w *wildflyv1alpha2.WildFlyServer) []corev1.EnvVar {
 			Value: services.HeadlessServiceName(w),
 		},
 	}
+}
+
+
+// ResolveMountPath resolves the final mount path for the current ConfigMapSpec
+func ResolveMountPath(in wildflyv1alpha2.ConfigMapSpec) string {
+	result := path.Join(resources.ConfigMapsDir, in.Name)
+	if in.MountPath != "" {
+		if path.IsAbs(in.MountPath) {
+			result = in.MountPath
+		} else {
+			result = path.Join(resources.JBossHome, in.MountPath)
+		}
+	}
+	return result
 }

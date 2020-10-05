@@ -41,10 +41,9 @@ type WildFlyServerSpec struct {
 	Secrets []string `json:"secrets,omitempty"`
 	// ConfigMaps is a list of ConfigMaps in the same namespace as the WildFlyServer
 	// object, which shall be mounted into the WildFlyServer Pods.
-	// The ConfigMaps are mounted into /etc/configmaps/<configmap-name>.
 	// +kubebuilder:validation:MinItems=1
-	// +listType=set
-	ConfigMaps []string `json:"configMaps,omitempty"`
+	// +listType=atomic
+	ConfigMaps []ConfigMapSpec `json:"configMaps,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer
@@ -135,6 +134,18 @@ type WildFlyServerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []WildFlyServer `json:"items"`
+}
+
+// ConfigMapSpec represents a ConfigMap definition with a name and a mount path.
+// It can optionally specify the path, as an absolute or relative path, within the container at which the volume should be mounted.
+// If the specified mount path is a relative path, then it will be treated relative to JBOSS_HOME.
+// If a MountPath is not specified, then the ConfigMap is mount by default into /etc/configmaps/<configmap-name>.
+// the MountPath cannot contains ':' character.
+// +k8s:openapi-gen=true
+type ConfigMapSpec struct {
+	Name string `json:"name"`
+	// +kubebuilder:validation:Pattern=`^[^:]+$`
+	MountPath string `json:"mountPath,omitempty"`
 }
 
 func init() {

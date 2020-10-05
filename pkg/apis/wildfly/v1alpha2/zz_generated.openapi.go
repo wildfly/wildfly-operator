@@ -13,12 +13,39 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.ConfigMapSpec":           schema_pkg_apis_wildfly_v1alpha2_ConfigMapSpec(ref),
 		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.PodStatus":               schema_pkg_apis_wildfly_v1alpha2_PodStatus(ref),
 		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.StandaloneConfigMapSpec": schema_pkg_apis_wildfly_v1alpha2_StandaloneConfigMapSpec(ref),
 		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.StorageSpec":             schema_pkg_apis_wildfly_v1alpha2_StorageSpec(ref),
 		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.WildFlyServer":           schema_pkg_apis_wildfly_v1alpha2_WildFlyServer(ref),
 		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.WildFlyServerSpec":       schema_pkg_apis_wildfly_v1alpha2_WildFlyServerSpec(ref),
 		"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.WildFlyServerStatus":     schema_pkg_apis_wildfly_v1alpha2_WildFlyServerStatus(ref),
+	}
+}
+
+func schema_pkg_apis_wildfly_v1alpha2_ConfigMapSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigMapSpec represents a ConfigMap definition with a name and a mount path. It can optionally specify the path, as an absolute or relative path, within the container at which the volume should be mounted. If the specified mount path is a relative path, then it will be treated relative to JBOSS_HOME. If a MountPath is not specified, then the ConfigMap is mount by default into /etc/configmaps/<configmap-name>. the MountPath cannot contains ':' character.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"mountPath": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
 	}
 }
 
@@ -262,17 +289,16 @@ func schema_pkg_apis_wildfly_v1alpha2_WildFlyServerSpec(ref common.ReferenceCall
 					"configMaps": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigMaps is a list of ConfigMaps in the same namespace as the WildFlyServer object, which shall be mounted into the WildFlyServer Pods. The ConfigMaps are mounted into /etc/configmaps/<configmap-name>.",
+							Description: "ConfigMaps is a list of ConfigMaps in the same namespace as the WildFlyServer object, which shall be mounted into the WildFlyServer Pods.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Ref: ref("github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.ConfigMapSpec"),
 									},
 								},
 							},
@@ -283,7 +309,7 @@ func schema_pkg_apis_wildfly_v1alpha2_WildFlyServerSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.StandaloneConfigMapSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
+			"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.ConfigMapSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.StandaloneConfigMapSpec", "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar"},
 	}
 }
 
