@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha2 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,12 +38,12 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 	assert := assert.New(t)
 
 	// A WildFlyServer resource with metadata and spec.
-	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+	wildflyServer := &wildflyv1alpha2.WildFlyServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: wildflyv1alpha1.WildFlyServerSpec{
+		Spec: wildflyv1alpha2.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
 			Replicas:         replicas,
 			SessionAffinity:  sessionAffinity,
@@ -56,7 +56,7 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
+	s.AddKnownTypes(wildflyv1alpha2.SchemeGroupVersion, wildflyServer)
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 	// Create a ReconcileWildFlyServer object with the scheme and fake client.
@@ -111,12 +111,12 @@ func TestEnvUpdate(t *testing.T) {
 	}
 
 	// A WildFlyServer resource with metadata and spec.
-	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+	wildflyServer := &wildflyv1alpha2.WildFlyServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: wildflyv1alpha1.WildFlyServerSpec{
+		Spec: wildflyv1alpha2.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
 			Replicas:         0,
 			SessionAffinity:  sessionAffinity,
@@ -132,7 +132,7 @@ func TestEnvUpdate(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
+	s.AddKnownTypes(wildflyv1alpha2.SchemeGroupVersion, wildflyServer)
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 	// Create a ReconcileWildFlyServer object with the scheme and fake client.
@@ -243,12 +243,12 @@ func TestWildFlyServerControllerScaleDown(t *testing.T) {
 	expectedReplicaSize := int32(1)
 
 	// A WildFlyServer resource with metadata and spec.
-	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+	wildflyServer := &wildflyv1alpha2.WildFlyServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: wildflyv1alpha1.WildFlyServerSpec{
+		Spec: wildflyv1alpha2.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
 			Replicas:         expectedReplicaSize,
 			SessionAffinity:  sessionAffinity,
@@ -261,7 +261,7 @@ func TestWildFlyServerControllerScaleDown(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
+	s.AddKnownTypes(wildflyv1alpha2.SchemeGroupVersion, wildflyServer)
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 	// Create a ReconcileWildFlyServer object with the scheme and fake client.
@@ -310,7 +310,7 @@ func TestWildFlyServerControllerScaleDown(t *testing.T) {
 	log.Info("WildFly server was reconciliated to the state the pod status corresponds with namespace. Let's scale it down.",
 		"WildflyServer", wildflyServer)
 	assert.Equal(int(expectedReplicaSize), len(wildflyServer.Status.Pods))
-	assert.Equal(wildflyv1alpha1.PodStateActive, wildflyServer.Status.Pods[0].State)
+	assert.Equal(wildflyv1alpha2.PodStateActive, wildflyServer.Status.Pods[0].State)
 	wildflyServer.Spec.Replicas = 0
 	err = cl.Update(context.TODO(), wildflyServer)
 
@@ -327,7 +327,7 @@ func TestWildFlyServerControllerScaleDown(t *testing.T) {
 	_, err = r.Reconcile(req) // error could be returned here as the scaledown was not sucessful here
 	err = cl.Get(context.TODO(), req.NamespacedName, wildflyServer)
 	require.NoError(t, err)
-	assert.Equal(wildflyv1alpha1.PodStateScalingDownRecoveryInvestigation, wildflyServer.Status.Pods[0].State)
+	assert.Equal(wildflyv1alpha2.PodStateScalingDownRecoveryInvestigation, wildflyServer.Status.Pods[0].State)
 }
 
 func TestWildFlyServerWithSecret(t *testing.T) {
@@ -340,12 +340,12 @@ func TestWildFlyServerWithSecret(t *testing.T) {
 	secretValue := "my-very-secure-value"
 
 	// A WildFlyServer resource with metadata and spec.
-	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+	wildflyServer := &wildflyv1alpha2.WildFlyServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: wildflyv1alpha1.WildFlyServerSpec{
+		Spec: wildflyv1alpha2.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
 			Replicas:         replicas,
 			Secrets:          []string{secretName},
@@ -358,7 +358,7 @@ func TestWildFlyServerWithSecret(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
+	s.AddKnownTypes(wildflyv1alpha2.SchemeGroupVersion, wildflyServer)
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 	// Create a ReconcileWildFlyServer object with the scheme and fake client.
@@ -425,12 +425,12 @@ func TestWildFlyServerWithConfigMap(t *testing.T) {
 	configMapName := "my-config"
 
 	// A WildFlyServer resource with metadata and spec.
-	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+	wildflyServer := &wildflyv1alpha2.WildFlyServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: wildflyv1alpha1.WildFlyServerSpec{
+		Spec: wildflyv1alpha2.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
 			Replicas:         replicas,
 			ConfigMaps:       []string{configMapName},
@@ -443,7 +443,7 @@ func TestWildFlyServerWithConfigMap(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
+	s.AddKnownTypes(wildflyv1alpha2.SchemeGroupVersion, wildflyServer)
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 	// Create a ReconcileWildFlyServer object with the scheme and fake client.

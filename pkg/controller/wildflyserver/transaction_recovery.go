@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/tevino/abool"
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha2 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	corev1 "k8s.io/api/core/v1"
@@ -30,7 +30,7 @@ const (
 	wftcDataDirName               = "ejb-xa-recovery" // data directory where WFTC stores transaction runtime data
 )
 
-func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownPod *corev1.Pod, w *wildflyv1alpha1.WildFlyServer) (bool, string, error) {
+func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownPod *corev1.Pod, w *wildflyv1alpha2.WildFlyServer) (bool, string, error) {
 	scaleDownPodName := scaleDownPod.ObjectMeta.Name
 	scaleDownPodIP := scaleDownPod.Status.PodIP
 	scaleDownPodRecoveryPort := defaultRecoveryPort
@@ -166,7 +166,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	return true, "", nil
 }
 
-func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger logr.Logger, scaleDownPod *corev1.Pod, w *wildflyv1alpha1.WildFlyServer) (needReconcile bool, err error) {
+func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger logr.Logger, scaleDownPod *corev1.Pod, w *wildflyv1alpha2.WildFlyServer) (needReconcile bool, err error) {
 	scaleDownPodName := scaleDownPod.ObjectMeta.Name
 	// Setup and restart only if it was not done in the prior reconcile cycle
 	if scaleDownPod.Annotations[markerRecoveryPropertiesSetup] == "" {
@@ -204,7 +204,7 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 	return false, nil
 }
 
-func (r *ReconcileWildFlyServer) updatePodLabel(w *wildflyv1alpha1.WildFlyServer, scaleDownPod *corev1.Pod, labelName, labelValue string) (bool, error) {
+func (r *ReconcileWildFlyServer) updatePodLabel(w *wildflyv1alpha2.WildFlyServer, scaleDownPod *corev1.Pod, labelName, labelValue string) (bool, error) {
 	updated := false
 	if scaleDownPod.ObjectMeta.Labels[labelName] != labelValue {
 		scaleDownPod.ObjectMeta.Labels[labelName] = labelValue
@@ -220,7 +220,7 @@ func (r *ReconcileWildFlyServer) updatePodLabel(w *wildflyv1alpha1.WildFlyServer
 // processTransactionRecoveryScaleDown runs transaction recovery on provided number of pods
 //   mustReconcileRequeue returns true if the reconcile requeue loop should be called as soon as possible
 //   err reports error which occurs during method processing
-func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger logr.Logger, w *wildflyv1alpha1.WildFlyServer,
+func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger logr.Logger, w *wildflyv1alpha2.WildFlyServer,
 	numberOfPodsToScaleDown int, podList *corev1.PodList) (mustReconcileRequeue bool, err error) {
 
 	wildflyServerNumberOfPods := len(podList.Items)
@@ -235,9 +235,9 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 		if wildflyServerSpecPodStatus == nil {
 			continue
 		}
-		if wildflyServerSpecPodStatus.State == wildflyv1alpha1.PodStateActive {
-			wildflyServerSpecPodStatus.State = wildflyv1alpha1.PodStateScalingDownRecoveryInvestigation
-			scaleDownPodsStates.Store(scaleDownPodName, wildflyv1alpha1.PodStateScalingDownRecoveryInvestigation)
+		if wildflyServerSpecPodStatus.State == wildflyv1alpha2.PodStateActive {
+			wildflyServerSpecPodStatus.State = wildflyv1alpha2.PodStateScalingDownRecoveryInvestigation
+			scaleDownPodsStates.Store(scaleDownPodName, wildflyv1alpha2.PodStateScalingDownRecoveryInvestigation)
 			updated.Set()
 		} else {
 			scaleDownPodsStates.Store(scaleDownPodName, wildflyServerSpecPodStatus.State)
@@ -278,7 +278,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 				return
 			}
 
-			if podState != wildflyv1alpha1.PodStateScalingDownClean {
+			if podState != wildflyv1alpha2.PodStateScalingDownClean {
 				reqLogger.Info("Transaction recovery scaledown processing", "Pod Name", scaleDownPodName,
 					"IP Address", scaleDownPodIP, "Pod State", podState, "Pod Phase", scaleDownPod.Status.Phase)
 
@@ -303,11 +303,11 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 				}
 				if success {
 					// Recovery was processed with success, the pod is clean to go
-					scaleDownPodsStates.Store(scaleDownPodName, wildflyv1alpha1.PodStateScalingDownClean)
+					scaleDownPodsStates.Store(scaleDownPodName, wildflyv1alpha2.PodStateScalingDownClean)
 				} else if message != "" {
 					// Some in-doubt transaction left in store, the pod is still dirty
 					reqLogger.Info("In-doubt transactions in object store", "Pod Name", scaleDownPodName, "Message", message)
-					scaleDownPodsStates.Store(scaleDownPodName, wildflyv1alpha1.PodStateScalingDownRecoveryDirty)
+					scaleDownPodsStates.Store(scaleDownPodName, wildflyv1alpha2.PodStateScalingDownRecoveryDirty)
 				}
 			}
 		}() // execution of the go routine for one pod
@@ -352,7 +352,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 
 // setLabelAsDisabled returns true when kubernetes etcd was updated with label names on some pods, otherwise false
 //  returns error when error processing happened at some of the pods, otherwise if no error occurs then nil is returned
-func (r *ReconcileWildFlyServer) setLabelAsDisabled(w *wildflyv1alpha1.WildFlyServer, reqLogger logr.Logger, labelName string, numberOfPodsToScaleDown int,
+func (r *ReconcileWildFlyServer) setLabelAsDisabled(w *wildflyv1alpha2.WildFlyServer, reqLogger logr.Logger, labelName string, numberOfPodsToScaleDown int,
 	podList *corev1.PodList, podNameToState map[string]string, desiredPodState string) (bool, error) {
 	wildflyServerNumberOfPods := len(podList.Items)
 

@@ -1,7 +1,7 @@
 package services
 
 import (
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha2 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,7 +15,7 @@ import (
 var log = logf.Log.WithName("wildlfyserver_services")
 
 // CreateOrUpdateHeadlessService create a headless service or returns one up to date with the WildflyServer
-func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
+func CreateOrUpdateHeadlessService(w *wildflyv1alpha2.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
 	labels[resources.MarkerOperatedByHeadless] = resources.MarkerServiceActive // managing only active pods which are permitted to run EJB remote calls
 	headlessService := &corev1.Service{}
 	err := resources.Get(w, types.NamespacedName{Name: HeadlessServiceName(w), Namespace: w.Namespace}, client, headlessService)
@@ -54,7 +54,7 @@ func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client clie
 }
 
 // CreateOrUpdateLoadBalancerService create a loadbalancer service or returns one up to date with the WildflyServer
-func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
+func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha2.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
 	labels[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive // managing only active pods which are not in scaledown process
 	loadBalancer := &corev1.Service{}
 	err := resources.Get(w, types.NamespacedName{Name: LoadBalancerServiceName(w), Namespace: w.Namespace}, client, loadBalancer)
@@ -97,7 +97,7 @@ func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client 
 	return loadBalancer, nil
 }
 
-func newHeadlessService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *corev1.Service {
+func newHeadlessService(w *wildflyv1alpha2.WildFlyServer, labels map[string]string) *corev1.Service {
 	headlessService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      HeadlessServiceName(w),
@@ -120,7 +120,7 @@ func newHeadlessService(w *wildflyv1alpha1.WildFlyServer, labels map[string]stri
 }
 
 // loadBalancerForWildFly returns a loadBalancer service
-func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *corev1.Service {
+func newLoadBalancerService(w *wildflyv1alpha2.WildFlyServer, labels map[string]string) *corev1.Service {
 	sessionAffinity := corev1.ServiceAffinityNone
 	if w.Spec.SessionAffinity {
 		sessionAffinity = corev1.ServiceAffinityClientIP
@@ -147,11 +147,11 @@ func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]
 }
 
 // HeadlessServiceName returns the name of the headless service
-func HeadlessServiceName(w *wildflyv1alpha1.WildFlyServer) string {
+func HeadlessServiceName(w *wildflyv1alpha2.WildFlyServer) string {
 	return w.Name + "-headless"
 }
 
 // LoadBalancerServiceName returns the name of the loadbalancer service
-func LoadBalancerServiceName(w *wildflyv1alpha1.WildFlyServer) string {
+func LoadBalancerServiceName(w *wildflyv1alpha2.WildFlyServer) string {
 	return w.Name + "-loadbalancer"
 }

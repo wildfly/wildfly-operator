@@ -2,7 +2,7 @@ package routes
 
 import (
 	routev1 "github.com/openshift/api/route/v1"
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha2 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -14,7 +14,7 @@ import (
 )
 
 // GetOrCreateNewRoute either returns the headless service or create it
-func GetOrCreateNewRoute(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*routev1.Route, error) {
+func GetOrCreateNewRoute(w *wildflyv1alpha2.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*routev1.Route, error) {
 	route := &routev1.Route{}
 	if err := resources.Get(w, types.NamespacedName{Name: routeServiceName(w), Namespace: w.Namespace}, client, route); err != nil {
 		if errors.IsNotFound(err) {
@@ -31,7 +31,7 @@ func GetOrCreateNewRoute(w *wildflyv1alpha1.WildFlyServer, client client.Client,
 }
 
 // DeleteExistingRoute delete the route if it exists. It returns true if the route is deleted.
-func DeleteExistingRoute(w *wildflyv1alpha1.WildFlyServer, client client.Client) (bool, error) {
+func DeleteExistingRoute(w *wildflyv1alpha2.WildFlyServer, client client.Client) (bool, error) {
 	route := &routev1.Route{}
 	if err := resources.Get(w, types.NamespacedName{Name: routeServiceName(w), Namespace: w.Namespace}, client, route); err != nil {
 		if errors.IsNotFound(err) {
@@ -47,7 +47,7 @@ func DeleteExistingRoute(w *wildflyv1alpha1.WildFlyServer, client client.Client)
 	return false, nil
 }
 
-func newRoute(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *routev1.Route {
+func newRoute(w *wildflyv1alpha2.WildFlyServer, labels map[string]string) *routev1.Route {
 	weight := int32(100)
 
 	route := &routev1.Route{
@@ -76,6 +76,6 @@ func newRoute(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *route
 }
 
 // routeServiceName returns the name of the HTTP route
-func routeServiceName(w *wildflyv1alpha1.WildFlyServer) string {
+func routeServiceName(w *wildflyv1alpha2.WildFlyServer) string {
 	return w.Name + "-route"
 }

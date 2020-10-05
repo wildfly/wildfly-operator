@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha2 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
@@ -26,7 +26,7 @@ import (
 var log = logf.Log.WithName("wildlfyserver_statefulsets")
 
 // GetOrCreateNewStatefulSet either returns the statefulset or create it
-func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string, desiredReplicaSize int32) (*appsv1.StatefulSet, error) {
+func GetOrCreateNewStatefulSet(w *wildflyv1alpha2.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string, desiredReplicaSize int32) (*appsv1.StatefulSet, error) {
 	statefulSet := &appsv1.StatefulSet{}
 	if err := resources.Get(w, types.NamespacedName{Name: w.Name, Namespace: w.Namespace}, client, statefulSet); err != nil {
 		if errors.IsNotFound(err) {
@@ -40,7 +40,7 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 }
 
 // NewStatefulSet retunrs a new statefulset
-func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, desiredReplicaSize int32) *appsv1.StatefulSet {
+func NewStatefulSet(w *wildflyv1alpha2.WildFlyServer, labels map[string]string, desiredReplicaSize int32) *appsv1.StatefulSet {
 	replicas := desiredReplicaSize
 	applicationImage := w.Spec.ApplicationImage
 	labesForActiveWildflyPod := wildflyutil.CopyMap(labels)
@@ -297,7 +297,7 @@ func envForClustering(labels string) []corev1.EnvVar {
 	}
 }
 
-func envForEJBRecovery(w *wildflyv1alpha1.WildFlyServer) []corev1.EnvVar {
+func envForEJBRecovery(w *wildflyv1alpha2.WildFlyServer) []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
 			Name:  "STATEFULSET_HEADLESS_SERVICE_NAME",

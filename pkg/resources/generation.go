@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"strconv"
 
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha2 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -15,7 +15,7 @@ const (
 )
 
 // IsCurrentGeneration returns true if the object has been created by the current generation of the WildFlyServer
-func IsCurrentGeneration(w *wildflyv1alpha1.WildFlyServer, objectDefinition runtime.Object) bool {
+func IsCurrentGeneration(w *wildflyv1alpha2.WildFlyServer, objectDefinition runtime.Object) bool {
 	meta := objectDefinition.(metav1.Object)
 	if generationStr, found := meta.GetAnnotations()[MarkerServerGeneration]; found {
 		if generation, err := strconv.ParseInt(generationStr, 10, 64); err == nil {
@@ -32,7 +32,7 @@ func IsCurrentGeneration(w *wildflyv1alpha1.WildFlyServer, objectDefinition runt
 }
 
 // MarkServerGeneration adds a annotation to the object meta to specifies which generation of WildFlyServer created it.
-func MarkServerGeneration(w *wildflyv1alpha1.WildFlyServer, meta metav1.Object) {
+func MarkServerGeneration(w *wildflyv1alpha2.WildFlyServer, meta metav1.Object) {
 	if meta.GetAnnotations() == nil {
 		meta.SetAnnotations(make(map[string]string))
 	}

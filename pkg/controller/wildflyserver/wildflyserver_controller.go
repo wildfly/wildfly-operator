@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha2 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/routes"
@@ -67,7 +67,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource WildFlyServer
-	err = c.Watch(&source.Kind{Type: &wildflyv1alpha1.WildFlyServer{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &wildflyv1alpha2.WildFlyServer{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch for changes to secondary resources and requeue the owner WildFlyServer
 	enqueueRequestForOwner := handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &wildflyv1alpha1.WildFlyServer{},
+		OwnerType:    &wildflyv1alpha2.WildFlyServer{},
 	}
 	for _, obj := range []runtime.Object{&appsv1.StatefulSet{}, &corev1.Service{}} {
 		if err = c.Watch(&source.Kind{Type: obj}, &enqueueRequestForOwner); err != nil {
@@ -115,7 +115,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	reqLogger.Info("Reconciling WildFlyServer")
 
 	// Fetch the WildFlyServer instance
-	wildflyServer := &wildflyv1alpha1.WildFlyServer{}
+	wildflyServer := &wildflyv1alpha2.WildFlyServer{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, wildflyServer)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -253,8 +253,8 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	// Ensure the pod states are up to date by switching it to active when statefulset size follows the wilflyserver spec
 	if numberOfPodsToScaleDown <= 0 {
 		for k, v := range wildflyServer.Status.Pods {
-			if v.State != wildflyv1alpha1.PodStateActive {
-				wildflyServer.Status.Pods[k].State = wildflyv1alpha1.PodStateActive
+			if v.State != wildflyv1alpha2.PodStateActive {
+				wildflyServer.Status.Pods[k].State = wildflyv1alpha2.PodStateActive
 				updateWildflyServer = true
 			}
 		}
@@ -287,7 +287,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 // checkStatefulSet checks if the statefulset is up to date with the current WildFlyServerSpec.
 // it returns true if a reconcile result must be returned.
 // A non-nil error if an error happend while updating/deleting the statefulset.
-func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1.WildFlyServer, foundStatefulSet *appsv1.StatefulSet,
+func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha2.WildFlyServer, foundStatefulSet *appsv1.StatefulSet,
 	podList *corev1.PodList) (mustReconcile bool, err error) {
 	var update, requeue bool
 	// Ensure the statefulset replicas is up to date (driven by scaledown processing)
@@ -316,7 +316,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 		for index := numberOfPods - 1; index >= 0; index-- {
 			podItem := podList.Items[index]
 			if podStatus, exist := nameToPodState[podItem.Name]; exist {
-				if podStatus == wildflyv1alpha1.PodStateScalingDownClean {
+				if podStatus == wildflyv1alpha2.PodStateScalingDownClean {
 					// the pod with the highest number is clean to go
 					numberOfPodsToShutdown++
 				} else {
@@ -424,7 +424,7 @@ func matches(container *v1.Container, envVar corev1.EnvVar) bool {
 
 // GetPodsForWildFly lists pods which belongs to the WildFly server
 //   the pods are differentiated based on the selectors
-func GetPodsForWildFly(r *ReconcileWildFlyServer, w *wildflyv1alpha1.WildFlyServer) (*corev1.PodList, error) {
+func GetPodsForWildFly(r *ReconcileWildFlyServer, w *wildflyv1alpha2.WildFlyServer) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
 
 	listOpts := []client.ListOption{
@@ -440,7 +440,7 @@ func GetPodsForWildFly(r *ReconcileWildFlyServer, w *wildflyv1alpha1.WildFlyServ
 	return podList, err
 }
 
-func getWildflyServerPodStatusByName(w *wildflyv1alpha1.WildFlyServer, podName string) *wildflyv1alpha1.PodStatus {
+func getWildflyServerPodStatusByName(w *wildflyv1alpha2.WildFlyServer, podName string) *wildflyv1alpha2.PodStatus {
 	for index, podStatus := range w.Status.Pods {
 		if podName == podStatus.Name {
 			return &w.Status.Pods[index]
@@ -450,19 +450,19 @@ func getWildflyServerPodStatusByName(w *wildflyv1alpha1.WildFlyServer, podName s
 }
 
 // getPodStatus returns the pod names of the array of pods passed in
-func getPodStatus(pods []corev1.Pod, originalPodStatuses []wildflyv1alpha1.PodStatus) (bool, []wildflyv1alpha1.PodStatus) {
+func getPodStatus(pods []corev1.Pod, originalPodStatuses []wildflyv1alpha2.PodStatus) (bool, []wildflyv1alpha2.PodStatus) {
 	var requeue = false
-	var podStatuses []wildflyv1alpha1.PodStatus
-	podStatusesOriginalMap := make(map[string]wildflyv1alpha1.PodStatus)
+	var podStatuses []wildflyv1alpha2.PodStatus
+	podStatusesOriginalMap := make(map[string]wildflyv1alpha2.PodStatus)
 	for _, v := range originalPodStatuses {
 		podStatusesOriginalMap[v.Name] = v
 	}
 	for _, pod := range pods {
-		podState := wildflyv1alpha1.PodStateActive
+		podState := wildflyv1alpha2.PodStateActive
 		if value, exists := podStatusesOriginalMap[pod.Name]; exists {
 			podState = value.State
 		}
-		podStatuses = append(podStatuses, wildflyv1alpha1.PodStatus{
+		podStatuses = append(podStatuses, wildflyv1alpha2.PodStatus{
 			Name:  pod.Name,
 			PodIP: pod.Status.PodIP,
 			State: podState,
@@ -476,7 +476,7 @@ func getPodStatus(pods []corev1.Pod, originalPodStatuses []wildflyv1alpha1.PodSt
 
 // LabelsForWildFly return a map of labels that are used for identification
 //  of objects belonging to the particular WildflyServer instance
-func LabelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
+func LabelsForWildFly(w *wildflyv1alpha2.WildFlyServer) map[string]string {
 	labels := make(map[string]string)
 	labels["app.kubernetes.io/name"] = w.Name
 	labels["app.kubernetes.io/managed-by"] = os.Getenv("LABEL_APP_MANAGED_BY")
