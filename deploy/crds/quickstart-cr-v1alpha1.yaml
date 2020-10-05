@@ -1,4 +1,4 @@
-apiVersion: wildfly.org/v1alpha2
+apiVersion: wildfly.org/v1alpha1
 kind: WildFlyServer
 metadata:
   name: quickstart
