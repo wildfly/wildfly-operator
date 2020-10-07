@@ -5,3 +5,6 @@ metadata:
 spec:
   applicationImage: "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0"
   replicas: 2
+  configMaps:
+    - name: extensions-configmap
+      mountPath: extensions

@@ -1,0 +1,15 @@
+  conversion:
+    # a Webhook strategy instruct API server to call an external webhook for any conversion between custom resources.
+    strategy: Webhook
+    # webhook is required when strategy is `Webhook` and it configures the webhook endpoint to be called by API server.
+    webhook:
+      # conversionReviewVersions indicates what ConversionReview versions are understood/preferred by the webhook.
+      # The first version in the list understood by the API server is sent to the webhook.
+      # The webhook must respond with a ConversionReview object in the same version it received.
+      conversionReviewVersions: ["v1","v1alpha1","v1alpha2"]
+      clientConfig:
+        service:
+          namespace: wildfly-operator-conversion-webhook-ns
+          name: wildfly-operator-conversion-webhook
+          path: /convert
+          port: 443

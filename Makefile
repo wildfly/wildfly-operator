@@ -33,6 +33,8 @@ codegen: setup
 	which ./openapi-gen > /dev/null || go build -o ./openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
 	./openapi-gen --logtostderr=true -o "" -i ./pkg/apis/wildfly/v1alpha1 -O zz_generated.openapi -p ./pkg/apis/wildfly/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 	./openapi-gen --logtostderr=true -o "" -i ./pkg/apis/wildfly/v1alpha2 -O zz_generated.openapi -p ./pkg/apis/wildfly/v1alpha2 -h ./hack/boilerplate.go.txt -r "-"
+	cat ./deploy/crds/templates/conversion_webhook_template.yaml >> ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
+	sed -i '0,/metadata:/s/metadata:/metadata:\n  annotations:\n    service.beta.openshift.io\/inject-cabundle: \"true\"/' ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
 
 ## build                 Compile and build the WildFly operator.
 build: tidy unit-test
@@ -61,8 +63,8 @@ run-openshift:
 ## run-local-operator    Run the operator locally (and not inside Kubernetes)
 run-local-operator: codegen build
 	echo "Deploy WildFlyServer CRD on Kubernetes"
-	kubectl apply -f deploy/crds/wildfly_v1alpha1_wildflyserver_crd.yaml
-	JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator ./operator-sdk run --local --operator-namespace=default
+	kubectl apply -f deploy/crds/wildfly.org_wildflyservers_crd_with_webhook.yaml
+	ENABLE_WEBHOOKS=false JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator ./operator-sdk run --local --operator-namespace=default
 
 ## test                  Perform all tests.
 test: unit-test scorecard test-e2e
@@ -72,11 +74,11 @@ test-e2e: test-e2e-17-local test-e2e-17-local
 
 ## test-e2e-17-local     Run e2e test for WildFly 17.0 with a local operator
 test-e2e-17-local: setup-e2e-test
-	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator ./operator-sdk-e2e-tests test local ./test/e2e/17.0 --verbose --debug  --operator-namespace default --up-local --local-operator-flags "--zap-devel --zap-level=5" --global-manifest ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
+	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator ./operator-sdk-e2e-tests test local ./test/e2e/17.0 --verbose --debug  --operator-namespace default --up-local --local-operator-flags "--zap-devel --zap-level=5" --global-manifest ./deploy/crds/wildfly.org_wildflyservers_crd_with_webhook.yaml
 
 ## test-e2e-18-local     Run e2e test for WildFly 18.0 with a local operator
 test-e2e-18-local: setup-e2e-test
-	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator ./operator-sdk-e2e-tests test local ./test/e2e/18.0 --verbose --debug  --operator-namespace default --up-local --local-operator-flags "--zap-devel --zap-level=5" --global-manifest ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
+	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly OPERATOR_NAME=wildfly-operator ./operator-sdk-e2e-tests test local ./test/e2e/18.0 --verbose --debug  --operator-namespace default --up-local --local-operator-flags "--zap-devel --zap-level=5" --global-manifest ./deploy/crds/wildfly.org_wildflyservers_crd_with_webhook.yaml
 
 ## test-e2e-18           Run e2e test for WildFly 18.0 with a containerized operator
 test-e2e-18: setup-e2e-test

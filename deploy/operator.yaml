@@ -11,14 +11,18 @@ spec:
     metadata:
       labels:
         name: wildfly-operator
+        app: wildfly-operator
     spec:
       serviceAccountName: wildfly-operator
       containers:
         - name: wildfly-operator
-          image: quay.io/wildfly/wildfly-operator:latest
+          image: quay.io/yborgess/wildfly-operator:latest
           command:
-          - wildfly-operator
+            - wildfly-operator
+          args: [ "--zap-level=5", "--zap-encoder=console" ]
           imagePullPolicy: Always
+          ports:
+            - containerPort: 8443
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
@@ -30,3 +34,11 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "wildfly-operator"
+          volumeMounts:
+            - name: vol-webhook-certs
+              mountPath: /tmp/k8s-webhook-server/serving-certs
+              readOnly: true
+      volumes:
+        - name: vol-webhook-certs
+          secret:
+            secretName: webhook-certs

@@ -1,7 +1,9 @@
 apiVersion: wildfly.org/v1alpha1
 kind: WildFlyServer
 metadata:
-  name: quickstart
+  name:  quickstart-v1alpha1
 spec:
   applicationImage: "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0"
   replicas: 2
+  configMaps:
+    - extensions-configmap

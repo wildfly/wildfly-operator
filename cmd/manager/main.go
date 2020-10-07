@@ -5,27 +5,30 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
-	"github.com/wildfly/wildfly-operator/version"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/rest"
+	"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2"
+	extensionsV1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"runtime"
 
-	"github.com/wildfly/wildfly-operator/pkg/apis"
-	"github.com/wildfly/wildfly-operator/pkg/controller"
-
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
+	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"github.com/operator-framework/operator-sdk/pkg/metrics"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
+	"github.com/wildfly/wildfly-operator/pkg/apis"
+	"github.com/wildfly/wildfly-operator/pkg/controller"
+	"github.com/wildfly/wildfly-operator/version"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
@@ -111,6 +114,32 @@ func main() {
 	if err := controller.AddToManager(mgr); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
+	}
+
+	// Updates the CRD definition WebHook namespace to the
+	// names space where the Operator was installed
+	kubeClient, err := apiextension.NewForConfig(cfg)
+	if err != nil {
+		log.Error(err, "Failed to create a new client: %v")
+		os.Exit(1)
+	}
+
+	wildflyCrd := &extensionsV1.CustomResourceDefinition{}
+	wildflyCrd, err = kubeClient.ApiextensionsV1().CustomResourceDefinitions().Get("wildflyservers.wildfly.org", metav1.GetOptions{})
+	if err != nil {
+		log.Error(err, "Failed to create client: %v")
+		os.Exit(1)
+	}
+
+	wildflyCrd.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = namespace
+	kubeClient.ApiextensionsV1().CustomResourceDefinitions().Update(wildflyCrd)
+
+	log.Info("Configuring Webhooks if ENABLE_WEBHOOKS is activated")
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = (&v1alpha2.WildFlyServer{}).SetupWebhookWithManager(mgr); err != nil {
+			log.Error(err, "unable to create webhook", "webhook", "Captain")
+			os.Exit(1)
+		}
 	}
 
 	// Add the Metrics Service
