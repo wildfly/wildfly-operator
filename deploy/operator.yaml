@@ -16,7 +16,7 @@ spec:
       serviceAccountName: wildfly-operator
       containers:
         - name: wildfly-operator
-          image: quay.io/yborgess/wildfly-operator:latest
+          image: quay.io/yborgess/wildfly-operator-dev:0.5.0
           command:
             - wildfly-operator
           args: [ "--zap-level=5", "--zap-encoder=console" ]

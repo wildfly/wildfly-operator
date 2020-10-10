@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: wildfly-operator-conversion-webhook
+  labels:
+    app: wildfly-operator
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: webhook-certs
+spec:
+  ports:
+    - port: 443
+      targetPort: 8443
+  selector:
+    app: wildfly-operator

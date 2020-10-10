@@ -131,7 +131,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	wildflyCrd.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = namespace
+	operatorNs, err := k8sutil.GetOperatorNamespace()
+	if err != nil {
+		log.Error(err, "Failed to get the current operator namespace: %v")
+		os.Exit(1)
+	}
+
+	log.Info("Configuring Webhooks new namespace", "namespace: ", operatorNs)
+	wildflyCrd.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = operatorNs
 	kubeClient.ApiextensionsV1().CustomResourceDefinitions().Update(wildflyCrd)
 
 	log.Info("Configuring Webhooks if ENABLE_WEBHOOKS is activated")
