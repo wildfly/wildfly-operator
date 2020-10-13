@@ -33,7 +33,7 @@ codegen: setup
 	which ./openapi-gen > /dev/null || go build -o ./openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
 	./openapi-gen --logtostderr=true -o "" -i ./pkg/apis/wildfly/v1alpha1 -O zz_generated.openapi -p ./pkg/apis/wildfly/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 	./openapi-gen --logtostderr=true -o "" -i ./pkg/apis/wildfly/v1alpha2 -O zz_generated.openapi -p ./pkg/apis/wildfly/v1alpha2 -h ./hack/boilerplate.go.txt -r "-"
-	cat ./deploy/crds/templates/conversion_webhook_template.yaml >> ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
+	cat ./deploy/crds/templates/conversion_webhook_template_v1beta1.yaml >> ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
 	sed -i '0,/metadata:/s/metadata:/metadata:\n  annotations:\n    service.beta.openshift.io\/inject-cabundle: \"true\"/' ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
 
 ## build                 Compile and build the WildFly operator.

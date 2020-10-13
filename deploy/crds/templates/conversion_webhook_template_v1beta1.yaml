@@ -1,0 +1,11 @@
+  conversion:
+    # a Webhook strategy instruct API server to call an external webhook for any conversion between custom resources.
+    strategy: Webhook
+    # webhookClientConfig is required when strategy is `Webhook` and it configures the webhook endpoint to be called by API server.
+    webhookClientConfig:
+      service:
+        namespace: wildfly-operator-conversion-webhook-ns
+        name: wildfly-operator-conversion-webhook
+        path: /convert
+        port: 443
+  preserveUnknownFields: false

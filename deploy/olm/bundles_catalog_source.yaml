@@ -1,0 +1,9 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: wildfly-operator-catalog
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: quay.io/yborgess/wildfly-operator-index:1.0.0
+  displayName: WildFly Operator Catalog

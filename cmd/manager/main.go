@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha2"
-	extensionsV1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	extensionsV1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
@@ -124,8 +124,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	wildflyCrd := &extensionsV1.CustomResourceDefinition{}
-	wildflyCrd, err = kubeClient.ApiextensionsV1().CustomResourceDefinitions().Get("wildflyservers.wildfly.org", metav1.GetOptions{})
+	wildflyCrd := &extensionsV1beta1.CustomResourceDefinition{}
+	wildflyCrd, err = kubeClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get("wildflyservers.wildfly.org", metav1.GetOptions{})
 	if err != nil {
 		log.Error(err, "Failed to create client: %v")
 		os.Exit(1)
@@ -138,8 +138,8 @@ func main() {
 	}
 
 	log.Info("Configuring Webhooks new namespace", "namespace: ", operatorNs)
-	wildflyCrd.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = operatorNs
-	kubeClient.ApiextensionsV1().CustomResourceDefinitions().Update(wildflyCrd)
+	wildflyCrd.Spec.Conversion.WebhookClientConfig.Service.Namespace = operatorNs
+	kubeClient.ApiextensionsV1beta1().CustomResourceDefinitions().Update(wildflyCrd)
 
 	log.Info("Configuring Webhooks if ENABLE_WEBHOOKS is activated")
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {

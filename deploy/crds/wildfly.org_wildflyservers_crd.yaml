@@ -1,10 +1,17 @@
-apiVersion: apiextensions.k8s.io/v1
+apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     service.beta.openshift.io/inject-cabundle: "true"
   name: wildflyservers.wildfly.org
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.replicas
+    name: Replicas
+    type: integer
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: wildfly.org
   names:
     kind: WildFlyServer
@@ -14,15 +21,14 @@ spec:
     - wfly
     singular: wildflyserver
   scope: Namespaced
+  subresources:
+    scale:
+      specReplicasPath: .spec.replicas
+      statusReplicasPath: .status.replicas
+    status: {}
+  version: v1alpha1
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .spec.replicas
-      name: Replicas
-      type: integer
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: WildFlyServer is the Schema for the wildflyservers API
@@ -532,19 +538,7 @@ spec:
         type: object
     served: true
     storage: false
-    subresources:
-      scale:
-        specReplicasPath: .spec.replicas
-        statusReplicasPath: .status.replicas
-      status: {}
-  - additionalPrinterColumns:
-    - jsonPath: .spec.replicas
-      name: Replicas
-      type: integer
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1alpha2
+  - name: v1alpha2
     schema:
       openAPIV3Schema:
         description: WildFlyServer is the Schema for the wildflyservers API
@@ -1070,23 +1064,14 @@ spec:
         type: object
     served: true
     storage: true
-    subresources:
-      scale:
-        specReplicasPath: .spec.replicas
-        statusReplicasPath: .status.replicas
-      status: {}
   conversion:
     # a Webhook strategy instruct API server to call an external webhook for any conversion between custom resources.
     strategy: Webhook
-    # webhook is required when strategy is `Webhook` and it configures the webhook endpoint to be called by API server.
-    webhook:
-      # conversionReviewVersions indicates what ConversionReview versions are understood/preferred by the webhook.
-      # The first version in the list understood by the API server is sent to the webhook.
-      # The webhook must respond with a ConversionReview object in the same version it received.
-      conversionReviewVersions: ["v1","v1alpha1","v1alpha2"]
-      clientConfig:
-        service:
-          namespace: wildfly-operator-conversion-webhook-ns
-          name: wildfly-operator-conversion-webhook
-          path: /convert
-          port: 443
+    # webhookClientConfig is required when strategy is `Webhook` and it configures the webhook endpoint to be called by API server.
+    webhookClientConfig:
+      service:
+        namespace: wildfly-operator-conversion-webhook-ns
+        name: wildfly-operator-conversion-webhook
+        path: /convert
+        port: 443
+  preserveUnknownFields: false
