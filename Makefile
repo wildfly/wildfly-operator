@@ -29,7 +29,7 @@ vendor: tidy
 codegen: setup
     # see https://github.com/operator-framework/operator-sdk/issues/1854#issuecomment-525132306
 	GOROOT="$(shell dirname `which go`)" ./operator-sdk generate k8s
-	./operator-sdk generate crds --crd-version v1
+	./operator-sdk generate crds
 	which ./openapi-gen > /dev/null || go build -o ./openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
 	./openapi-gen --logtostderr=true -o "" -i ./pkg/apis/wildfly/v1alpha1 -O zz_generated.openapi -p ./pkg/apis/wildfly/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
