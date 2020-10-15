@@ -42,6 +42,14 @@ func wildflyTestSetup(t *testing.T) (*framework.Context, *framework.Framework) {
 	t.Logf("Testing in namespace %s", namespace)
 	// get global framework variables
 	f := framework.Global
+
+	t.Log("Creating CA certificate")
+	err = CreateAndWaitForCACertificate(f, t, ctx, namespace)
+	if err != nil {
+		defer ctx.Cleanup()
+		t.Fatalf("Failed to create the CA cerficiate Service '%v': %v", ctx, err)
+	}
+
 	return ctx, f
 }
 
@@ -53,6 +61,7 @@ func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *fram
 
 	name := "example-wildfly-" + unixEpoch()
 	// create wildflyserver custom resource
+	t.Log("MakeBasicWildFlyServer")
 	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:"+applicationTag, 1)
 	err = CreateAndWaitUntilReady(f, ctx, t, wildflyServer)
 	if err != nil {

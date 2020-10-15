@@ -6,6 +6,7 @@ import (
 	goctx "context"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"regexp"
 	"strings"
 	"testing"
@@ -65,44 +66,18 @@ func CreateStandaloneConfigMap(f *framework.Framework, ctx *framework.Context, n
 // CreateAndWaitUntilReady creates a WildFlyServer resource and wait until it is ready
 func CreateAndWaitUntilReady(f *framework.Framework, ctx *framework.Context, t *testing.T, server *wildflyv1alpha1.WildFlyServer) error {
 	// use Context's create helper to create the object and add a cleanup function for the new object
-	err := f.Client.Create(goctx.TODO(), server, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
+	err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+		err = f.Client.Create(goctx.TODO(), server, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
+		if err != nil {
+			t.Logf("There was an error creating the '%s' deployment. It could be that the conversion WebHook is not yet available. Check the error: '%s'\n", server.GroupVersionKind().String(), err)
+			return false, nil
+		}
+		return true, nil
+	})
+
 	if err != nil {
 		return err
 	}
-
-	// removing finalizers explicitly otherwise the removal could hang
-	ctx.AddCleanupFn(
-		func() error {
-			// Removing deployment for not putting finalizers back to the WildflyServer
-			name := server.ObjectMeta.Name
-			namespace := server.ObjectMeta.Namespace
-			deployment, err := f.KubeClient.AppsV1().Deployments(namespace).Get("wildfly-operator", metav1.GetOptions{})
-			if err == nil && deployment != nil {
-				t.Logf("Cleaning deployment '%v'\n", deployment.Name)
-				f.Client.Delete(goctx.TODO(), deployment)
-			}
-			// Cleaning finalizer
-			return wait.Poll(retryInterval, timeout, func() (done bool, err error) {
-				foundWildflyServer := &wildflyv1alpha1.WildFlyServer{}
-				namespacedName := types.NamespacedName{Name: name, Namespace: namespace}
-				if errPoll := f.Client.Get(context.TODO(), namespacedName, foundWildflyServer); errPoll != nil {
-					if apierrors.IsNotFound(errPoll) {
-						t.Logf("No WildFlyServer object '%v' to remove the finalizer at. Probably all cleanly finished before.\n", name)
-						return true, nil
-					}
-					t.Logf("Cannot obtain object of the WildflyServer '%v', cause: %v\n", name, errPoll)
-					return false, nil
-				}
-				foundWildflyServer.SetFinalizers([]string{})
-				if errPoll := f.Client.Update(context.TODO(), foundWildflyServer); errPoll != nil {
-					t.Logf("Cannot update WildflyServer '%v' with empty finalizers array, cause: %v\n", name, errPoll)
-					return false, nil
-				}
-				t.Logf("Finalizer definition succesfully removed from the WildflyServer '%v'\n", name)
-				return true, nil
-			})
-		},
-	)
 
 	return WaitUntilReady(f, t, server)
 }
@@ -258,5 +233,69 @@ func DeleteWildflyServer(context goctx.Context, wildflyServer *wildflyv1alpha1.W
 		t.Logf("Waiting for statefulset being deleted...")
 		return false, nil
 	})
+	return nil
+}
+
+func CreateAndWaitForCACertificate(f *framework.Framework, t *testing.T, ctx *framework.Context, ns string) error {
+	caService := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:                       "wildfly-operator-conversion-webhook",
+			Namespace:                  ns,
+			Labels: map[string]string{
+				"app": "wildfly-operator",
+			},
+			Annotations: map[string]string{
+				"service.beta.openshift.io/serving-cert-secret-name" : "webhook-certs",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Ports:                    []corev1.ServicePort{
+				{
+					Port: 443,
+					TargetPort: intstr.FromInt(8443),
+				},
+			},
+			Selector: map[string]string {
+				"app": "wildfly-operator",
+			},
+		},
+	}
+
+	err := f.Client.Create(goctx.TODO(), caService, &framework.CleanupOptions{TestContext: ctx, Timeout: timeout, RetryInterval: retryInterval})
+	if err != nil {
+		return err
+	}
+
+	err = WaitUntilServiceReady(f, t, caService)
+
+	return err
+}
+
+func WaitUntilServiceReady(f *framework.Framework, t *testing.T, service *corev1.Service) error {
+	name := service.ObjectMeta.Name
+	ns := service.ObjectMeta.Namespace
+
+	t.Logf("Waiting until service %s is ready", name)
+
+	err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+
+		_, err = f.KubeClient.CoreV1().Services(ns).Get(name, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				t.Logf("Service %s not found", name)
+
+				return false, nil
+			}
+			t.Logf("Got error when getting Service %s: %s", name, err)
+			return false, err
+		}
+
+		return true, nil
+	})
+	if err != nil {
+		return err
+	}
+	t.Logf("Service %s is now available at %s namespace", name, ns)
+
 	return nil
 }
