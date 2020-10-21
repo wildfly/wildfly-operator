@@ -28,6 +28,13 @@ The `applicationImage` accepts different references to Docker image:
 * the name of the image: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart`
 * a tag: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0`
 * a digest: `quay.io/wildfly-quickstarts/wildfly-operator-quickstart@sha256:0af38bc38be93116b6a1d86a9c78bd14cd527121970899d719baf78e5dc7bfd2`
+* an imagestream tag: `wildfly-operator-quickstart:latest`
+
+[NOTE]
+====
+Using an imatestream tag is supported only on OpenShift and the imagestream must be in the same namespace that the deployed `WildFlyServer` resource.
+The WildFly Operator will trigger new deployment of the application whenever the image corresponding to the imagestream tag changes.
+====
 
 [[size]]
 ## Specify the Size of the Application
@@ -200,6 +207,16 @@ configmap/clusterbench-config-map created
 ## OpenShift Features
 
 Some Operator features are only available when running on OpenShift if Kubernetes does not provide the required resources to activate these features.
+
+[[seamless-upgrades]]
+### Seamless Upgrades
+
+On OpenShift, it is possible to use an imagestream tag for the `applicationImage` to provide seamless upgrades.
+
+The imagestream must be in the same namespace that the deployed `WildFlyServer` resource.
+If that's the case, the WildFly Operator will trigger new deployment of the application whenever the image corresponding to the imagestream tag changes.
+
+This allows to take full advantage of the OpenShift ecosystem to build the image using `BuildConfig` in order to trigger new deployments when the code of the application changes (using WebHooks to trigger new builds and then new deployments) or when WildFly S2I images changes (which can also trigger new build).
 
 [[http-route-creation]]
 ### Creation of an HTTP Route
