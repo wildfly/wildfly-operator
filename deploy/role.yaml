@@ -51,8 +51,11 @@ rules:
   resources:
   - servicemonitors
   verbs:
-  - get
   - create
+  - delete
+  - get
+  - list
+  - watch
 - apiGroups:
   - wildfly.org
   resources:
