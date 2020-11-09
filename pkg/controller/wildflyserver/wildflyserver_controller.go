@@ -261,7 +261,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Update WildFly Server pod status based on the number of StatefulSet pods
-	requeue, podsStatus := getPodStatus(podList.Items, wildflyServer.Status.Pods)
+	podsStatus, requeue := getPodStatus(podList.Items, wildflyServer.Status.Pods)
 	if !reflect.DeepEqual(podsStatus, wildflyServer.Status.Pods) {
 		updateWildflyServer = true
 		wildflyServer.Status.Pods = podsStatus
@@ -450,9 +450,7 @@ func getWildflyServerPodStatusByName(w *wildflyv1alpha1.WildFlyServer, podName s
 }
 
 // getPodStatus returns the pod names of the array of pods passed in
-func getPodStatus(pods []corev1.Pod, originalPodStatuses []wildflyv1alpha1.PodStatus) (bool, []wildflyv1alpha1.PodStatus) {
-	var requeue = false
-	var podStatuses []wildflyv1alpha1.PodStatus
+func getPodStatus(pods []corev1.Pod, originalPodStatuses []wildflyv1alpha1.PodStatus) (podStatuses []wildflyv1alpha1.PodStatus, requeue bool) {
 	podStatusesOriginalMap := make(map[string]wildflyv1alpha1.PodStatus)
 	for _, v := range originalPodStatuses {
 		podStatusesOriginalMap[v.Name] = v
@@ -471,7 +469,7 @@ func getPodStatus(pods []corev1.Pod, originalPodStatuses []wildflyv1alpha1.PodSt
 			requeue = true
 		}
 	}
-	return requeue, podStatuses
+	return podStatuses, requeue
 }
 
 // LabelsForWildFly return a map of labels that are used for identification

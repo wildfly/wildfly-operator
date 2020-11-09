@@ -271,7 +271,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 				scaleDownErrors.Store(scaleDownPodName+"_status-update",
 					fmt.Errorf("Cannot find pod name '%v' in the list of the active pods for the WildflyServer operator: %v",
 						scaleDownPodName, w.ObjectMeta.Name))
-				_, podsStatus := getPodStatus(podList.Items, w.Status.Pods)
+				podsStatus, _ := getPodStatus(podList.Items, w.Status.Pods)
 				reqLogger.Info("Updating pod status", "Pod Status", podsStatus)
 				w.Status.Pods = podsStatus
 				updated.Set()
