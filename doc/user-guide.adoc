@@ -13,8 +13,11 @@ The features and capabilities of **Basic Install (Phase I)** deals with the prov
 [[application-image]]
 ## Specify the Docker Application Image
 
-The `applicationImage` specifies the Docker application image that contains the Java application. The image must have been built
-https://github.com/wildfly/wildfly-s2i[WildFly S2I].
+The `applicationImage` specifies the Docker application image that contains the Java application.
+The operator support two kind of application images:
+
+    * WildFly S2I Builder/Runtime application image. This application image is built by using https://github.com/wildfly/wildfly-s2i[WildFly S2I]. This is the default one.
+    * Bootable Jar application image. This application image is built by using https://github.com/wildfly-extras/wildfly-jar-maven-plugin[Bootable JAR]
 
 [source,yaml]
 .Example of application image configuration
@@ -35,6 +38,23 @@ The `applicationImage` accepts different references to Docker image:
 Using an imatestream tag is supported only on OpenShift and the imagestream must be in the same namespace that the deployed `WildFlyServer` resource.
 The WildFly Operator will trigger new deployment of the application whenever the image corresponding to the imagestream tag changes.
 ====
+
+[[bootableJar]]
+## Specify a Bootable JAR application image
+
+The `bootableJar` specifies whether the application image is a Bootable JAR server. If this configuration is unspecified, the WildFly Operator assumes that the application image is an S2I image.
+
+[source,yaml]
+.Example of Bootable JAR configuration
+----
+spec:
+  bootableJar: true
+----
+
+There are some restrictions about the base image you can use to launch the Bootable JAR:
+
+    * The base image for the Bootable JAR container must be `registry.access.redhat.com/ubi8/openjdk-11` or any other Red Hat ubi8 supplying a higher JDK version.
+    * The Bootable JAR must be built for a server configured for the cloud environment. This is done by enabling the `cloud` configuration item on the `wildfly-jar-maven-plugin` configuration. See https://docs.wildfly.org/bootablejar/#wildfly_jar_configuring_cloud[Configuring the server for cloud execution] on the `wildfly-jar-maven-plugin` documentation.
 
 [[size]]
 ## Specify the Size of the Application
@@ -179,7 +199,7 @@ value2
 ----
 
 [[standalone-config-map]]
-## Bring Your Own Standalone XML Configuation
+## Bring Your Own Standalone XML Configuration
 
 It is possible to directly provide WildFly standalone configuration instead of the one in the application image (that comes from WildFly S2I).
 
@@ -203,6 +223,11 @@ In this example, the `clusterbench-config-map` must be created *before* the Wild
 $ kubectl create configmap clusterbench-config-map --from-file examples/clustering/config/standalone-openshift.xml
 configmap/clusterbench-config-map created
 ----
+
+[NOTE]
+====
+This feature is not supported by a Bootable JAR application image. If you enabled it, your application image will not be deployed in the cluster.
+====
 
 ## Monitor WildFly Metrics
 
@@ -305,6 +330,11 @@ The `'Scalingdown Pods'` defines the number of pods which are about to be termin
 The `Replicas` defines the current number of running pods.
 The `WildFlyServer.Spec.Replicas` (see <<size>>) defines the desired number of the active pods.
 If there are no pods in scaledown process the numbers of `WildFlyServer.Status.Replicas` and `WildFlyServer.Spec.Replicas` are equals.
+
+[NOTE]
+====
+This feature is not supported by a Bootable JAR application image. The transaction recovery facility will be ignored for Bootable JAR application images.
+====
 
 ### Transaction scaledown special cases
 

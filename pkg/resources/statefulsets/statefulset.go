@@ -2,6 +2,7 @@ package statefulsets
 
 import (
 	"os"
+	"path"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
@@ -39,13 +40,19 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 	return statefulSet, nil
 }
 
-// NewStatefulSet retunrs a new statefulset
+// NewStatefulSet returns a new statefulset
 func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, desiredReplicaSize int32) *appsv1.StatefulSet {
 	replicas := desiredReplicaSize
 	applicationImage := w.Spec.ApplicationImage
-	labesForActiveWildflyPod := wildflyutil.CopyMap(labels)
-	labesForActiveWildflyPod[resources.MarkerOperatedByHeadless] = resources.MarkerServiceActive
-	labesForActiveWildflyPod[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive
+
+	labelsForActiveWildflyPod := wildflyutil.CopyMap(labels)
+	labelsForActiveWildflyPod[resources.MarkerOperatedByHeadless] = resources.MarkerServiceActive
+	labelsForActiveWildflyPod[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive
+
+	wildflyImageTypeAnnotation := resources.ImageTypeGeneric
+	if w.Spec.BootableJar {
+		wildflyImageTypeAnnotation = resources.ImageTypeBootable
+	}
 
 	statefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
@@ -69,7 +76,10 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labesForActiveWildflyPod,
+					Labels: labelsForActiveWildflyPod,
+					Annotations: map[string]string{
+						resources.MarkerImageType: wildflyImageTypeAnnotation,
+					},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
@@ -85,9 +95,9 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 								Name:          "admin",
 							},
 						},
-						LivenessProbe: createLivenessProbe(),
-						// Readiness Probe is options
-						ReadinessProbe: createReadinessProbe(),
+						LivenessProbe: createLivenessProbe(w),
+						// Readiness Probe is optional
+						ReadinessProbe: createReadinessProbe(w),
 					}},
 					ServiceAccountName: w.Spec.ServiceAccountName,
 				},
@@ -149,10 +159,10 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		statefulSet.Spec.VolumeClaimTemplates = append(statefulSet.Spec.VolumeClaimTemplates, pvcTemplate)
 	}
 
-	// mount the volume for the server standatalone data directory
+	// mount the volume for the server standalone data directory
 	volumeMounts = append(volumeMounts, corev1.VolumeMount{
 		Name:      standaloneDataVolumeName,
-		MountPath: resources.JBossHome + "/" + resources.StandaloneServerDataDirRelativePath,
+		MountPath: path.Join(resources.JBossHomeDataDir(w.Spec.BootableJar), resources.StandaloneServerDataDirRelativePath),
 	})
 
 	// mount the volume to read the standalone XML configuration from a ConfigMap
@@ -183,7 +193,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "standalone-config-volume",
-			MountPath: resources.JBossHome + "/standalone/configuration/standalone.xml",
+			MountPath: path.Join(resources.JBossHome(w.Spec.BootableJar),"standalone/configuration/standalone.xml"),
 			SubPath:   "standalone.xml",
 		})
 	}
@@ -202,7 +212,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      volumeName,
 			ReadOnly:  true,
-			MountPath: resources.SecretsDir + s,
+			MountPath: path.Join(resources.SecretsDir, s),
 		})
 	}
 
@@ -222,24 +232,31 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      volumeName,
 			ReadOnly:  true,
-			MountPath: resources.ConfigMapsDir + cm,
+			MountPath: path.Join(resources.ConfigMapsDir, cm),
 		})
 	}
 
 	statefulSet.Spec.Template.Spec.Volumes = volumes
 	statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
+	// Configures the Bootable JAR environment
+	if w.Spec.BootableJar {
+		// Force Bootable JAR to be unzipped in a known directory
+		statefulSet.Spec.Template.Spec.Containers[0].Env = append(statefulSet.Spec.Template.Spec.Containers[0].Env, envArgsForBootableJAR(resources.StandaloneServerDataDirRelativePath)...)
+	}
+
 	return statefulSet
 }
 
-// createLivenessProbe create a Exec probe if the SERVER_LIVENESS_SCRIPT env var is present.
-// Otherwise, it creates a HTTPGet probe that checks the /health endpoint on the admin port.
+// createLivenessProbe create a Exec probe if the SERVER_LIVENESS_SCRIPT env var is present
+// *and* the application is not using Bootable Jar.
+// Otherwise, it creates a HTTPGet probe that checks the /health/live endpoint on the admin port.
 //
 // If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
 // complies to the Kuberenetes probes requirements.
-func createLivenessProbe() *corev1.Probe {
+func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
-	if defined {
+	if defined && !w.Spec.BootableJar {
 		return &corev1.Probe{
 			Handler: corev1.Handler{
 				Exec: &corev1.ExecAction{
@@ -252,7 +269,7 @@ func createLivenessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		Handler: corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
-				Path: "/health",
+				Path: "/health/live",
 				Port: intstr.FromString("admin"),
 			},
 		},
@@ -260,20 +277,33 @@ func createLivenessProbe() *corev1.Probe {
 	}
 }
 
-// createReadinessProbe create a Exec probe if the SERVER_READINESS_SCRIPT env var is present.
+// createReadinessProbe create a Exec probe if the SERVER_READINESS_SCRIPT env var is present
+// *and* the application is not using Bootable Jar.
+// If the application is using Bootable Jar, it creates a HTTPGet probe on /health/ready.
 // Otherwise, it returns nil (i.e. no readiness probe is configured).
 //
 // If defined, the SERVER_READINESS_SCRIPT env var must be the path of a shell script that
 // complies to the Kuberenetes probes requirements.
-func createReadinessProbe() *corev1.Probe {
+func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
-	if defined {
+	if defined && !w.Spec.BootableJar {
 		return &corev1.Probe{
 			Handler: corev1.Handler{
 				Exec: &corev1.ExecAction{
 					Command: []string{"/bin/bash", "-c", readinessProbeScript},
 				},
 			},
+		}
+	}
+	if w.Spec.BootableJar {
+		return &corev1.Probe{
+			Handler: corev1.Handler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: "/health/ready",
+					Port: intstr.FromString("admin"),
+				},
+			},
+			InitialDelaySeconds: 60,
 		}
 	}
 	return nil
@@ -302,6 +332,19 @@ func envForEJBRecovery(w *wildflyv1alpha1.WildFlyServer) []corev1.EnvVar {
 		{
 			Name:  "STATEFULSET_HEADLESS_SERVICE_NAME",
 			Value: services.HeadlessServiceName(w),
+		},
+	}
+}
+
+func envArgsForBootableJAR(defaultDataDir string) []corev1.EnvVar {
+	return []corev1.EnvVar{
+		{
+			Name:  "JAVA_ARGS",
+			Value: "-Djboss.server.data.dir="+path.Join(resources.JBossHomeDataDir(true), defaultDataDir) + " --install-dir=" + resources.JBossHome(true),
+		},
+		{
+			Name:  "JBOSS_HOME",
+			Value: resources.JBossHome(true),
 		},
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"errors"
 
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
@@ -22,7 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
@@ -127,7 +128,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	wildflyServer := &wildflyv1alpha1.WildFlyServer{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, wildflyServer)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apiErrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
@@ -135,6 +136,11 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
+	}
+
+	// validate. If the Operator is installed via OLM, the adminsion web hook should have already validated the instance.
+	if ok, err := validate(wildflyServer); !ok {
+		return r.ManageError(wildflyServer, err)
 	}
 
 	// If statefulset was deleted during processing recovery scaledown the number of replicas in WildflyServer spec
@@ -310,7 +316,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 // checkStatefulSet checks if the statefulset is up to date with the current WildFlyServerSpec.
 // it returns true if a reconcile result must be returned.
-// A non-nil error if an error happend while updating/deleting the statefulset.
+// A non-nil error if an error happens while updating/deleting the statefulset.
 func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1.WildFlyServer, foundStatefulSet *appsv1.StatefulSet,
 	podList *corev1.PodList) (mustReconcile bool, err error) {
 	var update, requeue bool
@@ -427,6 +433,23 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 	}
 
 	return requeue, nil
+}
+
+func (r *ReconcileWildFlyServer) ManageError(w *wildflyv1alpha1.WildFlyServer, err error) (reconcile.Result, error) {
+	if err == nil {
+		r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError", "Unknown Error")
+		return reconcile.Result{}, err
+	}
+
+	r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError",err.Error())
+	return reconcile.Result{}, err
+}
+
+func validate(w *wildflyv1alpha1.WildFlyServer) (bool, error) {
+	if w.Spec.BootableJar && w.Spec.StandaloneConfigMap != nil {
+		return false, errors.New("Bootable JAR server does not support custom server configuration file via config map.")
+	}
+	return true, nil
 }
 
 // matches checks if the envVar from the WildFlyServerSpec matches the same env var from the container.

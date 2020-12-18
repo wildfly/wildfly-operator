@@ -175,7 +175,7 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 		disableTMOp := fmt.Sprintf(wildflyutil.MgmtOpSystemPropertyTransactionManagerDisabled, "true")
 		jsonResult, errExecution := wildflyutil.ExecuteMgmtOp(scaleDownPod, setPeriodOps+","+disableTMOp)
 
-		// command may end-up with error with status 'rolled-back' which means duplication, thus do not check for error as error could be possitive outcome
+		// command may end-up with error with status 'rolled-back' which means duplication, thus do not check for error as error could be positive outcome
 		isOperationRolledBack := wildflyutil.ReadJSONDataByIndex(jsonResult, "rolled-back")
 		isOperationRolledBackAsString, _ := wildflyutil.ConvertToString(isOperationRolledBack)
 		if !wildflyutil.IsMgmtOutcomeSuccesful(jsonResult) && isOperationRolledBackAsString != "true" {
@@ -193,7 +193,7 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 				scaleDownPodName, scaleDownPod.Annotations, err)
 		}
 
-		reqLogger.Info("Restarting application server to apply the env properies", "Pod Name", scaleDownPodName)
+		reqLogger.Info("Restarting application server to apply the env properties", "Pod Name", scaleDownPodName)
 		if _, err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(reqLogger, wildflyutil.MgmtOpRestart, scaleDownPod); err != nil {
 			return false, fmt.Errorf("Cannot restart application server after setting up the periodic recovery properties, error: %v", err)
 		}
@@ -225,7 +225,21 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 
 	wildflyServerNumberOfPods := len(podList.Items)
 	scaleDownPodsStates := sync.Map{} // map referring to: pod name - pod state
-	scaleDownErrors := sync.Map{}     // errors occured during processing the scaledown for the pods
+	scaleDownErrors := sync.Map{}     // errors occurred during processing the scaledown for the pods
+
+	if w.Spec.BootableJar {
+		for scaleDownIndex := 1; scaleDownIndex <= numberOfPodsToScaleDown; scaleDownIndex++ {
+			scaleDownPodName := podList.Items[wildflyServerNumberOfPods-scaleDownIndex].ObjectMeta.Name
+			wildflyServerSpecPodStatus := getWildflyServerPodStatusByName(w, scaleDownPodName)
+			if wildflyServerSpecPodStatus == nil {
+				continue
+			}
+			reqLogger.Info("Transaction recovery is unsupported for Bootable JAR pods. The " + scaleDownPodName + " pod will be removed without checking pending transactions.")
+			wildflyServerSpecPodStatus.State = wildflyv1alpha1.PodStateScalingDownClean
+		}
+		w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
+		return false, nil
+	}
 
 	// Setting-up the pod status - status is used to decide if the pod could be scaled (aka. removed from the statefulset)
 	updated := abool.New()
@@ -259,7 +273,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// Scaledown scenario, need to handle transction recovery
+			// Scaledown scenario, need to handle transaction recovery
 			scaleDownPodName := scaleDownPod.ObjectMeta.Name
 			scaleDownPodIP := scaleDownPod.Status.PodIP
 			if strings.Contains(scaleDownPodIP, ":") && !strings.HasPrefix(scaleDownPodIP, "[") {
@@ -374,7 +388,7 @@ func (r *ReconcileWildFlyServer) setLabelAsDisabled(w *wildflyv1alpha1.WildFlySe
 				errStrings += " [[" + err.Error() + "]],"
 			}
 			if kubernetesUpdated {
-				reqLogger.Info("Label for pod succesfully updated", "Pod Name", scaleDownPod.ObjectMeta.Name,
+				reqLogger.Info("Label for pod successfully updated", "Pod Name", scaleDownPod.ObjectMeta.Name,
 					"Label name", labelName, "Label value", markerServiceDisabled)
 				updated = true
 			}
