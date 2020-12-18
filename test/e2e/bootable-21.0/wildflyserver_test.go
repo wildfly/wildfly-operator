@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestWildFly17Server(t *testing.T) {
+func TestWildFlyBootableJar21Server(t *testing.T) {
 	wildflyServerList := &wildflyv1alpha1.WildFlyServerList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "WildFlyServer",
@@ -25,18 +25,8 @@ func TestWildFly17Server(t *testing.T) {
 	}
 	// run subtests
 	t.Run("BasicTest", wildFlyBasicTest)
-	t.Run("ClusterTest", wildFlyClusterTest)
-	t.Run("ScaleDownTest", wildflyScaleDownTest)
 }
 
 func wildFlyBasicTest(t *testing.T) {
-	wildflyframework.WildFlyBasicTest(t, "17.0", false)
-}
-
-func wildFlyClusterTest(t *testing.T) {
-	wildflyframework.WildFlyClusterTest(t, "17.0")
-}
-
-func wildflyScaleDownTest(t *testing.T) {
-	wildflyframework.WildflyScaleDownTest(t, "17.0")
+	wildflyframework.WildFlyBasicTest(t, "bootable-21.0", true)
 }

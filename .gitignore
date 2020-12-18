@@ -1,5 +1,6 @@
 /openapi-gen
 /operator-sdk
+/operator-sdk-e2e-tests
 
 # Temporary Build Files
 build/_output

@@ -138,7 +138,6 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	// validate. If the Operator is installed via OLM, the adminsion web hook should have already validated the instance.
 	if ok, err := validate(wildflyServer); !ok {
 		return r.ManageError(wildflyServer, err)
 	}

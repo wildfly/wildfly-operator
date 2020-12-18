@@ -41,7 +41,7 @@ func TestWildFly18Server(t *testing.T) {
 }
 
 func wildFlyBasicTest(t *testing.T) {
-	wildflyframework.WildFlyBasicTest(t, "18.0")
+	wildflyframework.WildFlyBasicTest(t, "18.0", false)
 }
 
 func wildFlyClusterTest(t *testing.T) {
