@@ -37,8 +37,8 @@ var (
 	MgmtOpSystemPropertyPeriodicRecoveryPeriod = "/system-property=com.arjuna.ats.arjuna.common.RecoveryEnvironmentBean.periodicRecoveryPeriod:add(value=%s)"
 	// MgmtOpSystemPropertyOrphanSafetyInterval is a JBoss CLI command to set system property of orphan safety interval
 	MgmtOpSystemPropertyOrphanSafetyInterval = "/system-property=com.arjuna.ats.jta.common.JTAEnvironmentBean.orphanSafetyInterval:add(value=%s)"
-	// MgmtOpSystemPropertyTransactionManagerEnabled is a JBoss CLI command to set system property to enable/disable transaction manager
-	MgmtOpSystemPropertyTransactionManagerEnabled = "/system-property=com.arjuna.ats.arjuna.common.CoordinatorEnvironmentBean.startDisabled:add(value=%s)"
+	// MgmtOpSystemPropertyTransactionManagerDisabled is a JBoss CLI command to set system property to disable/enable transaction manager
+	MgmtOpSystemPropertyTransactionManagerDisabled = "/system-property=com.arjuna.ats.arjuna.common.CoordinatorEnvironmentBean.startDisabled:add(value=%s)"
 )
 
 // IsMgmtOutcomeSuccesful verifies if the management operation was succcesfull
