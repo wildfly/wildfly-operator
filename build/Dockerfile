@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi7/ubi-minimal:latest
+FROM registry.redhat.io/ubi8/ubi-minimal:latest
 
 ENV OPERATOR=/usr/local/bin/wildfly-operator \
     JBOSS_HOME=/wildfly \
