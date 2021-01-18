@@ -204,6 +204,10 @@ $ kubectl create configmap clusterbench-config-map --from-file examples/clusteri
 configmap/clusterbench-config-map created
 ----
 
+## Monitor WildFly Metrics
+
+If the Prometheus Operator is deployed on the cluster (and the `ServiceMonitor` Custom Resource Definition is installed), the WildFly operator automatically creates a `ServiceMonitor` to expose its metrics to Prometheus.
+
 ## OpenShift Features
 
 Some Operator features are only available when running on OpenShift if Kubernetes does not provide the required resources to activate these features.

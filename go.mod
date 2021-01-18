@@ -3,10 +3,11 @@ module github.com/wildfly/wildfly-operator
 go 1.13
 
 require (
-	github.com/RHsyseng/operator-utils v0.0.0-20200709142328-d5a5812a443f
+	github.com/RHsyseng/operator-utils v1.4.4
+	github.com/coreos/prometheus-operator v0.38.0
 	github.com/go-logr/logr v0.1.0
-	github.com/go-openapi/spec v0.19.4
-	github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87
+	github.com/go-openapi/spec v0.19.6
+	github.com/openshift/api v0.0.0-20200205145930-e9d93e317dd1
 	github.com/operator-framework/operator-sdk v0.17.2
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0

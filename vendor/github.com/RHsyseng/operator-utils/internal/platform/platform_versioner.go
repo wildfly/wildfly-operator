@@ -3,8 +3,9 @@ package platform
 import (
 	"encoding/json"
 	"errors"
+
 	openapi_v2 "github.com/googleapis/gnostic/OpenAPIv2"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
@@ -38,11 +39,17 @@ Result: OpenShiftVersion{ Version: 4.1.2 }
 func MapKnownVersion(info PlatformInfo) OpenShiftVersion {
 	k8sToOcpMap := map[string]string{
 		"1.10+": "3.10",
+		"1.10":  "3.10",
 		"1.11+": "3.11",
+		"1.11":  "3.11",
 		"1.13+": "4.1",
+		"1.13":  "4.1",
 		"1.14+": "4.2",
+		"1.14":  "4.2",
 		"1.16+": "4.3",
 		"1.16":  "4.3",
+		"1.17+": "4.4",
+		"1.17":  "4.4",
 	}
 	return OpenShiftVersion{Version: k8sToOcpMap[info.K8SVersion]}
 }

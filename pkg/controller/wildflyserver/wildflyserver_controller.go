@@ -12,15 +12,19 @@ import (
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/routes"
+	"github.com/wildfly/wildfly-operator/pkg/resources/servicemonitors"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 	"github.com/wildfly/wildfly-operator/pkg/resources/statefulsets"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	routev1 "github.com/openshift/api/route/v1"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -79,6 +83,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 	for _, obj := range []runtime.Object{&appsv1.StatefulSet{}, &corev1.Service{}} {
 		if err = c.Watch(&source.Kind{Type: obj}, &enqueueRequestForOwner); err != nil {
+			return err
+		}
+	}
+	if hasServiceMonitor() {
+		if err = c.Watch(&source.Kind{Type: &monitoringv1.ServiceMonitor{}}, &enqueueRequestForOwner); err != nil {
 			return err
 		}
 	}
@@ -203,6 +212,12 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	} else if headlessService == nil {
 		return reconcile.Result{Requeue: true}, nil
 	}
+	// Check if the admin service already exists, if not create a new one
+	if adminService, err := services.CreateOrUpdateAdminService(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
+		return reconcile.Result{}, err
+	} else if adminService == nil {
+		return reconcile.Result{Requeue: true}, nil
+	}
 
 	// Check if the HTTP route must be created
 	var route *routev1.Route
@@ -220,6 +235,15 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 			} else if deleted {
 				return reconcile.Result{}, nil
 			}
+		}
+	}
+
+	// create a Prometheus ServiceMonitor (if the resource exists on the cluster)
+	if hasServiceMonitor() {
+		if serviceMonitor, err := servicemonitors.GetOrCreateNewServiceMonitor(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
+			return reconcile.Result{}, err
+		} else if serviceMonitor == nil {
+			return reconcile.Result{Requeue: true}, nil
 		}
 	}
 
@@ -501,4 +525,13 @@ func isOpenShift(c *rest.Config) bool {
 		return false
 	}
 	return isOpenShift
+}
+
+// hasServiceMonitor checks if ServiceMonitor kind is registered in the cluster.
+func hasServiceMonitor() bool {
+	return resources.CustomResourceDefinitionExists(schema.GroupVersionKind{
+		Group:   "monitoring.coreos.com",
+		Version: monitoringv1.Version,
+		Kind:    monitoringv1.ServiceMonitorsKind,
+	})
 }
