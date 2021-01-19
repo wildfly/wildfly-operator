@@ -13,6 +13,9 @@ import (
 type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
 	ApplicationImage string `json:"applicationImage"`
+	// BootableJar specifies whether the application image is using WildFly S2I Builder/Runtime images or Bootable Jar.
+	// If omitted, it defaults to false (application image is expected to use WildFly S2I Builder/Runtime images)
+	BootableJar bool `json:"bootableJar,omitempty"`
 	// Replicas is the desired number of replicas for the application
 	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
@@ -88,7 +91,7 @@ const (
 	PodStateActive = "ACTIVE"
 	// PodStateScalingDownRecoveryInvestigation represents the PodStatus.State when pod is in state of scaling down
 	// and is to be verified if it's dirty and if recovery is needed
-	// as the pod is under recovery verification it can't be immediatelly removed
+	// as the pod is under recovery verification it can't be immediately removed
 	// and it needs to be wait until it's marked as clean to be removed
 	PodStateScalingDownRecoveryInvestigation = "SCALING_DOWN_RECOVERY_INVESTIGATION"
 	// PodStateScalingDownRecoveryDirty represents the PodStatus.State when the pod was marked as recovery is needed

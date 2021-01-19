@@ -30,7 +30,7 @@ var (
 )
 
 // MakeBasicWildFlyServer creates a basic WildFlyServer resource
-func MakeBasicWildFlyServer(ns, name, applicationImage string, size int32) *wildflyv1alpha1.WildFlyServer {
+func MakeBasicWildFlyServer(ns, name, applicationImage string, size int32, bootableJar bool) *wildflyv1alpha1.WildFlyServer {
 	return &wildflyv1alpha1.WildFlyServer{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "WildFlyServer",
@@ -43,6 +43,7 @@ func MakeBasicWildFlyServer(ns, name, applicationImage string, size int32) *wild
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
 			Replicas:         size,
+			BootableJar: bootableJar,
 		},
 	}
 }
@@ -82,7 +83,7 @@ func CreateAndWaitUntilReady(f *framework.Framework, ctx *framework.Context, t *
 				f.Client.Delete(goctx.TODO(), deployment)
 			}
 			// Cleaning finalizer
-			return wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+			wait.Poll(retryInterval, timeout, func() (done bool, err error) {
 				foundWildflyServer := &wildflyv1alpha1.WildFlyServer{}
 				namespacedName := types.NamespacedName{Name: name, Namespace: namespace}
 				if errPoll := f.Client.Get(context.TODO(), namespacedName, foundWildflyServer); errPoll != nil {
@@ -101,6 +102,14 @@ func CreateAndWaitUntilReady(f *framework.Framework, ctx *framework.Context, t *
 				t.Logf("Finalizer definition succesfully removed from the WildflyServer '%v'\n", name)
 				return true, nil
 			})
+
+			namespaceResource, err := f.KubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+			if err == nil && namespaceResource != nil {
+				t.Logf("Cleaning namespace '%v'\n", namespace)
+				f.Client.Delete(goctx.TODO(), namespaceResource)
+			}
+
+			return err
 		},
 	)
 
@@ -128,11 +137,11 @@ func WaitUntilReady(f *framework.Framework, t *testing.T, server *wildflyv1alpha
 			return false, err
 		}
 
-		if statefulSet.Status.Replicas == size {
+		if statefulSet.Status.Replicas == size && statefulSet.Status.ReadyReplicas == size {
 			return true, nil
 		}
 
-		t.Logf("Waiting for full availability of %s statefulset (%d/%d)\n", name, statefulSet.Status.Replicas, size)
+		t.Logf("Waiting for full availability of %s statefulset. Requested Replicas (%d) Ready (%d/%d)\n", name, size, statefulSet.Status.ReadyReplicas, statefulSet.Status.Replicas)
 		return false, nil
 	})
 	if err != nil {

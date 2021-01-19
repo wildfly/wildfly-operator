@@ -17,11 +17,11 @@ import (
 )
 
 // WildFlyBasicTest runs basic operator tests
-func WildFlyBasicTest(t *testing.T, applicationTag string) {
+func WildFlyBasicTest(t *testing.T, applicationTag string, bootableJar bool) {
 	ctx, f := wildflyTestSetup(t)
 	defer ctx.Cleanup()
 
-	if err := wildflyBasicServerScaleTest(t, f, ctx, applicationTag); err != nil {
+	if err := wildflyBasicServerScaleTest(t, f, ctx, applicationTag, bootableJar); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -45,7 +45,7 @@ func wildflyTestSetup(t *testing.T) (*framework.Context, *framework.Framework) {
 	return ctx, f
 }
 
-func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *framework.Context, applicationTag string) error {
+func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *framework.Context, applicationTag string, bootableJar bool) error {
 	namespace, err := ctx.GetOperatorNamespace()
 	if err != nil {
 		return fmt.Errorf("could not get namespace: %v", err)
@@ -53,7 +53,7 @@ func wildflyBasicServerScaleTest(t *testing.T, f *framework.Framework, ctx *fram
 
 	name := "example-wildfly-" + unixEpoch()
 	// create wildflyserver custom resource
-	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:"+applicationTag, 1)
+	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:"+applicationTag, 1, bootableJar)
 	err = CreateAndWaitUntilReady(f, ctx, t, wildflyServer)
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func wildflyClusterViewTest(t *testing.T, f *framework.Framework, ctx *framework
 	// create config map for the standalone config
 	CreateStandaloneConfigMap(f, ctx, namespace, "clusterbench-configmap", "standalone-openshift.xml", standaloneConfigXML)
 	// create wildflyserver custom resource
-	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/clusterbench-ee7:"+applicationTag, 2)
+	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/clusterbench-ee7:"+applicationTag, 2, false)
 	wildflyServer.Spec.StandaloneConfigMap = &wildflyv1alpha1.StandaloneConfigMapSpec{
 		Name: "clusterbench-configmap",
 		Key:  "standalone-openshift.xml",
@@ -156,7 +156,7 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 
 	name := "example-wildfly-" + unixEpoch()
 	// create wildflyserver custom resource
-	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:"+applicationTag, 2)
+	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:"+applicationTag, 2, false)
 	// waiting for number of pods matches the desired state
 	err = CreateAndWaitUntilReady(f, ctx, t, wildflyServer)
 	if err != nil {
