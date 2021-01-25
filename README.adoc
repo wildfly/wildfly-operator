@@ -26,14 +26,10 @@ The examples require that https://kubernetes.io/docs/setup/minikube/[Minikube] i
 
 [source,shell]
 ----
-# Install resources for the WildFly Operator
-$ kubectl apply -f deploy/service_account.yaml
-$ kubectl apply -f deploy/role.yaml
-$ kubectl apply -f deploy/role_binding.yaml
 # install WildFlyServer CRD
 $ kubectl apply -f deploy/crds/wildfly.org_wildflyservers_crd.yaml
-# install WildFly Operator
-$ kubectl create -f deploy/operator.yaml
+# Install all resources for the WildFly Operator
+$ kubectl apply -f deploy/operator.yaml
 ----
 
 ### Install a custom resource
@@ -198,9 +194,6 @@ Deploying the operator and its resources by executing the following commands:
 ----
 $ oc login -u system:admin
 $ oc adm policy add-cluster-role-to-user cluster-admin developer
-$ oc apply -f deploy/service_account.yaml
-$ oc apply -f deploy/role.yaml
-$ oc apply -f deploy/role_binding.yaml
 $ oc apply -f deploy/crds/wildfly_v1alpha1_wildflyserver_crd.yaml
 $ oc apply -f deploy/operator.yaml
 
@@ -264,3 +257,11 @@ $ make
 ```
 $ make build
 ```
+
+### Run end-to-end (e2e) tests
+
+The tests relies on Minikube as the container platform
+
+````
+$ eval $(minikube -p minikube docker-env) && make test-e2e-minikube
+````

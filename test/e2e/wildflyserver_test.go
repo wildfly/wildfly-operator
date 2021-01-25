@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestWildFly18Server(t *testing.T) {
+func TestWildFlyServer(t *testing.T) {
 	wildflyServerList := &wildflyv1alpha1.WildFlyServerList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "WildFlyServer",
