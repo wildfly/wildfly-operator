@@ -45,7 +45,7 @@ func wildFlyBasicTest(t *testing.T) {
 }
 
 func wildFlyClusterTest(t *testing.T) {
-	wildflyframework.WildFlyClusterTest(t, "18.0")
+	wildflyframework.WildFlyClusterTest(t, "22.0")
 }
 
 func wildflyScaleDownTest(t *testing.T) {
