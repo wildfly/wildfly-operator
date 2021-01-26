@@ -66,37 +66,23 @@ run-local-operator: codegen build
 ## test                  Perform all tests.
 test: unit-test scorecard test-e2e
 
-## test-e2e-local        Run e2e tests locally
-test-e2e: test-e2e-17-local test-e2e-17-local
+## test-e2e-local        Run e2e tests with a local operator (outside the container platform)
+test-e2e-local: setup-e2e-test
+	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server OPERATOR_NAME=wildfly-operator ./operator-sdk-e2e-tests test local ./test/e2e --verbose --debug  --operator-namespace default --up-local --local-operator-flags "--zap-devel --zap-level=5" --global-manifest ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
 
-## test-e2e-17-local     Run e2e test for WildFly 17.0 with a local operator
-test-e2e-17-local: setup-e2e-test
-	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server OPERATOR_NAME=wildfly-operator ./operator-sdk-e2e-tests test local ./test/e2e/17.0 --verbose --debug  --operator-namespace default --up-local --local-operator-flags "--zap-devel --zap-level=5" --global-manifest ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
-
-## test-e2e-18-local     Run e2e test for WildFly 18.0 with a local operator
-test-e2e-18-local: setup-e2e-test
-	LOCAL_OPERATOR=true JBOSS_HOME=/wildfly JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server OPERATOR_NAME=wildfly-operator ./operator-sdk-e2e-tests test local ./test/e2e/18.0 --verbose --debug  --operator-namespace default --up-local --local-operator-flags "--zap-devel --zap-level=5" --global-manifest ./deploy/crds/wildfly.org_wildflyservers_crd.yaml
-
-## test-e2e-18           Run e2e test for WildFly 18.0 with a containerized operator
-test-e2e-18: setup-e2e-test
+## test-e2e              Run e2e tests with a containerized operator
+test-e2e: setup-e2e-test
 # Workaround for e2e test fails with additionalPrinterColumns in v1 CRDs https://github.com/operator-framework/operator-sdk/issues/3005,
 # we need a operator v0.18.2 to run the e2e tests using CRD ApiVersion on apiextensions.k8s.io/v1
-	./operator-sdk-e2e-tests test local ./test/e2e/18.0 --verbose --debug
+	./operator-sdk-e2e-tests test local ./test/e2e --verbose --debug
 
-## test-e2e-bootable-21           Run e2e test for WildFly 21.0 packaged as a Bootable JAR with a containerized operator
-test-e2e-bootable-21: setup-e2e-test
-# Workaround for e2e test fails with additionalPrinterColumns in v1 CRDs https://github.com/operator-framework/operator-sdk/issues/3005,
-# we need a operator v0.18.2 to run the e2e tests using CRD ApiVersion on apiextensions.k8s.io/v1
-	./operator-sdk-e2e-tests test local ./test/e2e/bootable-21.0 --verbose --debug
-
-## test-e2e-prow         Run e2e test for WildFly 18.0 with a containerized operator in Prow (OpenShift CI)
-## prow job definitions are in https://github.com/openshift/release/blob/master/ci-operator/config/wildfly/wildfly-operator/
-## and https://github.com/openshift/release/tree/master/ci-operator/jobs/wildfly/wildfly-operator
+## test-e2e-prow         Run e2e test with a containerized operator in Prow (OpenShift CI)
+# prow job definitions are in https://github.com/openshift/release/blob/master/ci-operator/config/wildfly/wildfly-operator/
+# and https://github.com/openshift/release/tree/master/ci-operator/jobs/wildfly/wildfly-operator
 test-e2e-prow: export component := wildfly-operator
 test-e2e-prow: export WILDFLY_OPERATOR_IMAGE := "${IMAGE_FORMAT}"
 test-e2e-prow: setup-e2e-test
-	./operator-sdk-e2e-tests test local ./test/e2e/18.0 --verbose --debug --image="${WILDFLY_OPERATOR_IMAGE}"
-	./operator-sdk-e2e-tests test local ./test/e2e/bootable-21.0 --verbose --debug --image="${WILDFLY_OPERATOR_IMAGE}"
+	./operator-sdk-e2e-tests test local ./test/e2e --verbose --debug --image="${WILDFLY_OPERATOR_IMAGE}"
 
 ## scorecard             Run operator-sdk scorecard.
 scorecard: setup

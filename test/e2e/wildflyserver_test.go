@@ -24,8 +24,9 @@ func TestWildFly18Server(t *testing.T) {
 		t.Fatalf("failed to add custom resource scheme to framework: %v", err)
 	}
 	// run subtests
-	t.Run("BasicTest", wildFlyBasicTest)
-	t.Run("ClusterTest", wildFlyClusterTest)
+	t.Run("Basic Test", wildFlyBasicTest)
+	t.Run("Basic Test for Bootable Jar", wildFlyBootableBasicTest)
+	t.Run("Cluster Test", wildFlyClusterTest)
 
 	if !wildflyframework.IsOperatorLocal() {
 		// This test is is disabled with a local operator
@@ -42,6 +43,10 @@ func TestWildFly18Server(t *testing.T) {
 
 func wildFlyBasicTest(t *testing.T) {
 	wildflyframework.WildFlyBasicTest(t, "18.0", false)
+}
+
+func wildFlyBootableBasicTest(t *testing.T) {
+	wildflyframework.WildFlyBasicTest(t, "bootable-21.0", true)
 }
 
 func wildFlyClusterTest(t *testing.T) {
