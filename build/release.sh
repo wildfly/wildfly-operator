@@ -23,12 +23,6 @@ main() {
   git commit -a -m "${RELEASE_NAME} release"
   # tag the release
   git tag ${RELEASE_NAME}
-    if [[ "${DRY_RUN}" = true ]] ; then
-    echo "DRY_RUN is set to true. Skipping the operator image creating and push..."
-  else
-    # build and push the operator image
-    make build push TAG=${RELEASE_NAME}
-  fi
   # put back the "latest" tag in the operator image
   sed -i'.backup' "s/${RELEASE_NAME}/latest/g" deploy/operator.yaml
   git commit -a -m "Prepare for next release"
