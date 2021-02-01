@@ -13,8 +13,8 @@ import (
 type WildFlyServerSpec struct {
 	// ApplicationImage is the name of the application image to be deployed
 	ApplicationImage string `json:"applicationImage"`
-	// BootableJar specifies whether the application image is using WildFly S2I Builder/Runtime images or Bootable Jar.
-	// If omitted, it defaults to false (application image is expected to use WildFly S2I Builder/Runtime images)
+	// BootableJar specifies whether the application image is using S2I Builder/Runtime images or Bootable Jar.
+	// If omitted, it defaults to false (application image is expected to use S2I Builder/Runtime images)
 	BootableJar bool `json:"bootableJar,omitempty"`
 	// Replicas is the desired number of replicas for the application
 	// +kubebuilder:validation:Minimum=0

@@ -49,9 +49,9 @@ spec:
               type: string
             bootableJar:
               description: BootableJar specifies whether the application image is
-                using WildFly S2I Builder/Runtime images or Bootable Jar. If omitted,
-                it defaults to false (application image is expected to use WildFly
-                S2I Builder/Runtime images)
+                using S2I Builder/Runtime images or Bootable Jar. If omitted, it defaults
+                to false (application image is expected to use S2I Builder/Runtime
+                images)
               type: boolean
             configMaps:
               description: ConfigMaps is a list of ConfigMaps in the same namespace
