@@ -168,7 +168,7 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerSpec(ref common.ReferenceCall
 					},
 					"bootableJar": {
 						SchemaProps: spec.SchemaProps{
-							Description: "BootableJar specifies whether the application image is using WildFly S2I Builder/Runtime images or Bootable Jar. If omitted, it defaults to false (application image is expected to use WildFly S2I Builder/Runtime images)",
+							Description: "BootableJar specifies whether the application image is using S2I Builder/Runtime images or Bootable Jar. If omitted, it defaults to false (application image is expected to use S2I Builder/Runtime images)",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
