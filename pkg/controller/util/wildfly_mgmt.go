@@ -151,28 +151,47 @@ func GetTransactionRecoveryPort(pod *corev1.Pod) (int32, error) {
 // ExecuteOpAndWaitForServerBeingReady executes WildFly management operation on the pod
 //  this operation is checked to succeed and then waits for the container is ready
 //  this method is assumed to be used for reload/restart operations
-func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, pod *corev1.Pod) (bool, error) {
+//  returns error if execution was not processed succesfully
+func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, pod *corev1.Pod) error {
 	podName := pod.ObjectMeta.Name
 
 	jsonResult, err := ExecuteMgmtOp(pod, mgmtOp)
 	if err != nil {
-		return false, fmt.Errorf("Cannot run operation '%v' at application container for down pod %s, error: %v", mgmtOp, podName, err)
+		return fmt.Errorf("Cannot run operation '%v' at application container for down pod %s, error: %v", mgmtOp, podName, err)
 	}
 	if !IsMgmtOutcomeSuccesful(jsonResult) {
-		return false, fmt.Errorf("Unsuccessful management operation '%v' for pod %s. JSON output: %v",
+		return fmt.Errorf("Unsuccessful management operation '%v' for pod %s. JSON output: %v",
 			mgmtOp, podName, jsonResult)
 	}
 	for serverStateCheckCounter := 1; serverStateCheckCounter <= int(restartRetryCounter); serverStateCheckCounter++ {
 		reqLogger.Info(fmt.Sprintf("Waiting for server to be reinitialized. Iteration %v/%v", serverStateCheckCounter, restartRetryCounter), "Pod Name", podName)
-		jsonResult, err = ExecuteMgmtOp(pod, MgmtOpServerStateRead)
-		if err == nil && IsMgmtOutcomeSuccesful(jsonResult) && jsonResult["result"] == "running" {
-			// when the execution of the state read was succesful and the server is active then continue
+		isRunning, cliErr := IsAppServerRunningViaJBossCli(pod)
+		err = cliErr
+		if isRunning { // app server was answered as running via jboss cli, the restart has finished
+			err = nil
 			break
 		}
 	}
 	if err != nil { // restart operation has not finished yet and server is not properly running
-		return false, fmt.Errorf("Application server was not reinitialized succesfully in time. Operation '%s' "+
+		return fmt.Errorf("Application server was not reinitialized succesfully in time. Operation '%s' "+
 			"at pod %v, JSON management operation result: %v, error: %v", mgmtOp, podName, jsonResult, err)
 	}
-	return true, nil
+	return nil
+}
+
+// IsAppServerRunningViaJBossCli runs JBoss CLI call to app server to find out if is in state 'running'
+//   if 'running' then returns true, otherwise false
+//   when false is returned then error contains a message with app server's state
+func IsAppServerRunningViaJBossCli(pod *corev1.Pod) (bool, error) {
+	jsonResult, err := ExecuteMgmtOp(pod, MgmtOpServerStateRead)
+	if err == nil {
+		if !IsMgmtOutcomeSuccesful(jsonResult) {
+			err = fmt.Errorf("Reading application server state with CLI command '%v' executed at pod '%v' was not succesful, JSON response: %v",
+				MgmtOpServerStateRead, pod.ObjectMeta.Name, jsonResult)
+		}
+		if jsonResult["result"] != "running" {
+			err = fmt.Errorf("Application server at pod '%v' is not running but in state '%v'", pod.ObjectMeta.Name, jsonResult["result"])
+		}
+	}
+	return err == nil, err
 }
