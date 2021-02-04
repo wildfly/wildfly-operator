@@ -12,7 +12,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var log = logf.Log.WithName("wildlfyserver_services")
+var log = logf.Log.WithName("wildflyserver_services")
 
 // CreateOrUpdateAdminService create a admin service or returns one up to date with the WildflyServer
 func CreateOrUpdateAdminService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
@@ -52,7 +52,7 @@ func createOrUpdateService(w *wildflyv1alpha1.WildFlyServer, client client.Clien
 		}
 		return nil, nil
 	}
-	// service is found, update it if it does not match the wildlfyServer generation
+	// service is found, update it if it does not match the wildflyServer generation
 	if !resources.IsCurrentGeneration(w, service) {
 		newService := serviceCreator(w, labels)
 		service.Labels = labels

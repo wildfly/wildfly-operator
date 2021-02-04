@@ -24,7 +24,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var log = logf.Log.WithName("wildlfyserver_statefulsets")
+var log = logf.Log.WithName("wildflyserver_statefulsets")
 
 // GetOrCreateNewStatefulSet either returns the statefulset or create it
 func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string, desiredReplicaSize int32) (*appsv1.StatefulSet, error) {

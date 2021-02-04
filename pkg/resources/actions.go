@@ -19,7 +19,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var log = logf.Log.WithName("wildlfyserver_resources")
+var log = logf.Log.WithName("wildflyserver_resources")
 
 // Create creates a new resource from the objectDefinition and set w as its ControllerReference
 func Create(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, objectDefinition runtime.Object) error {
@@ -66,7 +66,7 @@ func Update(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefini
 	logger.Info("Updating Resource")
 
 	meta := objectDefinition.(metav1.Object)
-	// mark the object with the current wildlyserver generation unless it is the wildlyserver itself
+	// mark the object with the current wildflyserver generation unless it is the wildflyserver itself
 	if objectDefinition != w {
 		MarkServerGeneration(w, meta)
 	}
