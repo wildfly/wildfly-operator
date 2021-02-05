@@ -12,7 +12,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var log = logf.Log.WithName("wildlfyserver_servicemonitors")
+var log = logf.Log.WithName("wildflyserver_servicemonitors")
 
 // GetOrCreateNewServiceMonitor either returns the headless service or create it
 func GetOrCreateNewServiceMonitor(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*monitoringv1.ServiceMonitor, error) {
