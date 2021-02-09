@@ -16,18 +16,18 @@ var log = logf.Log.WithName("wildflyserver_services")
 
 // CreateOrUpdateAdminService create a admin service or returns one up to date with the WildflyServer
 func CreateOrUpdateAdminService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
-	return createOrUpdateService(w, client, scheme, labels,	AdminServiceName(w), newAdminService)
+	return createOrUpdateService(w, client, scheme, labels, AdminServiceName(w), newAdminService)
 }
 
 // CreateOrUpdateHeadlessService create a headless service or returns one up to date with the WildflyServer
 func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme,
 	labels map[string]string) (*corev1.Service, error) {
-	return createOrUpdateService(w, client, scheme, labels,	HeadlessServiceName(w), newHeadlessService)
+	return createOrUpdateService(w, client, scheme, labels, HeadlessServiceName(w), newHeadlessService)
 }
 
 // CreateOrUpdateLoadBalancerService create a loadbalancer service or returns one up to date with the WildflyServer
 func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
-	return createOrUpdateService(w, client, scheme, labels,	LoadBalancerServiceName(w), newLoadBalancerService)
+	return createOrUpdateService(w, client, scheme, labels, LoadBalancerServiceName(w), newLoadBalancerService)
 }
 
 // createOrUpdateAdminService create a service or returns one up to date with the WildflyServer.
@@ -55,6 +55,8 @@ func createOrUpdateService(w *wildflyv1alpha1.WildFlyServer, client client.Clien
 	// service is found, update it if it does not match the wildflyServer generation
 	if !resources.IsCurrentGeneration(w, service) {
 		newService := serviceCreator(w, labels)
+		// copy the ClusterIP that was set after the route is created.
+		newService.Spec.ClusterIP = service.Spec.ClusterIP
 		service.Labels = labels
 		service.Spec = newService.Spec
 
