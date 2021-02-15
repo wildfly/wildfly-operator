@@ -1,8 +1,6 @@
 # Clustered application
 
-This example shows how to install and deploy a clustered application built with S2I WildFly on Kubernetes or OpenShift.
-
-The application brings its own standalone configuration for WildFly that is configured to use JGroups and `KUBE_PING` to form the cluster.
+This example shows how to install and deploy a clustered application built with WildFly S2I on Kubernetes or OpenShift.
 
 # Prerequisites
 
@@ -11,7 +9,14 @@ The application brings its own standalone configuration for WildFly that is conf
 
 # Deploy the application
 
-The application is named https://github.com/clusterbench/clusterbench[clusterbench] and will be deployed with a Docker image built with https://github.com/wildfly/wildfly-s2i[WildFly S2I] and published at https://quay.io/repository/wildfly-quickstarts/clusterbench-ee7[quay.io/wildfly-quickstarts/clusterbench-ee7:18.0] that deploys the EE7 variant of the application on WildFly 18.
+The application is named https://github.com/clusterbench/clusterbench[clusterbench] and will be deployed with a Docker image built with https://github.com/wildfly/wildfly-s2i[WildFly S2I] and published at https://quay.io/repository/wildfly-quickstarts/clusterbench-ee7[quay.io/wildfly-quickstarts/clusterbench:latest] that deploys the EE8 variant of the application.
+
+Since the default clustering mechanism used by WildFly requires interaction with Kubernetes API, we must add the `view` role to the `default` service account (that is used by the WildFly CRD). Before deploying the application with the WildFly Operator, add this role by running the following command:
+
+[source,shell]
+----
+$ kubectl apply -f examples/clustering/crds/role_binding.yaml
+----
 
 The application is defined in the https://github.com/wildfly/wildfly-operator/blob/master/examples/clustering/crds/clusterbenc.yaml[clusterbench.yaml file]:
 
@@ -22,59 +27,21 @@ kind: WildFlyServer
 metadata:
   name: clusterbench
 spec:
-  applicationImage: "quay.io/wildfly-quickstarts/clusterbench-ee7:18.0"
+  applicationImage: "quay.io/wildfly-quickstarts/clusterbench:latest"
   replicas: 2
-  standaloneConfigMap:
-    name: clusterbench-config-map
-    key: standalone-openshift.xml
 ----
 
 
-[NOTE]
-.RBAC
-====
-
-Since clustering requires interaction with Kubernetes API, we must add the `view` role to the `default` service account (that is used by the WildFly CRD).
-
-If you are using OpenShift, you must run the following command:
+Run the following command to deploy the custerbench application:
 
 [source,shell]
 ----
-$ oc policy add-role-to-user view system:serviceaccount:$(oc project -q):default -n $(oc project -q)
+$ kubectl apply -f examples/clustering/crds/clusterbenc.yaml
 ----
 
-If you are using Minikube, you must instead run the following command:
+The application will have 2 instances running behind its load balancer that forms a cluster. By default, WildFly configures the JGroups subsystem to use the KUBE_PING protocol as the clustering discovery mechanism.
 
-
-[source,shell]
-----
-$ kubectl apply -f examples/clustering/crds/role_binding.yaml
-----
-====
-
-The application will have 2 instances running behind its load balancer that forms a cluster.
-It requires its own https://github.com/wildfly/wildfly-operator/blob/master/examples/clustering/config/standalone-openshift.xml[standalone configuration] to configure JGroups with KUBE_PING.
-
-This standalone configuration must be mounted in a ConfigMap named `clusterbench-config-map`:
-
-[source,shell]
-----
-$ kubectl create configmap clusterbench-config-map --from-file examples/clustering/config/standalone-openshift.xml
-
-configmap/clusterbench-config-map created
-----
-
-
-Once the ConfigMap is created, the application can be deployed on OpenShift using the WildFly Operator:
-
-[source,shell]
-----
-$ kubectl apply -f examples/clustering/crds/clusterbench.yaml
-
-wildflyserver.wildfly.org/clusterbench created
-----
-
-You can then check the status of the application:
+You can check the status of the application:
 
 [source,shell]
 ----
@@ -92,7 +59,7 @@ Metadata:
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/myproject/wildflyservers/clusterbench
   UID:                 e8c262f8-6096-11e9-b73e-fa4519ff0e36
 Spec:
-  Application Image:  quay.io/wildfly-quickstarts/clusterbench-ee7:18.0
+  Application Image:  quay.io/wildfly-quickstarts/clusterbench:latest
   Replicas:           2
   Standalone Config Map:
     Key:   standalone-openshift.xml
@@ -141,7 +108,7 @@ http://192.168.64.19:32429
 # Test the application
 
 The application displays a counter that indicates the number of times the application has been invoked and stores it in various mechanisms.
-We will use the variant that stores the counter in a HTTP Session by invoking the `/clusterbenche/session` endpoint:
+We will use the variant that stores the counter in a HTTP Session by invoking the `/clusterbench/session` endpoint:
 
 [source,shell]
 ----
@@ -245,7 +212,7 @@ Metadata:
   Self Link:           /apis/wildfly.org/v1alpha1/namespaces/myproject/wildflyservers/clusterbench
   UID:                 e8c262f8-6096-11e9-b73e-fa4519ff0e36
 Spec:
-  Application Image:  quay.io/wildfly-quickstarts/clusterbench-ee7:18.0
+  Application Image:  quay.io/wildfly-quickstarts/clusterbench:latest
   Replicas:           1
   Standalone Config Map:
     Key:   standalone-openshift.xml
