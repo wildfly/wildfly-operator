@@ -3,6 +3,6 @@ kind: WildFlyServer
 metadata:
   name: clusterbench
 spec:
-  applicationImage: "quay.io/yborgess/clusterbench:latest"
+  applicationImage: "quay.io/wildfly-quickstarts/clusterbench:latest"
 
   replicas: 2

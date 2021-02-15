@@ -3,7 +3,7 @@ kind: WildFlyServer
 metadata:
   name: taskrs-app
 spec:
-  applicationImage: "quay.io/wildfly-quickstarts/taskrs-app:18.0"
+  applicationImage: "quay.io/wildfly-quickstarts/taskrs-app:latest"
   replicas: 2
   env:
   - name: POSTGRESQL_SERVICE_HOST
