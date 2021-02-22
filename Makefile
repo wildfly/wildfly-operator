@@ -31,13 +31,10 @@ codegen: setup
 build: tidy unit-test
 	./build/build.sh ${GOOS}
 
-## image                 Create the Docker image of the operator
-image: build
-	docker build -t "${DOCKER_REPO}$(IMAGE):$(TAG)" . -f build/Dockerfile
-
-## push                  Push Docker image to the Quay.io repository.
-push: image
-	docker push "${DOCKER_REPO}$(IMAGE):$(TAG)"
+## push		 Compile and pushe multiarch docker image to Quay.io
+push: tidy unit-test
+	docker buildx create --use
+	docker buildx build --platform "linux/amd64,linux/ppc64le" -t "${DOCKER_REPO}$(IMAGE):$(TAG)" . -f build/Dockerfile --push
 
 ## clean                 Remove all generated build files.
 clean:
@@ -66,7 +63,8 @@ test-e2e-local: setup
 
 push-to-minikube-image-registry:
 	docker run -d -p 5000:5000 --restart=always --name image-registry registry || true
-	DOCKER_REPO="localhost:5000/" IMAGE="wildfly-operator" make push
+	docker build -t "localhost:5000/$(IMAGE):$(TAG)" . -f build/Dockerfile
+	docker push "localhost:5000/$(IMAGE):$(TAG)"
 
 ## test-e2e-minikube     Run e2e tests with a containerized operator in Minikube
 test-e2e-minikube: setup push-to-minikube-image-registry
