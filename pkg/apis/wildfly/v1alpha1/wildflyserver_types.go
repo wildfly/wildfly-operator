@@ -48,6 +48,13 @@ type WildFlyServerSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	// +listType=set
 	ConfigMaps []string `json:"configMaps,omitempty"`
+	// Volumes is a list of volumes that can be mounted by containers belonging to the pod
+	// +listType=map
+	// +listMapKey=name
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+	// VolumeMounts is a list of pod volumes to mount into the container's filesystem
+	// +listType=atomic
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer

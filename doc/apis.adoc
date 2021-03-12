@@ -52,6 +52,8 @@ it defaults to false (application image is expected to use WildFly S2I Builder/R
 | `configMaps` | List of ConfigMap names to mount as volumes in the containers. Each config map is mounted as a read-only volume under `/etc/configmaps/<config map name>` | string[] | false
 | `disableHTTPRoute`| Disable the creation a route to the HTTP port of the application service (false if omitted) | bool | false
 | `sessionAffinity`| If connections from the same client IP are passed to the same WildFlyServer instance/pod each time (false if omitted) | bool | false
+| `volumes`| Additional volumes to be created in the server Pod | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#volume-v1-core[corev1.Volume] | false
+| `volumeMounts`| Additional volume mounts for the container | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#volumemount-v1-core[corev1.VolumeMount] | false
 |=======================
 
 

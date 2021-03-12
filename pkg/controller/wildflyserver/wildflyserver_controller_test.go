@@ -502,6 +502,93 @@ func TestWildFlyServerWithConfigMap(t *testing.T) {
 	assert.True(foundVolumeMount)
 }
 
+func TestWildFlyServerWithVolume(t *testing.T) {
+	// Set the logger to development mode for verbose logs.
+	logf.SetLogger(zap.Logger())
+	assert := assert.New(t)
+
+	volume := &corev1.Volume{
+		Name: "volume",
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: "volume",
+			},
+		},
+	}
+	volumeMount := &corev1.VolumeMount{
+		MountPath: "/mnt/volume",
+		Name: "volume",
+	}
+	volumes := []corev1.Volume{*volume}
+	volumeMounts := []corev1.VolumeMount{*volumeMount}
+
+	// A WildFlyServer resource with metadata and spec.
+	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			ApplicationImage: applicationImage,
+			Replicas:         replicas,
+			Volumes:          volumes,
+			VolumeMounts:     volumeMounts,
+		},
+	}
+	// Objects to track in the fake client.
+	objs := []runtime.Object{
+		wildflyServer,
+	}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
+	// Create a fake client to mock API calls.
+	cl := fake.NewFakeClient(objs...)
+	// Create a ReconcileWildFlyServer object with the scheme and fake client.
+	r := &ReconcileWildFlyServer{client: cl, scheme: s}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	// statefulset will be created
+	_, err := r.Reconcile(req)
+	require.NoError(t, err)
+
+	// Check if stateful set has been created and has the correct size.
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+	assert.Equal(replicas, *statefulSet.Spec.Replicas)
+	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+
+	foundVolume := false
+	for _, v := range statefulSet.Spec.Template.Spec.Volumes {
+		if v.Name == "volume" {
+			source := v.VolumeSource
+			if source.PersistentVolumeClaim.ClaimName == "volume" {
+				foundVolume = true
+				break
+			}
+		}
+	}
+	assert.True(foundVolume)
+
+	foundVolumeMount := false
+	for _, vm := range statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts {
+		if vm.Name == "volume" {
+			assert.Equal("/mnt/volume", vm.MountPath)
+			foundVolumeMount = true
+		}
+	}
+	assert.True(foundVolumeMount)
+}
+
 type eventRecorderMock struct {
 }
 

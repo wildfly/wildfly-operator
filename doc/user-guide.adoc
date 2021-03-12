@@ -198,6 +198,23 @@ value1
 value2
 ----
 
+[[volumes]]
+## Configure Volumes
+It is possible to mount additional volumes inside the Pod specifying the volumeMounts and the volumes attributes.
+
+[source,yaml]
+.Example of mounting volumes
+----
+spec:
+  volumeMounts:
+  - mountPath: /my_mount_path
+    name: my-volume
+  volumes:
+  - name: my-volume
+    persistentVolumeClaim:
+      claimName: my-claim
+----
+
 [[standalone-config-map]]
 ## Bring Your Own Standalone XML Configuration
 

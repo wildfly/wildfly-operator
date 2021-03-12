@@ -236,6 +236,14 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		})
 	}
 
+	// mount custom volumes
+	for _, s := range w.Spec.Volumes {
+		volumes = append(volumes, s )
+	}
+	for _, s := range w.Spec.VolumeMounts {
+		volumeMounts = append(volumeMounts, s )
+	}
+
 	statefulSet.Spec.Template.Spec.Volumes = volumes
 	statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
