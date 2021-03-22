@@ -3,8 +3,6 @@ kind: WildFlyServer
 metadata:
   name: clusterbench
 spec:
-  applicationImage: "quay.io/wildfly-quickstarts/clusterbench-ee7:18.0"
+  applicationImage: "quay.io/wildfly-quickstarts/clusterbench:latest"
+
   replicas: 2
-  standaloneConfigMap:
-    name: clusterbench-config-map
-    key: standalone-openshift.xml
