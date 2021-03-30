@@ -193,11 +193,15 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 				setPeriodOps, scaleDownPodName, jsonResult, errExecution)
 		}
 
+		reqLogger.Info("Setting system property 'org.wildfly.internal.cli.boot.hook.marker.dir' at '/tmp/markerdir/wf-cli-shutdown-initiated'", "Pod Name", scaleDownPodName)
+		wildflyutil.ExecRemote(scaleDownPod, "mkdir /tmp/markerdir && touch /tmp/markerdir/wf-cli-shutdown-initiated || true")
+		wildflyutil.ExecuteMgmtOp(scaleDownPod, "/system-property=org.wildfly.internal.cli.boot.hook.marker.dir:add(value=/tmp/markerdir)")
+
 		reqLogger.Info("Restarting application server to apply the env properties", "Pod Name", scaleDownPodName)
 		if err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(reqLogger, wildflyutil.MgmtOpRestart, scaleDownPod); err != nil {
-			reqLogger.Error(err, "Cannot restart application server after setting up the periodic recovery properties, "+
-				"pod will be deleted to be relaunched.", "Pod Name", scaleDownPodName)
 			resources.Delete(w, r.client, scaleDownPod)
+			return requeueNow, fmt.Errorf("Cannot restart application server at pod %v after setting up the periodic recovery properties. "+
+				"The pod was deleted to be restarted for new recovery attempt. Error: %v", scaleDownPodName, err)
 		}
 
 		reqLogger.Info("Marking pod as being setup for transaction recovery. Adding annotation "+markerRecoveryPropertiesSetup, "Pod Name", scaleDownPodName)
@@ -240,18 +244,38 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 	scaleDownErrors := sync.Map{}     // errors occurred during processing the scaledown for the pods
 	mustReconcile = requeueOff
 
-	if w.Spec.BootableJar {
-		for scaleDownIndex := 1; scaleDownIndex <= numberOfPodsToScaleDown; scaleDownIndex++ {
-			scaleDownPodName := podList.Items[wildflyServerNumberOfPods-scaleDownIndex].ObjectMeta.Name
-			wildflyServerSpecPodStatus := getWildflyServerPodStatusByName(w, scaleDownPodName)
-			if wildflyServerSpecPodStatus == nil {
-				continue
-			}
-			reqLogger.Info("Transaction recovery is unsupported for Bootable JAR pods. The " + scaleDownPodName + " pod will be removed without checking pending transactions.")
-			wildflyServerSpecPodStatus.State = wildflyv1alpha1.PodStateScalingDownClean
-		}
-		w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
+	if wildflyServerNumberOfPods == 0 || numberOfPodsToScaleDown == 0 {
+		// no active pods to scale down or no pods are requested to scale down
 		return requeueOff, nil
+	}
+	if w.Spec.BootableJar {
+		reqLogger.Info("Transaction scale down recovery is unsupported for Bootable JAR pods. The pods will be removed without checking pending transactions.",
+			"Number of pods to be scaled down", numberOfPodsToScaleDown)
+		return r.skipRecoveryAndForceScaleDown(w, wildflyServerNumberOfPods, numberOfPodsToScaleDown, podList)
+	}
+	subsystemsList, err := wildflyutil.ListSubsystems(&podList.Items[0])
+	if err != nil {
+		reqLogger.Info("Cannot get list of subsystems available in application server", "Pod", podList.Items[0].ObjectMeta.Name)
+		return requeueLater, err
+	}
+	if !wildflyutil.ContainsInList(subsystemsList, "transactions") {
+		reqLogger.Info("Transaction scale down recovery will be skipped as it's not available for application server without transaction subsystem.",
+			"Number of pods to be scaled down", numberOfPodsToScaleDown)
+		return r.skipRecoveryAndForceScaleDown(w, wildflyServerNumberOfPods, numberOfPodsToScaleDown, podList)
+	}
+	if w.Spec.Storage == nil || w.Spec.Storage.EmptyDir != nil {
+		isJDBCObjectStore, err := isJDBCLogStoreInUse(&podList.Items[0])
+		if err != nil {
+			reqLogger.Info("Cannot find if transaction subsystems uses JDBC object store", "Pod", podList.Items[0].ObjectMeta.Name)
+			return requeueLater, err
+		}
+		if !isJDBCObjectStore {
+			reqLogger.Info("Transaction scale down recovery will be skipped as it's unsupported when WildFlyServer Storage uses 'EmptyDir' "+
+				"and transaction subsystem does not use the JDBC object store. The recovery processing is unsafe. "+
+				"Please configure WildFlyServer.Spec.Storage with a Persistent Volume Claim or use database to store transaction log.",
+				"Number of pods to be scaled down", numberOfPodsToScaleDown)
+			return r.skipRecoveryAndForceScaleDown(w, wildflyServerNumberOfPods, numberOfPodsToScaleDown, podList)
+		}
 	}
 
 	// Setting-up the pod status - status is used to decide if the pod could be scaled (aka. removed from the statefulset)
@@ -308,8 +332,6 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 			if podState != wildflyv1alpha1.PodStateScalingDownClean {
 				reqLogger.Info("Transaction recovery scaledown processing", "Pod Name", scaleDownPodName,
 					"IP Address", scaleDownPodIP, "Pod State", podState, "Pod Phase", scaleDownPod.Status.Phase)
-
-				// TODO: check if it's possible to set graceful shutdown here
 
 				// For full and correct recovery we need to first, run two recovery checks and second, having the orphan detection interval set to minimum
 				needsReconcile, setupErr := r.setupRecoveryPropertiesAndRestart(reqLogger, &scaleDownPod, w)
@@ -416,4 +438,34 @@ func (r *ReconcileWildFlyServer) setLabelAsDisabled(w *wildflyv1alpha1.WildFlySe
 		reconciliationNeeded = true
 	}
 	return reconciliationNeeded, resultError
+}
+
+// isJDBCLogStoreInUse executes jboss CLI command to search if transctions are saved in the JDBC object store
+//   i.e. the transaction log is not stored in the file system but out of the StatefulSet controlled $JBOSS_HOME /data directory
+func isJDBCLogStoreInUse(pod *corev1.Pod) (bool, error) {
+	isJDBCTxnStore, err := wildflyutil.ExecuteAndGetResult(pod, wildflyutil.MgmtOpTxnCheckJdbcStore)
+	if err != nil {
+		return false, fmt.Errorf("Failed to verify if the transaction subsystem uses JDBC object store. Error: %v", err)
+	}
+	isJDBCTxnStoreAsString, err := wildflyutil.ConvertToString(isJDBCTxnStore)
+	if err != nil {
+		return false, fmt.Errorf("Failed to verify if the transaction subsystem uses JDBC object store. Error: %v", err)
+	}
+	return strconv.ParseBool(isJDBCTxnStoreAsString)
+}
+
+// skipRecoveryAndForceScaleDown serves to sets the scaling down pods as being processed by recovery and mark them
+//   to be deleted by statefulset update. This is used for cases when recovery process should be skipped.
+func (r *ReconcileWildFlyServer) skipRecoveryAndForceScaleDown(w *wildflyv1alpha1.WildFlyServer, totalNumberOfPods int,
+	numberOfPodsToScaleDown int, podList *corev1.PodList) (mustReconcile int, err error) {
+	for scaleDownIndex := 1; scaleDownIndex <= numberOfPodsToScaleDown; scaleDownIndex++ {
+		scaleDownPodName := podList.Items[totalNumberOfPods-scaleDownIndex].ObjectMeta.Name
+		wildflyServerSpecPodStatus := getWildflyServerPodStatusByName(w, scaleDownPodName)
+		if wildflyServerSpecPodStatus == nil {
+			continue
+		}
+		wildflyServerSpecPodStatus.State = wildflyv1alpha1.PodStateScalingDownClean
+	}
+	w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
+	return requeueOff, nil
 }

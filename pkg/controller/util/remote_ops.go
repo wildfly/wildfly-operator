@@ -49,6 +49,10 @@ func ExecRemote(pod *corev1.Pod, command string) (string, error) {
 		return "", err
 	}
 
+	if len(pod.Spec.Containers) == 0 {
+		return "", fmt.Errorf("No containers to execute the shell command for pod %v", pod)
+	}
+
 	// Prepare the API URL used to execute another process within the Pod.  In
 	// this case, we'll run a remote shell.
 	req := coreclient.RESTClient().
