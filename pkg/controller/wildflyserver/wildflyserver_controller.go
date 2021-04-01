@@ -279,12 +279,18 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		wildflyServer.Status.ScalingdownPods = numberOfPodsToScaleDown
 		updateWildflyServer = true
 	}
-	// Ensure the pod states are up to date by switching it to active when statefulset size follows the wilflyserver spec
+	// Ensure the pod states are up to date by switching it to active when statefulset comes back in size (scales up)
 	if numberOfPodsToScaleDown <= 0 {
 		for k, v := range wildflyServer.Status.Pods {
-			if v.State != wildflyv1alpha1.PodStateActive {
+			if v.State != wildflyv1alpha1.PodStateActive { // was in scale down processing
 				wildflyServer.Status.Pods[k].State = wildflyv1alpha1.PodStateActive
 				updateWildflyServer = true
+				// the non-active pod may be in the middle of the scale down process, we need to completely refresh it
+				for _, podItem := range podList.Items {
+					if podItem.Name == v.Name {
+						resources.Delete(wildflyServer, r.client, &podItem)
+					}
+				}
 			}
 		}
 	}
