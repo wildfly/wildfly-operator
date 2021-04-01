@@ -114,7 +114,7 @@ func Delete(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefini
 	logger.Info("Deleting Resource")
 
 	if err := client.Delete(context.TODO(), objectDefinition); err != nil {
-		logger.Error(err, "Failed to delete  resource")
+		logger.Error(err, "Failed to delete resource")
 		return err
 	}
 

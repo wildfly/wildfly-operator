@@ -2,12 +2,12 @@ package wildflyserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
-	"errors"
 
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
@@ -139,7 +139,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	if ok, err := validate(wildflyServer); !ok {
-		return r.ManageError(wildflyServer, err)
+		return r.manageError(wildflyServer, err)
 	}
 
 	// If statefulset was deleted during processing recovery scaledown the number of replicas in WildflyServer spec
@@ -434,13 +434,13 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 	return requeue, nil
 }
 
-func (r *ReconcileWildFlyServer) ManageError(w *wildflyv1alpha1.WildFlyServer, err error) (reconcile.Result, error) {
+func (r *ReconcileWildFlyServer) manageError(w *wildflyv1alpha1.WildFlyServer, err error) (reconcile.Result, error) {
 	if err == nil {
 		r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError", "Unknown Error")
 		return reconcile.Result{}, err
 	}
 
-	r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError",err.Error())
+	r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError", err.Error())
 	return reconcile.Result{}, err
 }
 
