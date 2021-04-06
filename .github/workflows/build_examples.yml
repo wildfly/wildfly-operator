@@ -1,0 +1,62 @@
+name: Wildfly Operator example images build
+
+on:
+  repository_dispatch:
+    types: [build_operator_examples]
+
+env:
+  LANG: en_US.UTF-8
+  S2I_URI: https://api.github.com/repos/openshift/source-to-image/releases/latest
+  QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+  QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+  EVENT_SOURCE: ${{ github.event.client_payload.source }}
+  EVENT_TYPE: ${{ github.event.action }}
+
+jobs:
+  build:
+    if: github.event.action == 'build_operator_examples'
+    name: Build Wildfly Operator examples
+    runs-on: ubuntu-latest
+    steps:
+    - name: Print info
+      run: echo "${EVENT_TYPE} received from ${EVENT_SOURCE}"
+    - name: Pull latest wildfly-s2i image
+      run: docker pull quay.io/wildfly/wildfly-centos7:latest
+    - name: Login quay.io
+      run: docker login -u="${QUAY_USERNAME}" -p="${QUAY_PASSWORD}" quay.io
+    - name: Install s2i binary
+      run: |
+        echo ===== Installing s2i from ${S2I_URI} =====
+        mkdir /tmp/s2i/ && cd /tmp/s2i/
+        curl -s ${S2I_URI} \
+         | grep browser_download_url \
+         | grep linux-amd64 \
+         | cut -d '"' -f 4 \
+         | wget -qi -
+         tar xvf source-to-image*.gz
+         sudo mv s2i /usr/bin
+         which s2i
+         s2i version
+    - name: Build PostgreSQL example and push to quay.io
+      run: |
+        s2i build https://github.com/wildfly/wildfly-s2i \
+        -e GALLEON_PROVISION_LAYERS=jaxrs-server,postgresql-datasource,observability \
+        -r master \
+        --context-dir test/test-app-postgres \
+        --loglevel=5 \
+        quay.io/wildfly/wildfly-centos7:latest \
+        wildfly-s2i-builder-image
+
+        docker tag wildfly-s2i-builder-image:latest quay.io/${QUAY_USERNAME}/taskrs-app:latest
+        docker push quay.io/${QUAY_USERNAME}/taskrs-app:latest
+    - name: Build Cluster Bench example and push to quay.io
+      run: |
+        s2i build https://github.com/clusterbench/clusterbench.git \
+        -e MAVEN_ARGS_APPEND=-Pee8 \
+        -e S2I_SOURCE_DEPLOYMENTS_DIR=clusterbench-ee8-ear/target \
+        -e GALLEON_PROVISION_LAYERS=cloud-server,web-clustering,ejb,-ejb-local-cache,ejb-dist-cache,jsf \
+        quay.io/wildfly/wildfly-centos7:latest \
+        wildfly-s2i-builder-image
+
+        docker tag wildfly-s2i-builder-image:latest quay.io/${QUAY_USERNAME}/clusterbench:latest
+        docker push quay.io/${QUAY_USERNAME}/clusterbench:latest
