@@ -2,12 +2,12 @@ package wildflyserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
-	"errors"
 
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
 	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
@@ -139,7 +139,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	if ok, err := validate(wildflyServer); !ok {
-		return r.ManageError(wildflyServer, err)
+		return r.manageError(wildflyServer, err)
 	}
 
 	// If statefulset was deleted during processing recovery scaledown the number of replicas in WildflyServer spec
@@ -279,12 +279,18 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		wildflyServer.Status.ScalingdownPods = numberOfPodsToScaleDown
 		updateWildflyServer = true
 	}
-	// Ensure the pod states are up to date by switching it to active when statefulset size follows the wilflyserver spec
+	// Ensure the pod states are up to date by switching it to active when statefulset comes back in size (scales up)
 	if numberOfPodsToScaleDown <= 0 {
 		for k, v := range wildflyServer.Status.Pods {
-			if v.State != wildflyv1alpha1.PodStateActive {
+			if v.State != wildflyv1alpha1.PodStateActive { // was in scale down processing
 				wildflyServer.Status.Pods[k].State = wildflyv1alpha1.PodStateActive
 				updateWildflyServer = true
+				// the non-active pod may be in the middle of the scale down process, we need to completely refresh it
+				for _, podItem := range podList.Items {
+					if podItem.Name == v.Name {
+						resources.Delete(wildflyServer, r.client, &podItem)
+					}
+				}
 			}
 		}
 	}
@@ -434,13 +440,13 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 	return requeue, nil
 }
 
-func (r *ReconcileWildFlyServer) ManageError(w *wildflyv1alpha1.WildFlyServer, err error) (reconcile.Result, error) {
+func (r *ReconcileWildFlyServer) manageError(w *wildflyv1alpha1.WildFlyServer, err error) (reconcile.Result, error) {
 	if err == nil {
 		r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError", "Unknown Error")
 		return reconcile.Result{}, err
 	}
 
-	r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError",err.Error())
+	r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError", err.Error())
 	return reconcile.Result{}, err
 }
 
