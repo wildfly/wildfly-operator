@@ -7,8 +7,8 @@ on:
 env:
   LANG: en_US.UTF-8
   S2I_URI: https://api.github.com/repos/openshift/source-to-image/releases/latest
-  QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
-  QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+  QUAY_USERNAME: ${{ secrets.QUICKSTARTS_ROBOT_NAME }}
+  QUAY_PASSWORD: ${{ secrets.QUICKSTARTS_ROBOT_PASSWORD }}
   EVENT_SOURCE: ${{ github.event.client_payload.source }}
   EVENT_TYPE: ${{ github.event.action }}
 
