@@ -33,7 +33,7 @@ build: tidy unit-test
 
 ## push		             Compile and push multiarch docker image to the container registry
 push: tidy unit-test
-	docker buildx create --use
+# docker buildx create --use
 	docker buildx build --platform "linux/amd64,linux/ppc64le" -t "${DOCKER_REPO}$(IMAGE):$(TAG)" . -f build/Dockerfile --push
 
 ## clean                 Remove all generated build files.
