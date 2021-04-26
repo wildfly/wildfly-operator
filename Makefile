@@ -31,7 +31,7 @@ codegen: setup
 build: tidy unit-test
 	./build/build.sh ${GOOS}
 
-## push		 Compile and pushe multiarch docker image to Quay.io
+## push		             Compile and push multiarch docker image to the container registry
 push: tidy unit-test
 	docker buildx create --use
 	docker buildx build --platform "linux/amd64,linux/ppc64le" -t "${DOCKER_REPO}$(IMAGE):$(TAG)" . -f build/Dockerfile --push
