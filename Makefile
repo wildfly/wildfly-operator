@@ -33,7 +33,8 @@ build: tidy unit-test
 
 ## push		             Compile and push multiarch docker image to the container registry
 push: tidy unit-test
-	docker buildx create --use
+	docker context create wildfly-operator
+	docker buildx create wildfly-operator
 	docker buildx build --platform "linux/amd64,linux/ppc64le" -t "${DOCKER_REPO}$(IMAGE):$(TAG)" . -f build/Dockerfile --push
 
 ## clean                 Remove all generated build files.
@@ -63,8 +64,7 @@ test-e2e-local: setup
 
 push-to-minikube-image-registry:
 	docker run -d -p 5000:5000 --restart=always --name image-registry registry || true
-	docker build -t "localhost:5000/$(IMAGE):$(TAG)" . -f build/Dockerfile
-	docker push "localhost:5000/$(IMAGE):$(TAG)"
+	DOCKER_REPO="localhost:5000/" IMAGE="wildfly-operator" make push
 
 ## test-e2e-minikube     Run e2e tests with a containerized operator in Minikube
 test-e2e-minikube: setup push-to-minikube-image-registry
