@@ -26,6 +26,7 @@ jobs:
       uses: docker/setup-buildx-action@v1
       with:
         install: true
+        driver-opts: network=host
     -
       name: Set up QEMU
       id: qemu
