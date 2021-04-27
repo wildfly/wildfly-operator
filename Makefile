@@ -66,7 +66,7 @@ push-to-minikube-image-registry:
 	DOCKER_REPO="localhost:5000/" IMAGE="wildfly-operator" make push
 
 ## test-e2e-minikube     Run e2e tests with a containerized operator in Minikube
-test-e2e-minikube: setup push-to-minikube-image-registry
+test-e2e-minikube:
 	./operator-sdk test local ./test/e2e --verbose --debug  --operator-namespace default --global-manifest ./deploy/crds/wildfly.org_wildflyservers_crd.yaml --namespaced-manifest ./deploy/operator.yaml --image "localhost:5000/wildfly-operator:latest"
 
 ## scorecard             Run operator-sdk scorecard.
