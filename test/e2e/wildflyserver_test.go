@@ -25,8 +25,8 @@ func TestWildFlyServer(t *testing.T) {
 	}
 	// run subtests
 	t.Run("Basic Test", wildFlyBasicTest)
-	t.Run("Basic Test for Bootable Jar", wildFlyBootableBasicTest)
-	t.Run("Cluster Test", wildFlyClusterTest)
+	//t.Run("Basic Test for Bootable Jar", wildFlyBootableBasicTest)
+	//t.Run("Cluster Test", wildFlyClusterTest)
 
 	if !wildflyframework.IsOperatorLocal() {
 		// This test is is disabled with a local operator
