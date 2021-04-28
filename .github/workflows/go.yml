@@ -33,11 +33,7 @@ jobs:
       uses: docker/setup-qemu-action@v1
       with:
         image: tonistiigi/binfmt:latest
-        platforms: all
-    - name: Available platforms
-      run: echo ${{ steps.qemu.outputs.platforms }}
-    - name: Build
-      run: make build
+        platforms: linux/amd64,linux/ppc64le
     - name: Set up Minikube
       uses: manusa/actions-setup-minikube@v2.3.0
       with:
