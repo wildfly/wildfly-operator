@@ -46,8 +46,8 @@ jobs:
         driver: docker
     - name: Containerized End-to-End Tests
       run: |-
-        eval $(minikube -p minikube docker-env) && docker run -d -p 5000:5000 --restart=always --name image-registry registry || true
-        eval $(minikube -p minikube docker-env) && docker buildx use ${{ steps.buildx.outputs.name }} && DOCKER_REPO="localhost:5000/" IMAGE="wildfly-operator" make push
+        docker run -d -p 5000:5000 --restart=always --name image-registry registry || true
+        docker buildx use ${{ steps.buildx.outputs.name }} && DOCKER_REPO="localhost:5000/" IMAGE="wildfly-operator" make push
         eval $(minikube -p minikube docker-env) && make test-e2e-minikube
     - name: Docker Login to Quay.io (master only)
       uses: docker/login-action@v1.8.0
