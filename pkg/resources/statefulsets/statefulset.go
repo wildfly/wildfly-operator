@@ -1,6 +1,7 @@
 package statefulsets
 
 import (
+	"encoding/json"
 	"os"
 	"path"
 
@@ -48,6 +49,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	labelsForActiveWildflyPod := wildflyutil.CopyMap(labels)
 	labelsForActiveWildflyPod[resources.MarkerOperatedByHeadless] = resources.MarkerServiceActive
 	labelsForActiveWildflyPod[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive
+	applyLabels(resources.StatefuleSetTemplateLabelsEnvVarName, labelsForActiveWildflyPod)
 
 	wildflyImageTypeAnnotation := resources.ImageTypeGeneric
 	if w.Spec.BootableJar {
@@ -193,7 +195,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "standalone-config-volume",
-			MountPath: path.Join(resources.JBossHome(w.Spec.BootableJar),"standalone/configuration/standalone.xml"),
+			MountPath: path.Join(resources.JBossHome(w.Spec.BootableJar), "standalone/configuration/standalone.xml"),
 			SubPath:   "standalone.xml",
 		})
 	}
@@ -340,11 +342,27 @@ func envArgsForBootableJAR(defaultDataDir string) []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
 			Name:  "JAVA_ARGS",
-			Value: "-Djboss.server.data.dir="+path.Join(resources.JBossHomeDataDir(true), defaultDataDir) + " --install-dir=" + resources.JBossHome(true),
+			Value: "-Djboss.server.data.dir=" + path.Join(resources.JBossHomeDataDir(true), defaultDataDir) + " --install-dir=" + resources.JBossHome(true),
 		},
 		{
 			Name:  "JBOSS_HOME",
 			Value: resources.JBossHome(true),
 		},
+	}
+}
+
+func applyLabels(envvar string, labels map[string]string) {
+	labelsFromEnv := os.Getenv(envvar)
+	if labelsFromEnv == "" {
+		return
+	}
+	var labelMap map[string]string
+	if err := json.Unmarshal([]byte(labelsFromEnv), &labelMap); err != nil {
+		return
+	}
+	if len(labelMap) > 0 {
+		for name, value := range labelMap {
+			labels[name] = value
+		}
 	}
 }
