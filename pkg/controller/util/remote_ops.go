@@ -30,10 +30,24 @@ var (
 	// socket dial timeout
 	socketDialTimeout = GetEnvAsDuration("SOCKET_DIAL_TIMEOUT", 30, time.Second)
 	socketDeadTimeout = GetEnvAsDuration("SOCKET_DEAD_TIMEOUT", 10*60, time.Second)
+
+	RemoteOps RemoteOperationsInterface
 )
 
-//ExecRemote executes a command inside the remote pod
-func ExecRemote(pod *corev1.Pod, command string) (string, error) {
+type RemoteOperationsInterface interface {
+	Execute(pod *corev1.Pod, command string) (string, error)
+	SocketConnect(hostname string, port int32, command string) (string, error)
+}
+
+type RemoteOperationsStruct struct{}
+
+// runs once when package is initialized
+func init() {
+	RemoteOps = &RemoteOperationsStruct{}
+}
+
+// Execute executes a command inside the remote pod
+func (RemoteOperationsStruct) Execute(pod *corev1.Pod, command string) (string, error) {
 	var (
 		execOut bytes.Buffer
 		execErr bytes.Buffer
@@ -91,7 +105,7 @@ func ExecRemote(pod *corev1.Pod, command string) (string, error) {
 
 // SocketConnect send a command (a string) to the defined hostname and port
 //  where it connects to with 'net.Dial' tcp connection
-func SocketConnect(hostname string, port int32, command string) (string, error) {
+func (RemoteOperationsStruct) SocketConnect(hostname string, port int32, command string) (string, error) {
 	// connect to socket
 	toConnectTo := fmt.Sprintf("%v:%v", hostname, port)
 	conn, err := net.DialTimeout("tcp", toConnectTo, socketDialTimeout)

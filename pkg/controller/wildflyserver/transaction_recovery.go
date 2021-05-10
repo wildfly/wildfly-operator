@@ -102,7 +102,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 
 	// With enabled recovery listener and the port, let's start the recovery scan
 	reqLogger.Info("Executing recovery scan at "+scaleDownPodName, "Pod IP", scaleDownPodIP, "Recovery port", scaleDownPodRecoveryPort)
-	_, err = wildflyutil.SocketConnect(scaleDownPodIP, scaleDownPodRecoveryPort, txnRecoveryScanCommand)
+	_, err = wildflyutil.RemoteOps.SocketConnect(scaleDownPodIP, scaleDownPodRecoveryPort, txnRecoveryScanCommand)
 	if err != nil {
 		delete(scaleDownPod.Annotations, markerRecoveryPort)
 		if errUpdate := r.client.Update(context.TODO(), scaleDownPod); errUpdate != nil {
@@ -145,7 +145,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	}
 	// Verification of the unfinished data of the WildFly transaction client (verification of the directory content)
 	lsCommand := fmt.Sprintf(`ls ${JBOSS_HOME}/%s/%s/ 2> /dev/null || true`, resources.StandaloneServerDataDirRelativePath, wftcDataDirName)
-	commandResult, err := wildflyutil.ExecRemote(scaleDownPod, lsCommand)
+	commandResult, err := wildflyutil.RemoteOps.Execute(scaleDownPod, lsCommand)
 	if err != nil {
 		return false, "", fmt.Errorf("Cannot query filesystem at scaling down pod %v to check existing remote transactions. "+
 			"Exec command: %v", scaleDownPodName, lsCommand)
@@ -194,7 +194,7 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 		}
 
 		reqLogger.Info("Setting system property 'org.wildfly.internal.cli.boot.hook.marker.dir' at '/tmp/markerdir/wf-cli-shutdown-initiated'", "Pod Name", scaleDownPodName)
-		wildflyutil.ExecRemote(scaleDownPod, "mkdir /tmp/markerdir && touch /tmp/markerdir/wf-cli-shutdown-initiated || true")
+		wildflyutil.RemoteOps.Execute(scaleDownPod, "mkdir /tmp/markerdir && touch /tmp/markerdir/wf-cli-shutdown-initiated || true")
 		wildflyutil.ExecuteMgmtOp(scaleDownPod, "/system-property=org.wildfly.internal.cli.boot.hook.marker.dir:add(value=/tmp/markerdir)")
 
 		reqLogger.Info("Restarting application server to apply the env properties", "Pod Name", scaleDownPodName)
