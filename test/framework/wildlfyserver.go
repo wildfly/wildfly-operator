@@ -6,6 +6,7 @@ import (
 	goctx "context"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"regexp"
 	"strings"
 	"testing"
@@ -44,6 +45,37 @@ func MakeBasicWildFlyServer(ns, name, applicationImage string, size int32, boota
 			ApplicationImage: applicationImage,
 			Replicas:         size,
 			BootableJar: bootableJar,
+		},
+	}
+}
+
+// MakeBasicWildFlyServerWithStorage creates a basic WildFlyServer resource configured with a persistent storage assuming it will be provisioned
+// dynamically by the cluster provider
+func MakeBasicWildFlyServerWithStorage(ns, name, applicationImage string, size int32, bootableJar bool) *wildflyv1alpha1.WildFlyServer {
+	return &wildflyv1alpha1.WildFlyServer{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "WildFlyServer",
+			APIVersion: "wildfly.org/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			ApplicationImage: applicationImage,
+			Replicas:         size,
+			BootableJar:      bootableJar,
+			Storage: &wildflyv1alpha1.StorageSpec{
+				VolumeClaimTemplate: corev1.PersistentVolumeClaim{
+					Spec: corev1.PersistentVolumeClaimSpec{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: resource.MustParse("5Mi"),
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }

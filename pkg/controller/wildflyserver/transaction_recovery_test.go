@@ -90,7 +90,7 @@ func setupBeforeScaleDown(t *testing.T, wildflyServer *wildflyv1alpha1.WildFlySe
 	s := scheme.Scheme
 	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClient(objs...)
+	cl = fake.NewFakeClientWithScheme(s, objs...)
 	// Create a ReconcileWildFlyServer object with the scheme and fake client.
 	r = &ReconcileWildFlyServer{client: cl, scheme: s, recorder: eventRecorderMock{}, isOpenShift: false}
 

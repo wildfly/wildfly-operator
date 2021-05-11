@@ -144,7 +144,7 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 
 	name := "example-wildfly-" + unixEpoch()
 	// create wildflyserver custom resource
-	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:"+applicationTag, 2, false)
+	wildflyServer := MakeBasicWildFlyServerWithStorage(namespace, name, "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:"+applicationTag, 2, false)
 	// waiting for number of pods matches the desired state
 	err = CreateAndWaitUntilReady(f, ctx, t, wildflyServer)
 	if err != nil {
