@@ -35,13 +35,6 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	scaleDownPodIP := scaleDownPod.Status.PodIP
 	scaleDownPodRecoveryPort := defaultRecoveryPort
 
-	// Pod is not started yet. For being safely marked as clean by recovery process it has to be fully operative
-	if scaleDownPod.Status.Phase == corev1.PodPending {
-		return false, "", fmt.Errorf("Pod '%s' / '%v' is in pending phase %v. It will be hopefully started in a while. "+
-			"Transaction recovery needs the pod being fully started to be capable to mark it as clean for the scale down.",
-			scaleDownPodName, w.ObjectMeta.Name, scaleDownPod.Status.Phase)
-	}
-
 	// Reading timestamp for the latest log record
 	scaleDownPodLogTimestampAtStart, err := wildflyutil.ObtainLogLatestTimestamp(scaleDownPod)
 	if err != nil {
@@ -109,7 +102,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 
 	// With enabled recovery listener and the port, let's start the recovery scan
 	reqLogger.Info("Executing recovery scan at "+scaleDownPodName, "Pod IP", scaleDownPodIP, "Recovery port", scaleDownPodRecoveryPort)
-	_, err = wildflyutil.SocketConnect(scaleDownPodIP, scaleDownPodRecoveryPort, txnRecoveryScanCommand)
+	_, err = wildflyutil.RemoteOps.SocketConnect(scaleDownPodIP, scaleDownPodRecoveryPort, txnRecoveryScanCommand)
 	if err != nil {
 		delete(scaleDownPod.Annotations, markerRecoveryPort)
 		if errUpdate := r.client.Update(context.TODO(), scaleDownPod); errUpdate != nil {
@@ -152,7 +145,7 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	}
 	// Verification of the unfinished data of the WildFly transaction client (verification of the directory content)
 	lsCommand := fmt.Sprintf(`ls ${JBOSS_HOME}/%s/%s/ 2> /dev/null || true`, resources.StandaloneServerDataDirRelativePath, wftcDataDirName)
-	commandResult, err := wildflyutil.ExecRemote(scaleDownPod, lsCommand)
+	commandResult, err := wildflyutil.RemoteOps.Execute(scaleDownPod, lsCommand)
 	if err != nil {
 		return false, "", fmt.Errorf("Cannot query filesystem at scaling down pod %v to check existing remote transactions. "+
 			"Exec command: %v", scaleDownPodName, lsCommand)
@@ -166,8 +159,24 @@ func (r *ReconcileWildFlyServer) checkRecovery(reqLogger logr.Logger, scaleDownP
 	return true, "", nil
 }
 
-func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger logr.Logger, scaleDownPod *corev1.Pod, w *wildflyv1alpha1.WildFlyServer) (needReconcile bool, err error) {
+func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger logr.Logger, scaleDownPod *corev1.Pod, w *wildflyv1alpha1.WildFlyServer) (mustReconcile int, err error) {
 	scaleDownPodName := scaleDownPod.ObjectMeta.Name
+	mustReconcile = requeueOff
+
+	// Pod is not started or not fully operable. For safely marking it clean by recovery we need to have working CLI operations.
+	if scaleDownPod.Status.Phase != corev1.PodRunning {
+		reqLogger.Info("Pod is not running. It will be hopefully started in a while. "+
+			"Transaction recovery needs the pod being fully started to be capable to mark it as clean for the scale down.",
+			"Pod Name", scaleDownPodName, "Object Name", w.ObjectMeta.Name, "Pod Phase", scaleDownPod.Status.Phase)
+		return requeueLater, nil
+	}
+	if isRunning, errCli := wildflyutil.IsAppServerRunningViaJBossCli(scaleDownPod); !isRunning {
+		reqLogger.Info("Pod is labeled as running but the JBoss CLI cannot. It will be hopefully accessible in a while for "+
+			"transaction recovery may proceed with scale down.", "Pod Name", scaleDownPodName, "Object Name", w.ObjectMeta.Name,
+			"Error", errCli)
+		return requeueLater, nil
+	}
+
 	// Setup and restart only if it was not done in the prior reconcile cycle
 	if scaleDownPod.Annotations[markerRecoveryPropertiesSetup] == "" {
 		reqLogger.Info("Setting up back-off period and orphan detection properties for scaledown transaction recovery", "Pod Name", scaleDownPodName)
@@ -179,9 +188,20 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 		isOperationRolledBack := wildflyutil.ReadJSONDataByIndex(jsonResult, "rolled-back")
 		isOperationRolledBackAsString, _ := wildflyutil.ConvertToString(isOperationRolledBack)
 		if !wildflyutil.IsMgmtOutcomeSuccesful(jsonResult) && isOperationRolledBackAsString != "true" {
-			return false, fmt.Errorf("Error on setting up the back-off and orphan detection periods. "+
+			return requeueLater, fmt.Errorf("Error on setting up the back-off and orphan detection periods. "+
 				"The jboss-cli.sh operation '%s' at pod %s failed. JSON output: %v, command error: %v",
 				setPeriodOps, scaleDownPodName, jsonResult, errExecution)
+		}
+
+		reqLogger.Info("Setting system property 'org.wildfly.internal.cli.boot.hook.marker.dir' at '/tmp/markerdir/wf-cli-shutdown-initiated'", "Pod Name", scaleDownPodName)
+		wildflyutil.RemoteOps.Execute(scaleDownPod, "mkdir /tmp/markerdir && touch /tmp/markerdir/wf-cli-shutdown-initiated || true")
+		wildflyutil.ExecuteMgmtOp(scaleDownPod, "/system-property=org.wildfly.internal.cli.boot.hook.marker.dir:add(value=/tmp/markerdir)")
+
+		reqLogger.Info("Restarting application server to apply the env properties", "Pod Name", scaleDownPodName)
+		if err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(reqLogger, wildflyutil.MgmtOpRestart, scaleDownPod); err != nil {
+			resources.Delete(w, r.client, scaleDownPod)
+			return requeueNow, fmt.Errorf("Cannot restart application server at pod %v after setting up the periodic recovery properties. "+
+				"The pod was deleted to be restarted for new recovery attempt. Error: %v", scaleDownPodName, err)
 		}
 
 		reqLogger.Info("Marking pod as being setup for transaction recovery. Adding annotation "+markerRecoveryPropertiesSetup, "Pod Name", scaleDownPodName)
@@ -189,19 +209,14 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 			scaleDownPod.GetAnnotations(), map[string]string{markerRecoveryPropertiesSetup: "true"})
 		scaleDownPod.SetAnnotations(annotations)
 		if err := resources.Update(w, r.client, scaleDownPod); err != nil {
-			return false, fmt.Errorf("Failed to update pod annotations, pod name %v, annotations to be set %v, error: %v",
+			return requeueNow, fmt.Errorf("Failed to update pod annotations, pod name %v, annotations to be set %v, error: %v",
 				scaleDownPodName, scaleDownPod.Annotations, err)
 		}
 
-		reqLogger.Info("Restarting application server to apply the env properties", "Pod Name", scaleDownPodName)
-		if _, err := wildflyutil.ExecuteOpAndWaitForServerBeingReady(reqLogger, wildflyutil.MgmtOpRestart, scaleDownPod); err != nil {
-			return false, fmt.Errorf("Cannot restart application server after setting up the periodic recovery properties, error: %v", err)
-		}
-
-		return true, nil
+		return requeueOff, nil
 	}
 	reqLogger.Info("Recovery properties at pod were already defined. Skipping server restart.", "Pod Name", scaleDownPodName)
-	return false, nil
+	return requeueOff, nil
 }
 
 func (r *ReconcileWildFlyServer) updatePodLabel(w *wildflyv1alpha1.WildFlyServer, scaleDownPod *corev1.Pod, labelName, labelValue string) (bool, error) {
@@ -218,27 +233,49 @@ func (r *ReconcileWildFlyServer) updatePodLabel(w *wildflyv1alpha1.WildFlyServer
 }
 
 // processTransactionRecoveryScaleDown runs transaction recovery on provided number of pods
-//   mustReconcileRequeue returns true if the reconcile requeue loop should be called as soon as possible
+//   mustReconcile returns int constant; 'requeueNow' if the reconcile requeue loop should be called as soon as possible,
+//                 'requeueLater' if requeue loop is needed but it could be delayed, 'requeueOff' if requeue loop is not necessary
 //   err reports error which occurs during method processing
 func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger logr.Logger, w *wildflyv1alpha1.WildFlyServer,
-	numberOfPodsToScaleDown int, podList *corev1.PodList) (mustReconcileRequeue bool, err error) {
+	numberOfPodsToScaleDown int, podList *corev1.PodList) (mustReconcile int, err error) {
 
 	wildflyServerNumberOfPods := len(podList.Items)
 	scaleDownPodsStates := sync.Map{} // map referring to: pod name - pod state
 	scaleDownErrors := sync.Map{}     // errors occurred during processing the scaledown for the pods
+	mustReconcile = requeueOff
 
+	if wildflyServerNumberOfPods == 0 || numberOfPodsToScaleDown == 0 {
+		// no active pods to scale down or no pods are requested to scale down
+		return requeueOff, nil
+	}
 	if w.Spec.BootableJar {
-		for scaleDownIndex := 1; scaleDownIndex <= numberOfPodsToScaleDown; scaleDownIndex++ {
-			scaleDownPodName := podList.Items[wildflyServerNumberOfPods-scaleDownIndex].ObjectMeta.Name
-			wildflyServerSpecPodStatus := getWildflyServerPodStatusByName(w, scaleDownPodName)
-			if wildflyServerSpecPodStatus == nil {
-				continue
-			}
-			reqLogger.Info("Transaction recovery is unsupported for Bootable JAR pods. The " + scaleDownPodName + " pod will be removed without checking pending transactions.")
-			wildflyServerSpecPodStatus.State = wildflyv1alpha1.PodStateScalingDownClean
+		reqLogger.Info("Transaction scale down recovery is unsupported for Bootable JAR pods. The pods will be removed without checking pending transactions.",
+			"Number of pods to be scaled down", numberOfPodsToScaleDown)
+		return r.skipRecoveryAndForceScaleDown(w, wildflyServerNumberOfPods, numberOfPodsToScaleDown, podList)
+	}
+	subsystemsList, err := wildflyutil.ListSubsystems(&podList.Items[0])
+	if err != nil {
+		reqLogger.Info("Cannot get list of subsystems available in application server", "Pod", podList.Items[0].ObjectMeta.Name)
+		return requeueLater, err
+	}
+	if !wildflyutil.ContainsInList(subsystemsList, "transactions") {
+		reqLogger.Info("Transaction scale down recovery will be skipped as it's not available for application server without transaction subsystem.",
+			"Number of pods to be scaled down", numberOfPodsToScaleDown)
+		return r.skipRecoveryAndForceScaleDown(w, wildflyServerNumberOfPods, numberOfPodsToScaleDown, podList)
+	}
+	if w.Spec.Storage == nil || w.Spec.Storage.EmptyDir != nil {
+		isJDBCObjectStore, err := isJDBCLogStoreInUse(&podList.Items[0])
+		if err != nil {
+			reqLogger.Info("Cannot find if transaction subsystems uses JDBC object store", "Pod", podList.Items[0].ObjectMeta.Name)
+			return requeueLater, err
 		}
-		w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
-		return false, nil
+		if !isJDBCObjectStore {
+			reqLogger.Info("Transaction scale down recovery will be skipped as it's unsupported when WildFlyServer Storage uses 'EmptyDir' "+
+				"and transaction subsystem does not use the JDBC object store. The recovery processing is unsafe. "+
+				"Please configure WildFlyServer.Spec.Storage with a Persistent Volume Claim or use database to store transaction log.",
+				"Number of pods to be scaled down", numberOfPodsToScaleDown)
+			return r.skipRecoveryAndForceScaleDown(w, wildflyServerNumberOfPods, numberOfPodsToScaleDown, podList)
+		}
 	}
 
 	// Setting-up the pod status - status is used to decide if the pod could be scaled (aka. removed from the statefulset)
@@ -263,7 +300,7 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 		if err != nil {
 			err = fmt.Errorf("There was trouble to update state of WildflyServer: %v, error: %v", w.Status.Pods, err)
 		}
-		return false, err
+		return requeueNow, err
 	}
 
 	updated.UnSet()
@@ -296,23 +333,28 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 				reqLogger.Info("Transaction recovery scaledown processing", "Pod Name", scaleDownPodName,
 					"IP Address", scaleDownPodIP, "Pod State", podState, "Pod Phase", scaleDownPod.Status.Phase)
 
-				// TODO: check if it's possible to set graceful shutdown here
-
 				// For full and correct recovery we need to first, run two recovery checks and second, having the orphan detection interval set to minimum
-				_, err := r.setupRecoveryPropertiesAndRestart(reqLogger, &scaleDownPod, w)
-				if err != nil {
-					scaleDownErrors.Store(scaleDownPodName, err)
+				needsReconcile, setupErr := r.setupRecoveryPropertiesAndRestart(reqLogger, &scaleDownPod, w)
+				if needsReconcile > mustReconcile {
+					mustReconcile = needsReconcile
+				}
+				if setupErr != nil {
+					scaleDownErrors.Store(scaleDownPodName, setupErr)
+					return
+				}
+				//The futher recovery attempts won't succeed until reconcilation loop is repeated
+				if needsReconcile != requeueOff {
 					return
 				}
 				// Running recovery twice for orphan detection will be kicked-in
-				_, _, err = r.checkRecovery(reqLogger, &scaleDownPod, w)
-				if err != nil {
-					scaleDownErrors.Store(scaleDownPodName, err)
+				_, _, recoveryErr := r.checkRecovery(reqLogger, &scaleDownPod, w)
+				if recoveryErr != nil {
+					scaleDownErrors.Store(scaleDownPodName, recoveryErr)
 					return
 				}
-				success, message, err := r.checkRecovery(reqLogger, &scaleDownPod, w)
-				if err != nil {
-					scaleDownErrors.Store(scaleDownPodName, err)
+				success, message, recoveryErr := r.checkRecovery(reqLogger, &scaleDownPod, w)
+				if recoveryErr != nil {
+					scaleDownErrors.Store(scaleDownPodName, recoveryErr)
 					return
 				}
 				if success {
@@ -356,23 +398,23 @@ func (r *ReconcileWildFlyServer) processTransactionRecoveryScaleDown(reqLogger l
 		w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
 		err := resources.UpdateWildFlyServerStatus(w, r.client)
 		if err != nil {
-			return true, fmt.Errorf("Error to update state of WildflyServer after recovery processing for pods %v, "+
+			return requeueNow, fmt.Errorf("Error to update state of WildflyServer after recovery processing for pods %v, "+
 				"error: %v. Recovery processing errors: %v", w.Status.Pods, err, resultError)
 		}
 	}
 
-	return false, resultError
+	return mustReconcile, resultError
 }
 
-// setLabelAsDisabled returns true when kubernetes etcd was updated with label names on some pods, otherwise false
-//  returns error when error processing happened at some of the pods, otherwise if no error occurs then nil is returned
+// setLabelAsDisabled returns true when label was updated or an issue on update requires recociliation
+//  returns error when an error occurs during processing, otherwise if no error occurs nil is returned
 func (r *ReconcileWildFlyServer) setLabelAsDisabled(w *wildflyv1alpha1.WildFlyServer, reqLogger logr.Logger, labelName string, numberOfPodsToScaleDown int,
-	podList *corev1.PodList, podNameToState map[string]string, desiredPodState string) (bool, error) {
+	podList *corev1.PodList) (bool, error) {
 	wildflyServerNumberOfPods := len(podList.Items)
 
 	var resultError error
 	errStrings := ""
-	updated := false
+	reconciliationNeeded := false
 
 	for scaleDownIndex := 1; scaleDownIndex <= numberOfPodsToScaleDown; scaleDownIndex++ {
 		if wildflyServerNumberOfPods-scaleDownIndex >= len(podList.Items) || wildflyServerNumberOfPods-scaleDownIndex < 0 {
@@ -380,23 +422,50 @@ func (r *ReconcileWildFlyServer) setLabelAsDisabled(w *wildflyv1alpha1.WildFlySe
 				wildflyServerNumberOfPods-scaleDownIndex, podList)
 		}
 		scaleDownPod := podList.Items[wildflyServerNumberOfPods-scaleDownIndex]
-		scaleDownPodName := scaleDownPod.ObjectMeta.Name
-		// updating the label on pod only if the pod is in particular one state
-		if podNameToState == nil || podNameToState[scaleDownPodName] == desiredPodState {
-			kubernetesUpdated, err := r.updatePodLabel(w, &scaleDownPod, labelName, markerServiceDisabled)
-			if err != nil {
-				errStrings += " [[" + err.Error() + "]],"
-			}
-			if kubernetesUpdated {
-				reqLogger.Info("Label for pod successfully updated", "Pod Name", scaleDownPod.ObjectMeta.Name,
-					"Label name", labelName, "Label value", markerServiceDisabled)
-				updated = true
-			}
+		updateRequireReconciliation, err := r.updatePodLabel(w, &scaleDownPod, labelName, markerServiceDisabled)
+		if err != nil {
+			errStrings += " [[" + err.Error() + "]],"
+		}
+		if err == nil && updateRequireReconciliation {
+			reqLogger.Info("Label for pod successfully updated", "Pod Name", scaleDownPod.ObjectMeta.Name,
+				"Label name", labelName, "Label value", markerServiceDisabled)
+			reconciliationNeeded = true
 		}
 	}
 
 	if errStrings != "" {
 		resultError = fmt.Errorf("%s", errStrings)
+		reconciliationNeeded = true
 	}
-	return updated, resultError
+	return reconciliationNeeded, resultError
+}
+
+// isJDBCLogStoreInUse executes jboss CLI command to search if transctions are saved in the JDBC object store
+//   i.e. the transaction log is not stored in the file system but out of the StatefulSet controlled $JBOSS_HOME /data directory
+func isJDBCLogStoreInUse(pod *corev1.Pod) (bool, error) {
+	isJDBCTxnStore, err := wildflyutil.ExecuteAndGetResult(pod, wildflyutil.MgmtOpTxnCheckJdbcStore)
+	if err != nil {
+		return false, fmt.Errorf("Failed to verify if the transaction subsystem uses JDBC object store. Error: %v", err)
+	}
+	isJDBCTxnStoreAsString, err := wildflyutil.ConvertToString(isJDBCTxnStore)
+	if err != nil {
+		return false, fmt.Errorf("Failed to verify if the transaction subsystem uses JDBC object store. Error: %v", err)
+	}
+	return strconv.ParseBool(isJDBCTxnStoreAsString)
+}
+
+// skipRecoveryAndForceScaleDown serves to sets the scaling down pods as being processed by recovery and mark them
+//   to be deleted by statefulset update. This is used for cases when recovery process should be skipped.
+func (r *ReconcileWildFlyServer) skipRecoveryAndForceScaleDown(w *wildflyv1alpha1.WildFlyServer, totalNumberOfPods int,
+	numberOfPodsToScaleDown int, podList *corev1.PodList) (mustReconcile int, err error) {
+	for scaleDownIndex := 1; scaleDownIndex <= numberOfPodsToScaleDown; scaleDownIndex++ {
+		scaleDownPodName := podList.Items[totalNumberOfPods-scaleDownIndex].ObjectMeta.Name
+		wildflyServerSpecPodStatus := getWildflyServerPodStatusByName(w, scaleDownPodName)
+		if wildflyServerSpecPodStatus == nil {
+			continue
+		}
+		wildflyServerSpecPodStatus.State = wildflyv1alpha1.PodStateScalingDownClean
+	}
+	w.Status.ScalingdownPods = int32(numberOfPodsToScaleDown)
+	return requeueOff, nil
 }

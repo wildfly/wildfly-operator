@@ -17,11 +17,15 @@ var (
 
 	// MgmtOpServerStateRead is a JBoss CLI command for reading WFLY server
 	MgmtOpServerStateRead = ":read-attribute(name=server-state)"
+	// MgmtOpListSubsystems is a JBoss CLI command to read names of available subsystems
+	MgmtOpListSubsystems = ":read-children-names(child-type=subsystem)"
 	// MgmtOpReload is a JBoss CLI command for reloading WFLY server
 	MgmtOpReload = ":reload()"
 	// MgmtOpRestart is a JBoss CLI command for restarting WFLY server
 	MgmtOpRestart = ":shutdown(restart=true)"
-	// MgmtOpTxnCheckRecoveryListener is a JBoss CLI command for enabling txn recovery listener
+	// MgmtOpTxnCheckJdbcStore is a JBoss CLI command to verify if txn log is saved in a database
+	MgmtOpTxnCheckJdbcStore = "/subsystem=transactions:read-attribute(name=use-jdbc-store)"
+	// MgmtOpTxnCheckRecoveryListener is a JBoss CLI command to verify if recovery listener is active
 	MgmtOpTxnCheckRecoveryListener = "/subsystem=transactions:read-attribute(name=recovery-listener)"
 	// MgmtOpTxnProbe is a JBoss CLI command for probing transaction log store
 	MgmtOpTxnProbe = "/subsystem=transactions/log-store=log-store:probe()"
@@ -53,7 +57,7 @@ func IsMgmtOutcomeSuccesful(jsonBody map[string]interface{}) bool {
 //  returns the JSON as the return value from the operation
 func ExecuteMgmtOp(pod *corev1.Pod, mgmtOpString string) (map[string]interface{}, error) {
 	jbossCliCommand := fmt.Sprintf("${JBOSS_HOME}/bin/jboss-cli.sh --output-json -c --commands='%s'", mgmtOpString)
-	resString, err := ExecRemote(pod, jbossCliCommand)
+	resString, err := RemoteOps.Execute(pod, jbossCliCommand)
 	if err != nil && resString == "" {
 		return nil, fmt.Errorf("Cannot execute JBoss CLI command %s at pod %v. Cause: %v", jbossCliCommand, pod.Name, err)
 	}
@@ -93,7 +97,7 @@ func decodeJSON(reader *io.ReadCloser) (map[string]interface{}, error) {
 }
 
 // ReadJSONDataByIndex iterates over the JSON object to return
-//   data saved at the provided index. It returns string.
+//   data saved at the provided index. It returns json data as interface{}.
 func ReadJSONDataByIndex(json interface{}, indexes ...string) interface{} {
 	jsonInProgress := json
 	for _, index := range indexes {
@@ -151,28 +155,78 @@ func GetTransactionRecoveryPort(pod *corev1.Pod) (int32, error) {
 // ExecuteOpAndWaitForServerBeingReady executes WildFly management operation on the pod
 //  this operation is checked to succeed and then waits for the container is ready
 //  this method is assumed to be used for reload/restart operations
-func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, pod *corev1.Pod) (bool, error) {
+//  returns error if execution was not processed successfully
+func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, pod *corev1.Pod) error {
 	podName := pod.ObjectMeta.Name
 
 	jsonResult, err := ExecuteMgmtOp(pod, mgmtOp)
 	if err != nil {
-		return false, fmt.Errorf("Cannot run operation '%v' at application container for down pod %s, error: %v", mgmtOp, podName, err)
+		return fmt.Errorf("Cannot run operation '%v' at application container for down pod %s, error: %v", mgmtOp, podName, err)
 	}
 	if !IsMgmtOutcomeSuccesful(jsonResult) {
-		return false, fmt.Errorf("Unsuccessful management operation '%v' for pod %s. JSON output: %v",
+		return fmt.Errorf("Unsuccessful management operation '%v' for pod %s. JSON output: %v",
 			mgmtOp, podName, jsonResult)
 	}
 	for serverStateCheckCounter := 1; serverStateCheckCounter <= int(restartRetryCounter); serverStateCheckCounter++ {
 		reqLogger.Info(fmt.Sprintf("Waiting for server to be reinitialized. Iteration %v/%v", serverStateCheckCounter, restartRetryCounter), "Pod Name", podName)
-		jsonResult, err = ExecuteMgmtOp(pod, MgmtOpServerStateRead)
-		if err == nil && IsMgmtOutcomeSuccesful(jsonResult) && jsonResult["result"] == "running" {
-			// when the execution of the state read was succesful and the server is active then continue
+		isRunning, cliErr := IsAppServerRunningViaJBossCli(pod)
+		err = cliErr
+		if isRunning { // app server was answered as running via jboss cli, the restart has finished
+			err = nil
 			break
 		}
 	}
 	if err != nil { // restart operation has not finished yet and server is not properly running
-		return false, fmt.Errorf("Application server was not reinitialized succesfully in time. Operation '%s' "+
+		return fmt.Errorf("Application server was not reinitialized successfully in time. Operation '%s' "+
 			"at pod %v, JSON management operation result: %v, error: %v", mgmtOp, podName, jsonResult, err)
 	}
-	return true, nil
+	return nil
+}
+
+// IsAppServerRunningViaJBossCli runs JBoss CLI call to app server to find out if is in state 'running'
+//   if 'running' then returns true, otherwise false
+//   when false is returned then error contains a message with app server's state
+func IsAppServerRunningViaJBossCli(pod *corev1.Pod) (bool, error) {
+	jsonResult, err := ExecuteMgmtOp(pod, MgmtOpServerStateRead)
+	if err == nil {
+		if !IsMgmtOutcomeSuccesful(jsonResult) {
+			err = fmt.Errorf("Reading application server state with CLI command '%v' executed at pod '%v' was not succesful, JSON response: %v",
+				MgmtOpServerStateRead, pod.ObjectMeta.Name, jsonResult)
+		}
+		if jsonResult["result"] != "running" {
+			err = fmt.Errorf("Application server at pod '%v' is not running but in state '%v'", pod.ObjectMeta.Name, jsonResult["result"])
+		}
+	}
+	return err == nil, err
+}
+
+// ListSubsystems list the available subsystems in the application server at the po
+func ListSubsystems(pod *corev1.Pod) ([]string, error) {
+	subsystemListResult, err := ExecuteAndGetResult(pod, MgmtOpListSubsystems)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to verify if the transaction subsystem is available. Error: %v", err)
+	}
+	return ConvertToArrayString(subsystemListResult)
+}
+
+// ExecuteAndGetResult executes the JBoss CLI operation provided as the string in parameter 'managementOperation'
+//   It will be executed by call of 'jboss-cli.sh' at the particular pod.
+//   When succesful it returns the result part of the returned json, otherwise it returns nil with error describing failure details.
+func ExecuteAndGetResult(pod *corev1.Pod, managementOperation string) (interface{}, error) {
+	podName := pod.ObjectMeta.Name
+	jsonResult, err := ExecuteMgmtOp(pod, managementOperation)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot execute management operation '%v' at pod %v, error: %v", managementOperation, podName, err)
+	}
+	if !IsMgmtOutcomeSuccesful(jsonResult) {
+		return nil, fmt.Errorf("Management operation '%v' at pod '%s' was executed but the outcome was not succesful: %v",
+			managementOperation, podName, jsonResult)
+	}
+	cliResult := ReadJSONDataByIndex(jsonResult, "result")
+	if cliResult == nil {
+		return nil, fmt.Errorf("Failed to get 'result' of the management operation '%v' at pod '%s'. The full JSON output was: %v",
+			managementOperation, podName, jsonResult)
+	} else {
+		return cliResult, nil
+	}
 }

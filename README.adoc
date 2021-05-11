@@ -105,7 +105,8 @@ Metadata:
   UID:                 5feb0fd3-5aa4-11e9-af00-7a65e1e4ff53
 Spec:
   Application Image:  quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0
-  Size:               2
+  Bootable Jar:       false
+  Replicas:           2
   Storage:
     Volume Claim Template:
       Spec:
@@ -123,12 +124,12 @@ Events:      <none>
 
 The `Status` section is updated with the 2 pods names containing the application image.
 
-You can modify this custom resource spec to scale up its size from `2` to `3`:
+You can modify this custom resource spec to scale up its replicas from `2` to `3`:
 
 [source,shell]
 ----
 $ kubectl edit wildflyserver quickstart
-# Change the `size: 2` spec to `size: 3` and save
+# Change the `replicas: 2` spec to `replicas: 3` and save
 
 wildflyserver.wildfly.org/quickstart edited
 ----
@@ -156,7 +157,8 @@ Metadata:
   UID:                 5feb0fd3-5aa4-11e9-af00-7a65e1e4ff53
 Spec:
   Application Image:  quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0
-  Size:               3
+  Bootable Jar:       false
+  Replicas:           3
   Storage:
     Volume Claim Template:
       Spec:

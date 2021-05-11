@@ -137,11 +137,16 @@ func ConvertToInt(intf interface{}) (int32, error) {
 	case float32:
 		return int32(v), nil
 	case string:
-		i, err := strconv.ParseInt(v, 10, 32)
-		if err != nil {
-			return 0, err
+		return stringToInt32(v)
+	case []string:
+		switch arrlen := len(v); arrlen {
+		case 0:
+			return 0, nil
+		case 1:
+			return stringToInt32(v[0])
+		default:
+			return 0, fmt.Errorf("The passed type is []string of legth bigger than 1 which cannot be converted to int32, value: %v", intf)
 		}
-		return int32(i), nil
 	case nil:
 		return 0, fmt.Errorf("The passed value is nil and cannot be converted to int32")
 	default:
@@ -149,27 +154,69 @@ func ConvertToInt(intf interface{}) (int32, error) {
 	}
 }
 
+func stringToInt32(str string) (int32, error) {
+	intValue, err := strconv.ParseInt(str, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	return int32(intValue), nil
+}
+
 // ConvertToString takes interface type and tries to convert it to string
 func ConvertToString(intf interface{}) (string, error) {
-	switch vv := intf.(type) {
+	switch v := intf.(type) {
 	case string:
-		return vv, nil
+		return v, nil
 	case int:
-		return strconv.Itoa(vv), nil
+		return strconv.Itoa(v), nil
 	case int32:
-		return strconv.Itoa(int(vv)), nil
+		return strconv.Itoa(int(v)), nil
 	case int64:
-		return strconv.Itoa(int(vv)), nil
+		return strconv.Itoa(int(v)), nil
 	case float64:
-		return fmt.Sprintf("%f", vv), nil
+		return fmt.Sprintf("%f", v), nil
 	case float32:
-		return fmt.Sprintf("%f", vv), nil
+		return fmt.Sprintf("%f", v), nil
 	case bool:
-		return strconv.FormatBool(vv), nil
+		return strconv.FormatBool(v), nil
+	case []string:
+		return strings.Join(v, ","), nil
 	case nil:
-		return "", fmt.Errorf("The passed value is nil and cannot be converted to int32")
+		return "", fmt.Errorf("The passed value is nil and cannot be converted to string")
 	default:
 		return "", fmt.Errorf("Un-expected type of passed value %v, actual type is %T", intf, intf)
+	}
+}
+
+// ConvertToArrayString takes interface type and tries to convert it to array of strings
+func ConvertToArrayString(intf interface{}) ([]string, error) {
+	switch v := intf.(type) {
+	case string:
+		return []string{v}, nil
+	case int:
+		return []string{strconv.Itoa(v)}, nil
+	case int32:
+		return []string{strconv.Itoa(int(v))}, nil
+	case int64:
+		return []string{strconv.Itoa(int(v))}, nil
+	case float64:
+		return []string{fmt.Sprintf("%f", v)}, nil
+	case float32:
+		return []string{fmt.Sprintf("%f", v)}, nil
+	case bool:
+		return []string{strconv.FormatBool(v)}, nil
+	case []string:
+		return v, nil
+	case []interface{}:
+		newArray := make([]string, len(v))
+		for index, value := range v {
+			newArray[index] = fmt.Sprint(value)
+		}
+		return newArray, nil
+	case nil:
+		return []string{}, fmt.Errorf("The passed value is nil and cannot be converted to []string")
+	default:
+		return []string{}, fmt.Errorf("Un-expected type of passed value %v, actual type is %T", intf, intf)
 	}
 }
 

@@ -76,6 +76,14 @@ The application may require persistent storage for some data (e.g. transaction o
 
 If the `storage` spec is empty, an `EmptyDir` volume will be used by each pod of the application (but this volume will not persist after its corresponding pod is stopped).
 
+[WARNING]
+====
+Using the `EmptyDir` is especially unsafe for XA transaction processing.
+When the application uses the XA transactions then is required to configure the persistent volume claim (example below)
+or configure the transaction subsystem to store transaction log in database with
+link:https://docs.wildfly.org/23/wildscribe/subsystem/transactions/index.html#attr-use-jdbc-store[use of JDBC store].
+====
+
 A `volumeClaimTemplate` cna be specifed to configure `Resources` requirements to store WildFly standalone data directory.
 The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode.
 
