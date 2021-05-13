@@ -12,7 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/stretchr/testify/assert"
+	testifyAssert "github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,7 +34,7 @@ var (
 func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 	// Set the loggclearer to development mode for verbose logs.
 	logf.SetLogger(zap.Logger())
-	assert := assert.New(t)
+	assert := testifyAssert.New(t)
 
 	// A WildFlyServer resource with metadata and spec.
 	wildflyServer := &wildflyv1alpha1.WildFlyServer{
@@ -102,7 +102,7 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 func TestEnvUpdate(t *testing.T) {
 	// Set the logger to development mode for verbose logs.
 	logf.SetLogger(zap.Logger())
-	assert := assert.New(t)
+	assert := testifyAssert.New(t)
 
 	initialEnv := &corev1.EnvVar{
 		Name:  "TEST_START",
@@ -238,7 +238,7 @@ func TestEnvUpdate(t *testing.T) {
 func TestWildFlyServerWithSecret(t *testing.T) {
 	// Set the logger to development mode for verbose logs.
 	logf.SetLogger(zap.Logger())
-	assert := assert.New(t)
+	assert := testifyAssert.New(t)
 
 	secretName := "mysecret"
 	secretKey := "my-key"
@@ -325,7 +325,7 @@ func TestWildFlyServerWithSecret(t *testing.T) {
 func TestWildFlyServerWithConfigMap(t *testing.T) {
 	// Set the logger to development mode for verbose logs.
 	logf.SetLogger(zap.Logger())
-	assert := assert.New(t)
+	assert := testifyAssert.New(t)
 
 	configMapName := "my-config"
 

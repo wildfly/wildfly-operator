@@ -37,6 +37,8 @@ var (
 type RemoteOperationsInterface interface {
 	Execute(pod *corev1.Pod, command string) (string, error)
 	SocketConnect(hostname string, port int32, command string) (string, error)
+	VerifyLogContainsRegexp(pod *corev1.Pod, logFromTime *time.Time, regexpLineCheck *regexp.Regexp) (string, error)
+	ObtainLogLatestTimestamp(pod *corev1.Pod) (*time.Time, error)
 }
 
 type RemoteOperationsStruct struct{}
@@ -125,44 +127,10 @@ func (RemoteOperationsStruct) SocketConnect(hostname string, port int32, command
 	return message, nil
 }
 
-// DeletePod tries to delete pod from the kubernetes cluster
-func DeletePod(pod *corev1.Pod) error {
-	// Create a Kubernetes core/v1 client.
-	restconfig, err := getKubeRestConfig()
-	if err != nil {
-		return err
-	}
-	coreclient, err := getKubeCoreClient(restconfig)
-	if err != nil {
-		return err
-	}
-
-	gracePeriodSeconds := int64(1)
-	deleteOptions := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriodSeconds}
-	err = coreclient.Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
-	return err
-}
-
-// readPodLog reads log from the specified pod. Using Kubernetes REST Client to query the API
-func readPodLog(pod *corev1.Pod, logOptions *corev1.PodLogOptions) (io.ReadCloser, error) {
-	// Create a Kubernetes core/v1 client.
-	restconfig, err := getKubeRestConfig()
-	if err != nil {
-		return nil, err
-	}
-	coreclient, err := getKubeCoreClient(restconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	req := coreclient.Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
-	return req.Stream() // execution of the request
-}
-
 // ObtainLogLatestTimestamp reads log from pod and find out
 //   what is the most latest log record at the time
 //   and returns time stamp of the record
-func ObtainLogLatestTimestamp(pod *corev1.Pod) (*time.Time, error) {
+func (RemoteOperationsStruct) ObtainLogLatestTimestamp(pod *corev1.Pod) (*time.Time, error) {
 	lineReader, err := readPodLog(pod, &tailOneLineLogOptions)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot read log from pod %v, error: %v", pod.Name, err)
@@ -192,7 +160,7 @@ func ObtainLogLatestTimestamp(pod *corev1.Pod) (*time.Time, error) {
 
 // VerifyLogContainsRegexp checks if a line in the log from the pod matches the provided regexp
 //   the log could be limited to be taken from particular time further, when no time defined the log is not limited by time
-func VerifyLogContainsRegexp(pod *corev1.Pod, logFromTime *time.Time, regexpLineCheck *regexp.Regexp) (string, error) {
+func (RemoteOperationsStruct) VerifyLogContainsRegexp(pod *corev1.Pod, logFromTime *time.Time, regexpLineCheck *regexp.Regexp) (string, error) {
 	timeLimitingPodLogOptions := v1.PodLogOptions{}
 	if logFromTime != nil {
 		metav1LogFromTime := metav1.NewTime(*logFromTime)
@@ -215,6 +183,22 @@ func VerifyLogContainsRegexp(pod *corev1.Pod, logFromTime *time.Time, regexpLine
 		return "", fmt.Errorf("Failed to finish reading log from pod name %v starting at time %v, error: %v", pod.Name, logFromTime, err)
 	}
 	return "", nil
+}
+
+// readPodLog reads log from the specified pod. Using Kubernetes REST Client to query the API
+func readPodLog(pod *corev1.Pod, logOptions *corev1.PodLogOptions) (io.ReadCloser, error) {
+	// Create a Kubernetes core/v1 client.
+	restconfig, err := getKubeRestConfig()
+	if err != nil {
+		return nil, err
+	}
+	coreclient, err := getKubeCoreClient(restconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	req := coreclient.Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
+	return req.Stream() // execution of the request
 }
 
 func getKubeRestConfig() (*restclient.Config, error) {
