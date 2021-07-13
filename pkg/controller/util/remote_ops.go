@@ -3,6 +3,7 @@ package util
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -198,7 +199,7 @@ func readPodLog(pod *corev1.Pod, logOptions *corev1.PodLogOptions) (io.ReadClose
 	}
 
 	req := coreclient.Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
-	return req.Stream() // execution of the request
+	return req.Stream(context.TODO()) // execution of the request
 }
 
 func getKubeRestConfig() (*restclient.Config, error) {

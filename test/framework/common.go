@@ -151,8 +151,7 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 		t.Fatalf("Failed while waiting for all resources being initialized based on the WildflyServer definition: %v", err)
 	}
 	// verification that the size of the instances matches what is expected by the test
-	context := goctx.TODO()
-	err = f.Client.Get(context, types.NamespacedName{Name: name, Namespace: namespace}, wildflyServer)
+	err = f.Client.Get(goctx.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, wildflyServer)
 	if err != nil {
 		t.Fatalf("Failed to obtain the WildflyServer resource: %v", err)
 	}
@@ -166,12 +165,12 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 	t.Logf("Application %s is deployed with %d instances\n", name, wildflyServer.Spec.Replicas)
 
 	// scaling down by one
-	err = f.Client.Get(context, types.NamespacedName{Name: name, Namespace: namespace}, wildflyServer)
+	err = f.Client.Get(goctx.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, wildflyServer)
 	if err != nil {
 		t.Fatalf("Failed to obtain the WildflyServer resource for scaling it down: %v", err)
 	}
 	wildflyServer.Spec.Replicas = 1
-	err = f.Client.Update(context, wildflyServer)
+	err = f.Client.Update(goctx.TODO(), wildflyServer)
 	if err != nil {
 		t.Fatalf("Failed to update size of %s resource by decreasing the spec size: %v", name, err)
 	}
@@ -183,7 +182,7 @@ func WildflyScaleDownTest(t *testing.T, applicationTag string) {
 	}
 
 	// verification that deletion works correctly as finalizers should be run at this call
-	if DeleteWildflyServer(context, wildflyServer, f, t); err != nil {
+	if DeleteWildflyServer(wildflyServer, f, t); err != nil {
 		t.Fatalf("Failed to wait until the WildflyServer resource is deleted: %v", err)
 	}
 }
