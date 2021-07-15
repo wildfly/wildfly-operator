@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -15,7 +16,7 @@ import (
 
 var (
 	log                   = logf.Log.WithName("utils")
-	ClusterVersionApiPath = "apis/config.openshift.io/v1/clusterversions/version"
+	clusterVersionAPIPath = "apis/config.openshift.io/v1/clusterversions/version"
 )
 
 type PlatformVersioner interface {
@@ -50,6 +51,8 @@ func MapKnownVersion(info PlatformInfo) OpenShiftVersion {
 		"1.16":  "4.3",
 		"1.17+": "4.4",
 		"1.17":  "4.4",
+		"1.18+": "4.5",
+		"1.18":  "4.5",
 	}
 	return OpenShiftVersion{Version: k8sToOcpMap[info.K8SVersion]}
 }
@@ -134,9 +137,9 @@ func (pv K8SBasedPlatformVersioner) LookupOpenShiftVersion(client Discoverer, cf
 
 	// OCP4 returns K8S major/minor from old API endpoint [bugzilla-1658957]
 	case "v1.1":
-		rest := client.RESTClient().Get().AbsPath(ClusterVersionApiPath)
+		rest := client.RESTClient().Get().AbsPath(clusterVersionAPIPath)
 
-		result := rest.Do()
+		result := rest.Do(context.TODO())
 		if result.Error() != nil {
 			log.Info("issue making API version rest call: " + result.Error().Error())
 			return osv, result.Error()

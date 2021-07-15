@@ -3,7 +3,6 @@ package framework
 import (
 	"bytes"
 	"context"
-	goctx "context"
 	"fmt"
 	"io"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -44,7 +43,7 @@ func MakeBasicWildFlyServer(ns, name, applicationImage string, size int32, boota
 		Spec: wildflyv1alpha1.WildFlyServerSpec{
 			ApplicationImage: applicationImage,
 			Replicas:         size,
-			BootableJar: bootableJar,
+			BootableJar:      bootableJar,
 		},
 	}
 }
@@ -92,13 +91,13 @@ func CreateStandaloneConfigMap(f *framework.Framework, ctx *framework.Context, n
 			key: file,
 		},
 	}
-	return f.Client.Create(goctx.TODO(), configMap, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
+	return f.Client.Create(context.TODO(), configMap, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
 }
 
 // CreateAndWaitUntilReady creates a WildFlyServer resource and wait until it is ready
 func CreateAndWaitUntilReady(f *framework.Framework, ctx *framework.Context, t *testing.T, server *wildflyv1alpha1.WildFlyServer) error {
 	// use Context's create helper to create the object and add a cleanup function for the new object
-	err := f.Client.Create(goctx.TODO(), server, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
+	err := f.Client.Create(context.TODO(), server, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
 	if err != nil {
 		return err
 	}
@@ -109,10 +108,10 @@ func CreateAndWaitUntilReady(f *framework.Framework, ctx *framework.Context, t *
 			// Removing deployment for not putting finalizers back to the WildflyServer
 			name := server.ObjectMeta.Name
 			namespace := server.ObjectMeta.Namespace
-			deployment, err := f.KubeClient.AppsV1().Deployments(namespace).Get("wildfly-operator", metav1.GetOptions{})
+			deployment, err := f.KubeClient.AppsV1().Deployments(namespace).Get(context.TODO(), "wildfly-operator", metav1.GetOptions{})
 			if err == nil && deployment != nil {
 				t.Logf("Cleaning deployment '%v'\n", deployment.Name)
-				f.Client.Delete(goctx.TODO(), deployment)
+				f.Client.Delete(context.TODO(), deployment)
 			}
 			// Cleaning finalizer
 			wait.Poll(retryInterval, timeout, func() (done bool, err error) {
@@ -135,10 +134,10 @@ func CreateAndWaitUntilReady(f *framework.Framework, ctx *framework.Context, t *
 				return true, nil
 			})
 
-			namespaceResource, err := f.KubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+			namespaceResource, err := f.KubeClient.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 			if err == nil && namespaceResource != nil {
 				t.Logf("Cleaning namespace '%v'\n", namespace)
-				f.Client.Delete(goctx.TODO(), namespaceResource)
+				f.Client.Delete(context.TODO(), namespaceResource)
 			}
 
 			return err
@@ -158,7 +157,7 @@ func WaitUntilReady(f *framework.Framework, t *testing.T, server *wildflyv1alpha
 
 	err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
 
-		statefulSet, err := f.KubeClient.AppsV1().StatefulSets(ns).Get(name, metav1.GetOptions{})
+		statefulSet, err := f.KubeClient.AppsV1().StatefulSets(ns).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				t.Logf("Statefulset %s not found", name)
@@ -247,7 +246,7 @@ func WaitUntilClusterIsFormed(f *framework.Framework, t *testing.T, server *wild
 // GetLogs returns the logs from the given pod (in the server's namespace).
 func GetLogs(f *framework.Framework, server *wildflyv1alpha1.WildFlyServer, podName string) (string, error) {
 	logsReq := f.KubeClient.CoreV1().Pods(server.ObjectMeta.Namespace).GetLogs(podName, &corev1.PodLogOptions{})
-	podLogs, err := logsReq.Stream()
+	podLogs, err := logsReq.Stream(context.TODO())
 	if err != nil {
 		return "", err
 	}
@@ -278,8 +277,8 @@ func GetWildflyServer(name string, namespace string, f *framework.Framework) (*w
 }
 
 // DeleteWildflyServer deletes the instance of WildflyServer and waits for the underlaying StatefulSet is removed altogether
-func DeleteWildflyServer(context goctx.Context, wildflyServer *wildflyv1alpha1.WildFlyServer, f *framework.Framework, t *testing.T) error {
-	err := f.Client.Delete(context, wildflyServer)
+func DeleteWildflyServer(wildflyServer *wildflyv1alpha1.WildFlyServer, f *framework.Framework, t *testing.T) error {
+	err := f.Client.Delete(context.TODO(), wildflyServer)
 	if err != nil {
 		t.Fatalf("Failed to delete of WildflyServer resource: %v", err)
 	}
@@ -287,7 +286,7 @@ func DeleteWildflyServer(context goctx.Context, wildflyServer *wildflyv1alpha1.W
 	namespace := wildflyServer.ObjectMeta.Namespace
 	t.Logf("WildflyServer resource of application %s was deleted\n", name)
 	err = wait.Poll(retryInterval, timeout, func() (bool, error) {
-		_, err := f.KubeClient.AppsV1().StatefulSets(namespace).Get(name, metav1.GetOptions{})
+		_, err := f.KubeClient.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				t.Logf("Statefulset %s was not found. It was probably successfully deleted already.", name)

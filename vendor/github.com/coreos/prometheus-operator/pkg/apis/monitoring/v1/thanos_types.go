@@ -58,7 +58,7 @@ type ThanosRulerList struct {
 // +k8s:openapi-gen=true
 type ThanosRulerSpec struct {
 	// PodMetadata contains Labels and Annotations gets propagated to the thanos ruler pods.
-	PodMetadata *PodMeta `json:"podMetadata,omitempty"`
+	PodMetadata *EmbeddedObjectMetadata `json:"podMetadata,omitempty"`
 	// Thanos container image URL.
 	Image string `json:"image,omitempty"`
 	// An optional list of references to secrets in the same namespace
@@ -123,6 +123,10 @@ type ThanosRulerSpec struct {
 	// and metric that is user created. The label value will always be the namespace of the object that is
 	// being created.
 	EnforcedNamespaceLabel string `json:"enforcedNamespaceLabel,omitempty"`
+	// PrometheusRulesExcludedFromEnforce - list of Prometheus rules to be excluded from enforcing
+	// of adding namespace labels. Works only if enforcedNamespaceLabel set to true.
+	// Make sure both ruleNamespace and ruleName are set for each pair
+	PrometheusRulesExcludedFromEnforce []PrometheusRuleExcludeConfig `json:"prometheusRulesExcludedFromEnforce,omitempty"`
 	// Log level for ThanosRuler to be configured with.
 	LogLevel string `json:"logLevel,omitempty"`
 	// Log format for ThanosRuler to be configured with.
@@ -170,6 +174,10 @@ type ThanosRulerSpec struct {
 	// Note: Currently only the CAFile, CertFile, and KeyFile fields are supported.
 	// Maps to the '--grpc-server-tls-*' CLI args.
 	GRPCServerTLSConfig *TLSConfig `json:"grpcServerTlsConfig,omitempty"`
+	// The external Query URL the Thanos Ruler will set in the 'Source' field
+	// of all alerts.
+	// Maps to the '--alert.query-url' CLI arg.
+	AlertQueryURL string `json:"alertQueryUrl,omitempty"`
 }
 
 // ThanosRulerStatus is the most recent observed status of the ThanosRuler. Read-only. Not
