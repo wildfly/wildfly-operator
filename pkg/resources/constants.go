@@ -25,6 +25,8 @@ const (
 	SecretsDir = "/etc/secrets/"
 	// ConfigMapsDir is the the directory to mount volumes from ConfigMaps
 	ConfigMapsDir = "/etc/configmaps/"
+	// StatefuleSetTemplateLabelsEnvVarName is the name of the envvar containg label/value map for pods created from the statefulset's template
+	StatefuleSetTemplateLabelsEnvVarName string = "STATEFULSET_TEMPLATE_LABELS"
 )
 
 var (
@@ -35,7 +37,7 @@ var (
 // JBossHome is read from the env var JBOSS_HOME or, in case of a Bootable JAR, from JBOSS_BOOTABLE_HOME
 func JBossHome(bootable bool) string {
 	if bootable {
-		return  os.Getenv("JBOSS_BOOTABLE_HOME")
+		return os.Getenv("JBOSS_BOOTABLE_HOME")
 	}
 	return os.Getenv("JBOSS_HOME")
 }
@@ -43,7 +45,7 @@ func JBossHome(bootable bool) string {
 // JBossHome is read from the env var JBOSS_HOME or, in case of a Bootable JAR, from JBOSS_BOOTABLE_DATA_DIR
 func JBossHomeDataDir(bootable bool) string {
 	if bootable {
-		return  os.Getenv("JBOSS_BOOTABLE_DATA_DIR")
+		return os.Getenv("JBOSS_BOOTABLE_DATA_DIR")
 	}
 	return os.Getenv("JBOSS_HOME")
 }
