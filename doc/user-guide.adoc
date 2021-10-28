@@ -344,11 +344,13 @@ The `WildFlyServer.Status.Pods[].State` can be one of the following values:
 | The pod is active and processing requests.
 
 | SCALING_DOWN_RECOVERY_INVESTIGATION
-| The pod is about to be scaled down. The scale-down process is under investigation about the state of transactions in WildFly.
+| The pod is under investigation to find out if there are transactions that did not complete their lifecycle successfully.
 
-| SCALING_DOWN_RECOVERY_DIRTY
-| The WildFly contains some unfinished transactions. The pod cannot be terminated until they are cleaned.
-  The transaction recovery is periodically run at WildFly and it waits the transactions are finished eventually.
+| SCALING_DOWN_RECOVERY_PROCESSING
+| There are in-doubt transactions in the log store. The pod cannot be terminated until these transactions are either completed or cleaned.
+
+| SCALING_DOWN_RECOVERY_HEURISTICS
+| There are heuristic transactions in the log store. The pod cannot be terminated until these transactions are either completed or cleaned.
 
 | SCALING_DOWN_CLEAN
 | The pod was processed by transaction scaled down processing and is marked as clean to be removed from the cluster.
