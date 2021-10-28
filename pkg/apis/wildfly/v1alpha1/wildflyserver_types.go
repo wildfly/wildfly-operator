@@ -22,8 +22,10 @@ type WildFlyServerSpec struct {
 	// SessionAffinity defines if connections from the same client ip are passed to the same WildFlyServer instance/pod each time (false if omitted)
 	SessionAffinity bool `json:"sessionAffinity,omitempty"`
 	// DisableHTTPRoute disables the creation a route to the HTTP port of the application service (false if omitted)
-	DisableHTTPRoute    bool                     `json:"disableHTTPRoute,omitempty"`
-	StandaloneConfigMap *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
+	DisableHTTPRoute bool `json:"disableHTTPRoute,omitempty"`
+	// DeactivateTransactionRecovery disables the process of recoverying transactions (false if omitted)
+	DeactivateTransactionRecovery bool                     `json:deactivateTransactionRecovery,omitempty`
+	StandaloneConfigMap           *StandaloneConfigMapSpec `json:"standaloneConfigMap,omitempty"`
 	// StorageSpec defines specific storage required for the server own data directory. If omitted, an EmptyDir is used (that will not
 	// persist data across pod restart).
 	Storage            *StorageSpec `json:"storage,omitempty"`
@@ -91,22 +93,20 @@ type WildFlyServerStatus struct {
 }
 
 const (
-	// PodStateActive represents PodStatus.State when pod is active to serve requests
-	// it's connected in the Service load balancer
+	// (PodStatus.State) PodStateActive represents an active pod that is connected to the load balancer Service
+	// and that can serve requests
 	PodStateActive = "ACTIVE"
-	// PodStateScalingDownRecoveryInvestigation represents the PodStatus.State when pod is in state of scaling down
-	// and is to be verified if it's dirty and if recovery is needed
-	// as the pod is under recovery verification it can't be immediately removed
-	// and it needs to be wait until it's marked as clean to be removed
+	// (PodStatus.State) PodStateScalingDownRecoveryInvestigation represents a pod that is under investigation
+	// to find out if there are transactions to be recovered. A pod in this state will be updated to one of
+	// the following states eventually
 	PodStateScalingDownRecoveryInvestigation = "SCALING_DOWN_RECOVERY_INVESTIGATION"
-	// PodStateScalingDownRecoveryDirty represents the PodStatus.State when the pod was marked as recovery is needed
-	// because there are some in-doubt transactions.
-	// The app server was restarted with the recovery properties to speed-up recovery nad it's needed to wait
-	// until all ind-doubt transactions are processed.
-	PodStateScalingDownRecoveryDirty = "SCALING_DOWN_RECOVERY_DIRTY"
-	// PodStateScalingDownClean represents the PodStatus.State when pod is not active to serve requests
-	// it's in state of scaling down and it's clean
-	// 'clean' means it's ready to be removed from the kubernetes cluster
+	// (PodStatus.State) PodStateScalingDownRecoveryProcessing represents a pod that has transactions to be completed.
+	// The Operator will wait until all transactions are processed
+	PodStateScalingDownRecoveryProcessing = "SCALING_DOWN_RECOVERY_PROCESSING"
+	// (PodStatus.State) PodStateScalingDownRecoveryHeuristic represents a pod that has heuristic transactions.
+	// The Operator will wait until all heuristic transactions are manually solved
+	PodStateScalingDownRecoveryHeuristic = "SCALING_DOWN_RECOVERY_HEURISTICS"
+	// (PodStatus.State) PodStateScalingDownClean represents a pod that is ready to be scaled down
 	PodStateScalingDownClean = "SCALING_DOWN_CLEAN"
 )
 
@@ -116,8 +116,10 @@ type PodStatus struct {
 	Name  string `json:"name"`
 	PodIP string `json:"podIP"`
 	// Represent the state of the Pod, it is used especially during scale down.
-	// +kubebuilder:validation:Enum=ACTIVE;SCALING_DOWN_RECOVERY_INVESTIGATION;SCALING_DOWN_RECOVERY_DIRTY;SCALING_DOWN_CLEAN
+	// +kubebuilder:validation:Enum=ACTIVE;SCALING_DOWN_RECOVERY_INVESTIGATION;SCALING_DOWN_RECOVERY_PROCESSING;SCALING_DOWN_RECOVERY_HEURISTICS;SCALING_DOWN_CLEAN
 	State string `json:"state"`
+	// Counts the recovery attempts when there are in-doubt transactions
+	RecoveryCounter int32 `json:"recoveryCounter"`
 }
 
 // WildFlyServer is the Schema for the wildflyservers API

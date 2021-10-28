@@ -536,18 +536,25 @@ spec:
                     podIP:
                       type: string
                     state:
-                      description: Represent the state of the Pod, it is used especially
-                        during scale down.
+                      description: Represents the state of the Pod, it is used during scale down.
                       enum:
                       - ACTIVE
                       - SCALING_DOWN_RECOVERY_INVESTIGATION
-                      - SCALING_DOWN_RECOVERY_DIRTY
+                      - SCALING_DOWN_RECOVERY_PROCESSING
+                      - SCALING_DOWN_RECOVERY_HEURISTICS
                       - SCALING_DOWN_CLEAN
                       type: string
+                    recoveryCounter:
+                      description: Counts recovery attempts when there are in-doubt transactions.
+                      format: int32
+                      type: integer
+                      default: 0
+                      minimum: 0
                   required:
                   - name
                   - podIP
                   - state
+                  - recoveryCounter
                   type: object
                 type: array
                 x-kubernetes-list-type: atomic

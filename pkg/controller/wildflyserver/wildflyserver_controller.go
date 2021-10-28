@@ -520,13 +520,16 @@ func getPodStatus(pods []corev1.Pod, originalPodStatuses []wildflyv1alpha1.PodSt
 	}
 	for _, pod := range pods {
 		podState := wildflyv1alpha1.PodStateActive
+		recoveryCounter := int32(0)
 		if value, exists := podStatusesOriginalMap[pod.Name]; exists {
 			podState = value.State
+			recoveryCounter = value.RecoveryCounter
 		}
 		podStatuses = append(podStatuses, wildflyv1alpha1.PodStatus{
-			Name:  pod.Name,
-			PodIP: pod.Status.PodIP,
-			State: podState,
+			Name:            pod.Name,
+			PodIP:           pod.Status.PodIP,
+			State:           podState,
+			RecoveryCounter: recoveryCounter,
 		})
 		if pod.Status.PodIP == "" {
 			requeue = true

@@ -37,7 +37,7 @@ const (
 )
 
 var (
-	// variables to be setup and re-used in the method over the file
+	// Variables to be used in the testing methods
 	assert *testifyAssert.Assertions
 	cl     client.Client
 	r      *ReconcileWildFlyServer
@@ -205,9 +205,9 @@ func TestRecoveryScaleDown(t *testing.T) {
 	remoteOpsMock := remoteOpsMock{ExecuteMockReturn: [][]string{
 		{`{"outcome": "success", "result": ["transactions"]}`, "child-type=subsystem"}, // list subsystems
 		{`{"outcome": "success", "result": "running"}`, "server-state"},                // is wfly running?
-		{`{"outcome": "success"}`}, // txn backoff system variable setup
-		{``},                       // mkdir org.wildfly.internal.cli.boot.hook.marker.dir
-		{`{"outcome": "success"}`}, // system variable org.wildfly.internal.cli.boot.hook.marker.dir
+		{`{"outcome": "success"}`},                                                     // txn backoff system variable setup
+		{``}, // mkdir org.wildfly.internal.cli.boot.hook.marker.dir
+		{`{"outcome": "success"}`},                                      // system variable org.wildfly.internal.cli.boot.hook.marker.dir
 		{`{"outcome": "success", "result" : null}`},                     // shutdown(restart=true)
 		{`{"outcome": "success", "result": "running"}`, "server-state"}, // is wfly running after restart?
 		{`{"outcome": "success"}`},                                      // recovery listener verification
@@ -216,11 +216,11 @@ func TestRecoveryScaleDown(t *testing.T) {
 		// #1
 		{`{"outcome": "success"}`, "probe"}, // txn log-store :probe after recovery scan"
 		{`{"outcome": "success"}`},          // read log-store after :probe
-		{``},                                // ls marker dir
+		{``}, // ls marker dir
 		// #2
 		{`{"outcome": "success"}`, "probe"}, // txn log-store :probe after recovery scan
 		{`{"outcome": "success"}`},          // read log-store after :probe
-		{``},                                // ls marker dir
+		{``}, // ls marker dir
 	}}
 	wildflyutil.RemoteOps = &remoteOpsMock
 
@@ -328,6 +328,33 @@ func TestSkipRecoveryScaleDownWhenEmptyDirStorage(t *testing.T) {
 	assert.Equal(wildflyv1alpha1.PodStateScalingDownClean, wildflyServer.Status.Pods[0].State)
 	// expecting the Execute method processed all mock responses
 	assert.Empty(remoteOpsMock.ExecuteMockReturn)
+}
+
+func TestSkipRecoveryScaleDownWhenDeactivateTransactionRecoveryIsTrue(t *testing.T) {
+	wildflyServer := defaultWildflyServerDefinition.DeepCopy()
+	// Deactivate the Transaction Recovery feature
+	wildflyServer.Spec.DeactivateTransactionRecovery = true
+	setupBeforeScaleDown(t, wildflyServer, 1)
+
+	log.Info("WildFly server was reconciled, let's scale it down.", "WildflyServer", wildflyServer)
+	wildflyServer.Spec.Replicas = 0
+	err := cl.Update(context.TODO(), wildflyServer)
+
+	// Reconcile for the scale down - updating the pod labels
+	_, err = r.Reconcile(req)
+	require.NoError(t, err)
+
+	// Reconcile to start the scale down procesing - recovery skipped
+	_, err = r.Reconcile(req)
+	require.NoError(t, err)
+	// StatefulSet needs to be updated
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	assert.Equal(int32(0), *statefulSet.Spec.Replicas)
+	// WildFlyServer status needs to be updated in sclaed down manner
+	err = cl.Get(context.TODO(), req.NamespacedName, wildflyServer)
+	require.NoError(t, err)
+	assert.Equal(wildflyv1alpha1.PodStateScalingDownClean, wildflyServer.Status.Pods[0].State)
 }
 
 // --
