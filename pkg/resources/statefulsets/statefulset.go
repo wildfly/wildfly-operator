@@ -107,6 +107,11 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		},
 	}
 
+	// if the user specified the resources directive propagate it to the container (required for HPA).
+	if w.Spec.Resources != nil {
+		statefulSet.Spec.Template.Spec.Containers[0].Resources = *w.Spec.Resources
+	}
+
 	if len(w.Spec.EnvFrom) > 0 {
 		statefulSet.Spec.Template.Spec.Containers[0].EnvFrom = append(statefulSet.Spec.Template.Spec.Containers[0].EnvFrom, w.Spec.EnvFrom...)
 	}
