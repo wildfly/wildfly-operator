@@ -10,6 +10,7 @@ import (
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	testifyAssert "github.com/stretchr/testify/assert"
@@ -79,6 +80,8 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(replicas, *statefulSet.Spec.Replicas)
 	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+	// Check if the stateful set has the correct name label used by the HPA as a selector label.
+	assert.Contains(statefulSet.Spec.Template.GetLabels()["app.kubernetes.io/name"], "myapp")
 
 	// cluster service will be created
 	_, err = r.Reconcile(req)
@@ -405,4 +408,74 @@ func TestWildFlyServerWithConfigMap(t *testing.T) {
 		}
 	}
 	assert.True(foundVolumeMount)
+}
+
+func TestWildFlyServerWithResources(t *testing.T) {
+	// Set the logger to development mode for verbose logs.
+	logf.SetLogger(zap.Logger())
+	assert := testifyAssert.New(t)
+
+	var (
+		requestCpu = resource.MustParse("250m")
+		requestMem = resource.MustParse("128Mi")
+		limitCpu   = resource.MustParse("1")
+		limitMem   = resource.MustParse("512Mi")
+	)
+
+	// A WildFlyServer resource with metadata and spec.
+	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			ApplicationImage: applicationImage,
+			Replicas:         replicas,
+			Resources: &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    requestCpu,
+					corev1.ResourceMemory: requestMem,
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    limitCpu,
+					corev1.ResourceMemory: limitMem,
+				},
+			},
+		},
+	}
+	// Objects to track in the fake client.
+	objs := []runtime.Object{
+		wildflyServer,
+	}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
+	// Create a fake client to mock API calls.
+	cl := fake.NewFakeClient(objs...)
+	// Create a ReconcileWildFlyServer object with the scheme and fake client.
+	r := &ReconcileWildFlyServer{client: cl, scheme: s}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	// statefulset will be created
+	_, err := r.Reconcile(req)
+	require.NoError(t, err)
+
+	// Check if stateful set has been created with the correct configuration.
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+	assert.Equal(replicas, *statefulSet.Spec.Replicas)
+	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+	assert.Equal(requestCpu, statefulSet.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU])
+	assert.Equal(requestMem, statefulSet.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceMemory])
+	assert.Equal(limitCpu, statefulSet.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU])
+	assert.Equal(limitMem, statefulSet.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory])
 }

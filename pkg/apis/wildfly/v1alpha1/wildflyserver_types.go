@@ -48,6 +48,9 @@ type WildFlyServerSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	// +listType=set
 	ConfigMaps []string `json:"configMaps,omitempty"`
+	// Configuration of the resources used by the WildFlyServer, ie CPU and memory, use limits and requests
+	// More info: https://pkg.go.dev/k8s.io/api@v0.18.14/core/v1#ResourceRequirements
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer
@@ -83,6 +86,8 @@ type WildFlyServerStatus struct {
 	//
 	// Read-only.
 	ScalingdownPods int32 `json:"scalingdownPods"`
+	// selector for pods, used by HorizontalPodAutoscaler
+	Selector string `json:"selector"`
 }
 
 const (
@@ -119,7 +124,7 @@ type PodStatus struct {
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
-// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
 // +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:shortName=wfly
