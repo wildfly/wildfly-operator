@@ -145,6 +145,9 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return r.manageError(wildflyServer, err)
 	}
 
+	// Set the selector label, this should be done for the pods as well to allow targeting the CR with HPA
+	wildflyServer.Status.Selector = fmt.Sprintf("app.kubernetes.io/instance=wildfly-%s", wildflyServer.GetName())
+
 	// If statefulset was deleted during processing recovery scaledown the number of replicas in WildflyServer spec
 	//  does not defines the number of pods which should be left active until recovered
 	desiredReplicaSizeForNewStatefulSet := wildflyServer.Spec.Replicas + wildflyServer.Status.ScalingdownPods
@@ -539,6 +542,7 @@ func LabelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
 	labels["app.kubernetes.io/name"] = w.Name
 	labels["app.kubernetes.io/managed-by"] = os.Getenv("LABEL_APP_MANAGED_BY")
 	labels["app.openshift.io/runtime"] = os.Getenv("LABEL_APP_RUNTIME")
+	labels["app.kubernetes.io/instance"] = fmt.Sprintf("wildfly-%s", w.GetName())
 	if w.Labels != nil {
 		for labelKey, labelValue := range w.Labels {
 			labels[labelKey] = labelValue

@@ -356,8 +356,15 @@ func schema_pkg_apis_wildfly_v1alpha1_WildFlyServerStatus(ref common.ReferenceCa
 							Format:      "int32",
 						},
 					},
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "selector for pods, used by HorizontalPodAutoscaler",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"replicas", "scalingdownPods"},
+				Required: []string{"replicas", "scalingdownPods", "selector"},
 			},
 		},
 		Dependencies: []string{

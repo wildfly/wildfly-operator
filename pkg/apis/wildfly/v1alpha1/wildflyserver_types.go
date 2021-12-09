@@ -86,6 +86,8 @@ type WildFlyServerStatus struct {
 	//
 	// Read-only.
 	ScalingdownPods int32 `json:"scalingdownPods"`
+	// selector for pods, used by HorizontalPodAutoscaler
+	Selector string `json:"selector"`
 }
 
 const (
@@ -122,7 +124,7 @@ type PodStatus struct {
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
-// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
 // +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:shortName=wfly
