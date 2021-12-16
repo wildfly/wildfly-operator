@@ -80,6 +80,8 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(replicas, *statefulSet.Spec.Replicas)
 	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+	// Check if the stateful set has the correct name label used by the HPA as a selector label.
+	assert.Contains(statefulSet.Spec.Template.GetLabels()["app.kubernetes.io/name"], "myapp")
 
 	// loadbalancer service will be created
 	_, err = r.Reconcile(req)
@@ -476,53 +478,4 @@ func TestWildFlyServerWithResources(t *testing.T) {
 	assert.Equal(requestMem, statefulSet.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceMemory])
 	assert.Equal(limitCpu, statefulSet.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU])
 	assert.Equal(limitMem, statefulSet.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory])
-}
-
-func TestWildFlyServerSelectorLabel(t *testing.T) {
-	// Set the loggclearer to development mode for verbose logs.
-	logf.SetLogger(zap.Logger())
-	assert := testifyAssert.New(t)
-
-	// A WildFlyServer resource with metadata and spec.
-	wildflyServer := &wildflyv1alpha1.WildFlyServer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: wildflyv1alpha1.WildFlyServerSpec{
-			ApplicationImage: applicationImage,
-			Replicas:         replicas,
-			SessionAffinity:  sessionAffinity,
-		},
-	}
-	// Objects to track in the fake client.
-	objs := []runtime.Object{
-		wildflyServer,
-	}
-
-	// Register operator types with the runtime scheme.
-	s := scheme.Scheme
-	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
-	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClient(objs...)
-	// Create a ReconcileWildFlyServer object with the scheme and fake client.
-	r := &ReconcileWildFlyServer{client: cl, scheme: s}
-
-	// Mock request to simulate Reconcile() being called on an event for a
-	// watched resource .
-	req := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      name,
-			Namespace: namespace,
-		},
-	}
-	// statefulset will be created
-	_, err := r.Reconcile(req)
-	require.NoError(t, err)
-
-	// Verify statefull set template selector label.
-	statefulSet := &appsv1.StatefulSet{}
-	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
-	require.NoError(t, err)
-	assert.Contains(statefulSet.Spec.Template.GetLabels()["app.kubernetes.io/instance"], "wildfly-myapp")
 }
