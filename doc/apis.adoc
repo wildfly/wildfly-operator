@@ -52,8 +52,14 @@ it defaults to false (application image is expected to use WildFly S2I Builder/R
 | `configMaps` | List of ConfigMap names to mount as volumes in the containers. Each config map is mounted as a read-only volume under `/etc/configmaps/<config map name>` | string[] | false
 | `disableHTTPRoute`| Disable the creation a route to the HTTP port of the application service (false if omitted) | bool | false
 | `sessionAffinity`| If connections from the same client IP are passed to the same WildFlyServer instance/pod each time (false if omitted) | bool | false
+| `resources`| Resources spec to specify the request or limits of the Stateful Set. If ommited, the namespace defaults are used.
 |=======================
 
+[[resources]]
+## `Resources`
+
+`Resources` defines the configured resources for a `WildflyServer` resources. If the resource is not defined or `Request` or `Limits` is empty this resources will removed from the `Stateful Set`
+The description of this resource is a standard `Container` resource and is the same as the kubernetes api found here: https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/ 
 
 [[storagespec]]
 ## `StorageSpec`
