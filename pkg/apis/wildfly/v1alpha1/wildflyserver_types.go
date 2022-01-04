@@ -48,6 +48,8 @@ type WildFlyServerSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	// +listType=set
 	ConfigMaps []string `json:"configMaps,omitempty"`
+	// ResourcesSpec defines specific resource spec
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer
