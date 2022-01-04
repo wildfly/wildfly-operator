@@ -48,7 +48,7 @@ type WildFlyServerSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	// +listType=set
 	ConfigMaps []string `json:"configMaps,omitempty"`
-	// Configuration of the resources used by the WildFlyServer, ie CPU and memory, use limits and requests
+	// ResourcesSpec defines the resources used by the WildFlyServer, ie CPU and memory, use limits and requests.
 	// More info: https://pkg.go.dev/k8s.io/api@v0.18.14/core/v1#ResourceRequirements
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }

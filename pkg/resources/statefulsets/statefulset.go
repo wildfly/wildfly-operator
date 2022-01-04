@@ -100,6 +100,8 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 						LivenessProbe: createLivenessProbe(w),
 						// Readiness Probe is optional
 						ReadinessProbe: createReadinessProbe(w),
+						// Resources
+						Resources: createResources(w.Spec.Resources),
 					}},
 					ServiceAccountName: w.Spec.ServiceAccountName,
 				},
@@ -154,14 +156,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 			pvcTemplate.Name = standaloneDataVolumeName
 		}
 		pvcTemplate.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-		pvcTemplate.Spec.Resources = storageSpec.VolumeClaimTemplate.Spec.Resources
-		// Kubernetes initializes empty map as nil, the reflect.DeepEqual causes troubles when we do not use nil too
-		if pvcTemplate.Spec.Resources.Limits != nil && len(pvcTemplate.Spec.Resources.Limits) == 0 {
-			pvcTemplate.Spec.Resources.Limits = nil
-		}
-		if pvcTemplate.Spec.Resources.Requests != nil && len(pvcTemplate.Spec.Resources.Requests) == 0 {
-			pvcTemplate.Spec.Resources.Requests = nil
-		}
+		pvcTemplate.Spec.Resources = createResources(&storageSpec.VolumeClaimTemplate.Spec.Resources)
 		pvcTemplate.Spec.Selector = storageSpec.VolumeClaimTemplate.Spec.Selector
 		statefulSet.Spec.VolumeClaimTemplates = append(statefulSet.Spec.VolumeClaimTemplates, pvcTemplate)
 	}
@@ -253,6 +248,26 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	}
 
 	return statefulSet
+}
+
+// createResources supplements a default ResourceRequirements and returns it.
+func createResources(r *corev1.ResourceRequirements) corev1.ResourceRequirements {
+	rTemplate := corev1.ResourceRequirements{
+		Limits:   nil,
+		Requests: nil,
+	}
+
+	if r != nil {
+		if r.Limits != nil && len(r.Limits) > 0 {
+			rTemplate.Limits = r.Limits
+		}
+
+		if r.Requests != nil && len(r.Requests) > 0 {
+			rTemplate.Requests = r.Requests
+		}
+	}
+
+	return rTemplate
 }
 
 // createLivenessProbe create a Exec probe if the SERVER_LIVENESS_SCRIPT env var is present

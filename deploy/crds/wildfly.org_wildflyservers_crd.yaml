@@ -211,8 +211,8 @@ spec:
                 minimum: 0
                 type: integer
               resources:
-                description: 'Configuration of the resources used by the WildFlyServer,
-                  ie CPU and memory, use limits and requests More info: https://pkg.go.dev/k8s.io/api@v0.18.14/core/v1#ResourceRequirements'
+                description: 'ResourcesSpec defines the resources used by the WildFlyServer,
+                  ie CPU and memory, use limits and requests. More info: https://pkg.go.dev/k8s.io/api@v0.18.14/core/v1#ResourceRequirements'
                 properties:
                   limits:
                     additionalProperties:
