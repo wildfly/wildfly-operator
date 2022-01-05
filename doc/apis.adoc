@@ -59,7 +59,19 @@ it defaults to false (application image is expected to use WildFly S2I Builder/R
 ## `Resources`
 
 `Resources` defines the configured resources for a `WildflyServer` resources. If the resource is not defined or `Request` or `Limits` is empty this resources will removed from the `Stateful Set`
-The description of this resource is a standard `Container` resource and is the same as the kubernetes api found here: https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/ 
+The description of this resource is a standard `Container` resource and is the same as the kubernetes api found on kubernetes.
+
+This resource is not limited to only cpu and memory for more information on container resources:
+https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+| `resources.limits.cpu` |  | false
+| `resources.limits.memory` |  | false
+| `resources.requests.cpu` |  | false
+| `resources.requests.memory` |  | false
+|=======================
 
 [[storagespec]]
 ## `StorageSpec`
