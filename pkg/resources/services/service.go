@@ -25,9 +25,9 @@ func CreateOrUpdateHeadlessService(w *wildflyv1alpha1.WildFlyServer, client clie
 	return createOrUpdateService(w, client, scheme, labels, HeadlessServiceName(w), newHeadlessService)
 }
 
-// CreateOrUpdateLoadBalancerService create a loadbalancer service or returns one up to date with the WildflyServer
-func CreateOrUpdateLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
-	return createOrUpdateService(w, client, scheme, labels, LoadBalancerServiceName(w), newLoadBalancerService)
+// CreateOrUpdateClusterService create a clusterIP service or returns one up to date with the WildflyServer
+func CreateOrUpdateClusterService(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string) (*corev1.Service, error) {
+	return createOrUpdateService(w, client, scheme, labels, ClusterServiceName(w), newClusterService)
 }
 
 // createOrUpdateAdminService create a service or returns one up to date with the WildflyServer.
@@ -121,8 +121,8 @@ func newAdminService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string)
 	return headlessService
 }
 
-// newLoadBalancerService returns a loadBalancer service
-func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *corev1.Service {
+// newClusterService returns a ClusterIP service
+func newClusterService(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *corev1.Service {
 	labels[resources.MarkerOperatedByLoadbalancer] = resources.MarkerServiceActive // managing only active pods which are not in scaledown process
 	sessionAffinity := corev1.ServiceAffinityNone
 	if w.Spec.SessionAffinity {
@@ -130,18 +130,18 @@ func newLoadBalancerService(w *wildflyv1alpha1.WildFlyServer, labels map[string]
 	}
 	loadBalancer := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      LoadBalancerServiceName(w),
+			Name:      ClusterServiceName(w),
 			Namespace: w.Namespace,
 			Labels:    labels,
 		},
 		Spec: corev1.ServiceSpec{
-			Type:            corev1.ServiceTypeLoadBalancer,
+			Type:            corev1.ServiceTypeClusterIP,
 			Selector:        labels,
 			SessionAffinity: sessionAffinity,
 			Ports: []corev1.ServicePort{
 				{
 					Name: "http",
-					Port: 8080,
+					Port: resources.HTTPApplicationPort,
 				},
 			},
 		},
@@ -159,7 +159,10 @@ func AdminServiceName(w *wildflyv1alpha1.WildFlyServer) string {
 	return w.Name + "-admin"
 }
 
-// LoadBalancerServiceName returns the name of the loadbalancer service
-func LoadBalancerServiceName(w *wildflyv1alpha1.WildFlyServer) string {
+// ClusterServiceName returns the name of the cluster service.
+//
+// The service remains named with the -loadbalancer suffix for backwards compatibility
+/// even if it is now a ClusterIP service.
+func ClusterServiceName(w *wildflyv1alpha1.WildFlyServer) string {
 	return w.Name + "-loadbalancer"
 }

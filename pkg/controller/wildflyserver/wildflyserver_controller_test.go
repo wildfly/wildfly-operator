@@ -80,14 +80,14 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 	assert.Equal(replicas, *statefulSet.Spec.Replicas)
 	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
 
-	// loadbalancer service will be created
+	// cluster service will be created
 	_, err = r.Reconcile(req)
 	require.NoError(t, err)
 
-	loadbalancer := &corev1.Service{}
-	err = cl.Get(context.TODO(), types.NamespacedName{Name: services.LoadBalancerServiceName(wildflyServer), Namespace: req.Namespace}, loadbalancer)
+	clusterService := &corev1.Service{}
+	err = cl.Get(context.TODO(), types.NamespacedName{Name: services.ClusterServiceName(wildflyServer), Namespace: req.Namespace}, clusterService)
 	require.NoError(t, err)
-	assert.Equal(corev1.ServiceAffinityClientIP, loadbalancer.Spec.SessionAffinity)
+	assert.Equal(corev1.ServiceAffinityClientIP, clusterService.Spec.SessionAffinity)
 
 	// headless service will be created
 	_, err = r.Reconcile(req)

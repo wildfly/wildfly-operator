@@ -207,11 +207,11 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	// Check if the loadbalancer already exists, if not create a new one
-	loadBalancer, err := services.CreateOrUpdateLoadBalancerService(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer))
+	// Check if the cluster service already exists, if not create a new one
+	clusterService, err := services.CreateOrUpdateClusterService(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer))
 	if err != nil {
 		return reconcile.Result{}, err
-	} else if loadBalancer == nil {
+	} else if clusterService == nil {
 		return reconcile.Result{Requeue: true}, nil
 	}
 	// Check if the headless service already exists, if not create a new one
