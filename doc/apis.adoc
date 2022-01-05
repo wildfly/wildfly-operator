@@ -11,9 +11,9 @@ This document describes the types introduced by the WildFly Operator to be consu
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `metadata` | Standard object’s metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#objectmeta-v1-meta[metav1.ObjectMeta] | false
+| `metadata` | Standard object's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#objectmeta-v1-meta[metav1.ObjectMeta] | false
 | `spec` | Specification of the desired behaviour of the WildFly deployment (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info]) | <<wildflyserverspec>> | true
-| `status` | Most recent observed status of the WildFly deployment. Read-only. (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status#spec-and-status[more info]) | <<wildflyserverstatus>> | false |
+| `status` | Most recent observed status of the WildFly deployment. Read-only. (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status#spec-and-status[more info]) | <<wildflyserverstatus>> | false |
 |=======================
 
 [[wildflyservelist]]
@@ -44,15 +44,15 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | `bootableJar` | BootableJar specifies whether the application image is using WildFly S2I Builder/Runtime images or Bootable Jar. If omitted,
 it defaults to false (application image is expected to use WildFly S2I Builder/Runtime images) | bool | false
 | `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
+| `resources`| Resources spec to specify the request or limits of the Stateful Set. If ommited, the namespace defaults are used.
 | `storage` | Storage spec to specify how storage should be used. If omitted, an `EmptyDir` is used (that will not persist data across pod restart) | *<<storagespec>> |false
-| `serviceAccountName` | Name of the ServiceAccount to use to run the WildFlyServer Pods | string | false
+| `serviceAccountName` | Name of the ServiceAccount to use to run the WildFlyServer Pods | string | false
 | `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envfromsource-v1-core[corev1.EnvFromSource] |false
 | `env` | List of environment variable present in the containers | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envvar-v1-core[corev1.EnvVar] | false
 | `secrets` | List of secret names to mount as volumes in the containers. Each secret is mounted as a read-only volume under `/etc/secrets/<secret name>` | string[] | false 
 | `configMaps` | List of ConfigMap names to mount as volumes in the containers. Each config map is mounted as a read-only volume under `/etc/configmaps/<config map name>` | string[] | false
 | `disableHTTPRoute`| Disable the creation a route to the HTTP port of the application service (false if omitted) | bool | false
 | `sessionAffinity`| If connections from the same client IP are passed to the same WildFlyServer instance/pod each time (false if omitted) | bool | false
-| `resources`| Resources spec to specify the request or limits of the Stateful Set. If ommited, the namespace defaults are used.
 |=======================
 
 [[resources]]
@@ -74,8 +74,8 @@ transaction, make sure to specify a `volumeClaimTemplate` that so that the same 
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `emptyDir` | EmptyDirVolumeSource to be used by the WildFly `StatefulSet` | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#emptydirvolumesource-v1-core[*corev1.EmptyDirVolumeSource] | false
-| `volumeClaimTemplate` | A PersistentVolumeClaim spec to configure `Resources` requirements to store WildFly standalone data directory. The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode. | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#persistentvolumeclaim-v1-core[corev1.PersistentVolumeClaim] | false
+| `emptyDir` | EmptyDirVolumeSource to be used by the WildFly `StatefulSet` | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#emptydirvolumesource-v1-core[*corev1.EmptyDirVolumeSource] | false
+| `volumeClaimTemplate` | A PersistentVolumeClaim spec to configure `Resources` requirements to store WildFly standalone data directory. The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode. | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#persistentvolumeclaim-v1-core[corev1.PersistentVolumeClaim] | false
 |=======================
 
 [[standaloneconfigmapspec]]
@@ -86,7 +86,7 @@ transaction, make sure to specify a `volumeClaimTemplate` that so that the same 
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `name` | Name of the `ConfigMap` containing the standalone configuration XML file. | string | true
+| `name` | Name of the `ConfigMap` containing the standalone configuration XML file. | string | true
 | `key` | Key of the ConfigMap whose value is the standalone configuration XML file. If omitted, the spec will look for the `standalone.xml` key. | string |false
 |=======================
 
