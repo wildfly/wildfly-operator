@@ -245,7 +245,7 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	return statefulSet
 }
 
-// createResources returns a completed ResourceRequirements
+// createResources supplements a default ResourceRequirements and returns it.
 func createResources(r *corev1.ResourceRequirements) corev1.ResourceRequirements {
 	rTemplate := corev1.ResourceRequirements{
 		Limits:   nil,
