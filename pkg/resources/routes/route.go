@@ -63,7 +63,7 @@ func newRoute(w *wildflyv1alpha1.WildFlyServer, labels map[string]string) *route
 		Spec: routev1.RouteSpec{
 			To: routev1.RouteTargetReference{
 				Kind:   "Service",
-				Name:   services.LoadBalancerServiceName(w),
+				Name:   services.ClusterServiceName(w),
 				Weight: &weight,
 			},
 			Port: &routev1.RoutePort{
