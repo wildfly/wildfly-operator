@@ -161,6 +161,11 @@ func (in *WildFlyServerSpec) DeepCopyInto(out *WildFlyServerSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Resources != nil {
+		in, out := &in.Resources, &out.Resources
+		*out = new(v1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

@@ -68,6 +68,29 @@ spec:
   replicas:2
 ----
 
+[[resources]]
+## Specify the Resource requirements for the container
+
+The `resources` spec is defined in the link:../apis.adoc#Resources[Resources API Documentation].
+
+[source,yaml]
+.Example of resources configuration
+```
+spec:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 2Gi
+    requests:
+      cpu: 100m
+      memory: 1Gi
+```
+
+For more examples visit:
+
+* https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/ 
+* https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/
+
 [[storage]]
 ## Specify the Storage Requirements for the Server Data Directory
 

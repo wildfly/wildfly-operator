@@ -145,6 +145,9 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 		return r.manageError(wildflyServer, err)
 	}
 
+	// Use the unique CR name as the selector label, must be implemented in the pods as well.
+	wildflyServer.Status.Selector = fmt.Sprintf("app.kubernetes.io/name=%s", wildflyServer.Name)
+
 	// If statefulset was deleted during processing recovery scaledown the number of replicas in WildflyServer spec
 	//  does not defines the number of pods which should be left active until recovered
 	desiredReplicaSizeForNewStatefulSet := wildflyServer.Spec.Replicas + wildflyServer.Status.ScalingdownPods
