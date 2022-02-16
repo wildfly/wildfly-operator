@@ -3,7 +3,7 @@
 
 This guide documents the various features and capabilites provides by the WildFly Operator.
 
-This guide is complemented by the link:../apis.adoc[API Documentation].
+This guide is complemented by the link:./apis.adoc[API Documentation].
 
 [[basic-install]]
 # Basic Install (Phase I)
@@ -71,7 +71,7 @@ spec:
 [[resources]]
 ## Specify the Resource requirements for the container
 
-The `resources` spec is defined in the link:../apis.adoc#Resources[Resources API Documentation].
+The `resources` spec is defined in the link:./apis.adoc#Resources[Resources API Documentation].
 
 [source,yaml]
 .Example of resources configuration
@@ -110,7 +110,7 @@ link:https://docs.wildfly.org/23/wildscribe/subsystem/transactions/index.html#at
 A `volumeClaimTemplate` cna be specifed to configure `Resources` requirements to store WildFly standalone data directory.
 The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode.
 
-The `storage` spec is defined in the link:../apis.adoc#StorageSpec[StorageSpec API Documentation].
+The `storage` spec is defined in the link:./apis.adoc#StorageSpec[StorageSpec API Documentation].
 
 [source,yaml]
 .Example of storage requirement
