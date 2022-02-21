@@ -39,7 +39,7 @@ var _ = Describe("WildFly Server tests", func() {
 			return true
 		}, timeout, interval).Should(BeTrue())
 
-		if operator != nil {
+		if os.Getenv("LOCAL_MANAGER") == "0" {
 			log.Printf("Creating the service account")
 			saHolder := serviceAccount.DeepCopy()
 			err = k8sClient.Create(ctx, saHolder)
@@ -189,6 +189,7 @@ var _ = Describe("WildFly Server tests", func() {
 		Consistently(func() bool {
 			err := k8sClient.Get(ctx, types.NamespacedName{Name: serverCpy.Name, Namespace: serverCpy.Namespace}, stsHolder)
 			if err != nil {
+				log.Printf("There was an error getting the %s StatefulSet: %s", serverCpy.Name, err.Error())
 				return false
 			}
 			log.Printf("StatefulSet expected replicas (%d) Ready (%d/%d)\n", 1, stsHolder.Status.Replicas, stsHolder.Status.ReadyReplicas)
