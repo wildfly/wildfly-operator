@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wildfly-operator
+spec:
+  selector:
+    matchLabels:
+      name: wildfly-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: wildfly-operator
+    spec:
+      serviceAccountName: wildfly-operator
+      containers:
+      - command:
+        - /manager
+        args:
+        - --leader-elect
+        image: controller:latest
+        name: wildfly-operator
+        imagePullPolicy: Always
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: OPERATOR_NAME
+          value: "wildfly-operator"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 100m
+            memory: 30Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+      terminationGracePeriodSeconds: 10

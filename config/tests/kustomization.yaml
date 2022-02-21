@@ -1,0 +1,4 @@
+resources:
+  - ./../manager
+  - ./../rbac
+namespace: wildfly-op-test-ns
