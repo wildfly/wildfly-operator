@@ -1,135 +1,87 @@
-package wildflyserver
+/*
+Copyright 2022.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package controllers
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"reflect"
-	"strconv"
-	"strings"
-
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
-	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
+	"github.com/go-logr/logr"
+	routev1 "github.com/openshift/api/route/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/routes"
 	"github.com/wildfly/wildfly-operator/pkg/resources/servicemonitors"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 	"github.com/wildfly/wildfly-operator/pkg/resources/statefulsets"
-
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	routev1 "github.com/openshift/api/route/v1"
-
+	wildflyutil "github.com/wildfly/wildfly-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	"reflect"
 
-	openshiftutils "github.com/RHsyseng/operator-utils/pkg/utils/openshift"
+	"k8s.io/client-go/tools/record"
+	"os"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"strconv"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/api/v1alpha1"
 )
 
 const (
-	controllerName = "wildflyserver-controller"
-	requeueOff     = iota // 0
-	requeueLater   = iota // 1
-	requeueNow     = iota // 2
+	requeueOff   = iota // 0
+	requeueLater = iota // 1
+	requeueNow   = iota // 2
 )
 
-var (
-	log = logf.Log.WithName("wildflyserver_controller")
-)
-
-// Add creates a new WildFlyServer Controller and adds it to the Manager. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
-}
-
-// newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileWildFlyServer{
-		client:      mgr.GetClient(),
-		scheme:      mgr.GetScheme(),
-		isOpenShift: isOpenShift(mgr.GetConfig()),
-		recorder:    mgr.GetEventRecorderFor(controllerName),
-	}
-}
-
-// add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
-	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to primary resource WildFlyServer
-	err = c.Watch(&source.Kind{Type: &wildflyv1alpha1.WildFlyServer{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to secondary resources and requeue the owner WildFlyServer
-	enqueueRequestForOwner := handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &wildflyv1alpha1.WildFlyServer{},
-	}
-	for _, obj := range []runtime.Object{&appsv1.StatefulSet{}, &corev1.Service{}} {
-		if err = c.Watch(&source.Kind{Type: obj}, &enqueueRequestForOwner); err != nil {
-			return err
-		}
-	}
-	if hasServiceMonitor() {
-		if err = c.Watch(&source.Kind{Type: &monitoringv1.ServiceMonitor{}}, &enqueueRequestForOwner); err != nil {
-			return err
-		}
-	}
-
-	// watch for Route only on OpenShift
-	if isOpenShift(mgr.GetConfig()) {
-		if err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &enqueueRequestForOwner); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-var _ reconcile.Reconciler = &ReconcileWildFlyServer{}
-
-// ReconcileWildFlyServer reconciles a WildFlyServer object
-type ReconcileWildFlyServer struct {
-	// This client, initialized using mgr.Client() above, is a split client
-	// that reads objects from the cache and writes to the apiserver
-	client   client.Client
-	scheme   *runtime.Scheme
-	recorder record.EventRecorder
+// WildFlyServerReconciler reconciles a WildFlyServer object
+type WildFlyServerReconciler struct {
+	Client   client.Client
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 	// returns true if the operator is running on OpenShift
-	isOpenShift bool
+	IsOpenShift bool
+	Log         logr.Logger
 }
 
-// Reconcile reads that state of the cluster for a WildFlyServer object and makes changes based on the state read
-// and what is in the WildFlyServer.Spec
-// Note:
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
-// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling WildFlyServer")
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+// TODO(user): Modify the Reconcile function to compare the state specified by
+// the WildFlyServer object against the actual cluster state, and then
+// perform operations to make the cluster state reflect the state specified by
+// the user.
+//
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
+func (r *WildFlyServerReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
+	log := r.Log.WithValues("name", request.NamespacedName)
+
+	log.Info("Reconciling WildFlyServer")
 
 	// Fetch the WildFlyServer instance
 	wildflyServer := &wildflyv1alpha1.WildFlyServer{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, wildflyServer)
+	err := r.Client.Get(ctx, request.NamespacedName, wildflyServer)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -153,7 +105,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	desiredReplicaSizeForNewStatefulSet := wildflyServer.Spec.Replicas + wildflyServer.Status.ScalingdownPods
 
 	// Check if the statefulSet already exists, if not create a new one
-	statefulSet, err := statefulsets.GetOrCreateNewStatefulSet(wildflyServer, r.client, r.scheme,
+	statefulSet, err := statefulsets.GetOrCreateNewStatefulSet(wildflyServer, r.Client, r.Scheme,
 		LabelsForWildFly(wildflyServer), desiredReplicaSizeForNewStatefulSet)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -164,7 +116,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	// List of pods which belongs under this WildflyServer instance
 	podList, err := GetPodsForWildFly(r, wildflyServer)
 	if err != nil {
-		reqLogger.Error(err, "Failed to list pods.", "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
+		log.Error(err, "Failed to list pods.", "WildFlyServer.Namespace", wildflyServer.Namespace, "WildFlyServer.Name", wildflyServer.Name)
 		return reconcile.Result{}, err
 	}
 	wildflyServerSpecSize := wildflyServer.Spec.Replicas
@@ -175,31 +127,31 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	// if the number of desired replica size (aka. WildflyServer.Spec.Replicas) is different from the number of active pods
 	//  and the statefulset replica size was already changed to follow the value defined by the wildflyserver spec then wait for sts to reconcile
 	if statefulsetSpecSize == wildflyServerSpecSize && numberOfDeployedPods != wildflyServerSpecSize {
-		reqLogger.Info("Number of pods does not match the WildFlyServer specification. Waiting to get numbers in sync.",
+		log.Info("Number of pods does not match the WildFlyServer specification. Waiting to get numbers in sync.",
 			"WildflyServer specification", wildflyServer.Name, "Expected number of pods", wildflyServerSpecSize, "Number of deployed pods", numberOfDeployedPods,
 			"StatefulSet spec size", statefulsetSpecSize)
 		return reconcile.Result{Requeue: true}, nil
 	}
 	// the recovers scaledown process requires all pods will be active and running otherwise it's not able to clean them
 	if numberOfDeployedPods < statefulsetSpecSize {
-		reqLogger.Info("Number of pods is lower than the StatefulSet replica size. Waiting to get number in sync.",
+		log.Info("Number of pods is lower than the StatefulSet replica size. Waiting to get number in sync.",
 			"Number of deployed pods", numberOfDeployedPods, "StatefulSet spec size", statefulsetSpecSize)
 		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// Processing scaled down
 	//   updating scaling-down pods for not being requests through loadbalancer
-	updated, err := r.setLabelAsDisabled(wildflyServer, reqLogger, resources.MarkerOperatedByLoadbalancer, int(numberOfPodsToScaleDown), podList)
+	updated, err := r.setLabelAsDisabled(wildflyServer, log, resources.MarkerOperatedByLoadbalancer, int(numberOfPodsToScaleDown), podList)
 	if updated || err != nil { // labels were updated (updated == true) or some error occured (err != nil)
 		return reconcile.Result{Requeue: updated}, err
 	}
 	// Processing recovery on pods which are planned to be removed because of scale down is in progress now
-	reconcileRecovery, err := r.processTransactionRecoveryScaleDown(reqLogger, wildflyServer, int(numberOfPodsToScaleDown), podList)
+	reconcileRecovery, err := r.processTransactionRecoveryScaleDown(log, wildflyServer, int(numberOfPodsToScaleDown), podList)
 	if reconcileRecovery == requeueNow { // server state was updated (or/and some error could happen), we need to reconcile
 		return reconcile.Result{Requeue: true}, err
 	}
 	if err != nil {
-		reqLogger.Error(err, "Failures during scaling down recovery processing", "Desired replica size", wildflyServerSpecSize,
+		log.Error(err, "Failures during scaling down recovery processing", "Desired replica size", wildflyServerSpecSize,
 			"Number of pods to be removed", numberOfPodsToScaleDown)
 	}
 
@@ -211,20 +163,20 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Check if the cluster service already exists, if not create a new one
-	clusterService, err := services.CreateOrUpdateClusterService(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer))
+	clusterService, err := services.CreateOrUpdateClusterService(wildflyServer, r.Client, r.Scheme, LabelsForWildFly(wildflyServer))
 	if err != nil {
 		return reconcile.Result{}, err
 	} else if clusterService == nil {
 		return reconcile.Result{Requeue: true}, nil
 	}
 	// Check if the headless service already exists, if not create a new one
-	if headlessService, err := services.CreateOrUpdateHeadlessService(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
+	if headlessService, err := services.CreateOrUpdateHeadlessService(wildflyServer, r.Client, r.Scheme, LabelsForWildFly(wildflyServer)); err != nil {
 		return reconcile.Result{}, err
 	} else if headlessService == nil {
 		return reconcile.Result{Requeue: true}, nil
 	}
 	// Check if the admin service already exists, if not create a new one
-	if adminService, err := services.CreateOrUpdateAdminService(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
+	if adminService, err := services.CreateOrUpdateAdminService(wildflyServer, r.Client, r.Scheme, LabelsForWildFly(wildflyServer)); err != nil {
 		return reconcile.Result{}, err
 	} else if adminService == nil {
 		return reconcile.Result{Requeue: true}, nil
@@ -232,16 +184,16 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// Check if the HTTP route must be created
 	var route *routev1.Route
-	if r.isOpenShift {
+	if r.IsOpenShift {
 		if !wildflyServer.Spec.DisableHTTPRoute {
-			if route, err = routes.GetOrCreateNewRoute(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
+			if route, err = routes.GetOrCreateNewRoute(wildflyServer, r.Client, r.Scheme, LabelsForWildFly(wildflyServer)); err != nil {
 				return reconcile.Result{}, err
 			} else if route == nil {
 				return reconcile.Result{Requeue: true}, nil
 			}
 		} else {
 			// delete the route that may have been created by a previous generation of the WildFlyServer
-			if deleted, err := routes.DeleteExistingRoute(wildflyServer, r.client); err != nil {
+			if deleted, err := routes.DeleteExistingRoute(wildflyServer, r.Client); err != nil {
 				return reconcile.Result{}, err
 			} else if deleted {
 				return reconcile.Result{}, nil
@@ -251,7 +203,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// create a Prometheus ServiceMonitor (if the resource exists on the cluster)
 	if hasServiceMonitor() {
-		if serviceMonitor, err := servicemonitors.GetOrCreateNewServiceMonitor(wildflyServer, r.client, r.scheme, LabelsForWildFly(wildflyServer)); err != nil {
+		if serviceMonitor, err := servicemonitors.GetOrCreateNewServiceMonitor(wildflyServer, r.Client, r.Scheme, LabelsForWildFly(wildflyServer)); err != nil {
 			return reconcile.Result{}, err
 		} else if serviceMonitor == nil {
 			return reconcile.Result{Requeue: true}, nil
@@ -260,7 +212,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 
 	// Update WildFly Server host status
 	updateWildflyServer := false
-	if r.isOpenShift {
+	if r.IsOpenShift {
 		if !wildflyServer.Spec.DisableHTTPRoute {
 			hosts := make([]string, len(route.Status.Ingress))
 			for i, ingress := range route.Status.Ingress {
@@ -269,14 +221,14 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 			if !reflect.DeepEqual(hosts, wildflyServer.Status.Hosts) {
 				updateWildflyServer = true
 				wildflyServer.Status.Hosts = hosts
-				reqLogger.Info("Updating hosts", "WildFlyServer", wildflyServer.Name, "WildflyServer hosts", wildflyServer.Status.Hosts)
+				log.Info("Updating hosts", "WildFlyServer", wildflyServer.Name, "WildflyServer hosts", wildflyServer.Status.Hosts)
 			}
 		} else {
 			// if HTTP routes have been disabled, remove the hosts field from the status
 			if len(wildflyServer.Status.Hosts) > 0 {
 				updateWildflyServer = true
 				wildflyServer.Status.Hosts = nil
-				reqLogger.Info("Removing hosts", "WildFlyServer", wildflyServer.Name)
+				log.Info("Removing hosts", "WildFlyServer", wildflyServer.Name)
 			}
 		}
 	}
@@ -294,7 +246,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 				// the non-active pod may be in the middle of the scale down process, we need to completely refresh it
 				for _, podItem := range podList.Items {
 					if podItem.Name == v.Name {
-						resources.Delete(wildflyServer, r.client, &podItem)
+						resources.Delete(wildflyServer, r.Client, &podItem)
 					}
 				}
 			}
@@ -306,7 +258,7 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	if !reflect.DeepEqual(podsStatus, wildflyServer.Status.Pods) {
 		updateWildflyServer = true
 		wildflyServer.Status.Pods = podsStatus
-		reqLogger.Info("Updating the pod status with new status", "Pod statuses", podsStatus)
+		log.Info("Updating the pod status with new status", "Pod statuses", podsStatus)
 	}
 
 	if wildflyServer.Status.Replicas != statefulSet.Status.Replicas {
@@ -315,8 +267,8 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	if updateWildflyServer {
-		if err := resources.UpdateWildFlyServerStatus(wildflyServer, r.client); err != nil {
-			reqLogger.Error(err, "Failed to update WildFlyServer status.")
+		if err := resources.UpdateWildFlyServerStatus(wildflyServer, r.Client); err != nil {
+			log.Error(err, "Failed to update WildFlyServer status.")
 			return reconcile.Result{}, err
 		}
 		reconcileStatus = true
@@ -327,11 +279,34 @@ func (r *ReconcileWildFlyServer) Reconcile(request reconcile.Request) (reconcile
 	return reconcile.Result{Requeue: requeue}, nil
 }
 
+// SetupWithManager sets up the controller with the Manager.
+func (r *WildFlyServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Log.Info("Setting up with manager")
+	builder := ctrl.NewControllerManagedBy(mgr).
+		For(&wildflyv1alpha1.WildFlyServer{})
+
+	builder.Owns(&appsv1.StatefulSet{}).
+		Owns(&corev1.Service{})
+
+	if hasServiceMonitor() {
+		builder.Owns(&monitoringv1.ServiceMonitor{})
+	}
+
+	//watch for Route only on OpenShift
+	if r.IsOpenShift {
+		builder.Owns(&routev1.Route{})
+	}
+
+	return builder.Complete(r)
+}
+
 // checkStatefulSet checks if the statefulset is up to date with the current WildFlyServerSpec.
 // it returns true if a reconcile result must be returned.
 // A non-nil error if an error happens while updating/deleting the statefulset.
-func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1.WildFlyServer, foundStatefulSet *appsv1.StatefulSet,
+func (r *WildFlyServerReconciler) checkStatefulSet(wildflyServer *wildflyv1alpha1.WildFlyServer, foundStatefulSet *appsv1.StatefulSet,
 	podList *corev1.PodList) (mustReconcile int, err error) {
+	log := log.FromContext(context.TODO())
+
 	var update bool
 	var requeue = requeueOff
 	// Ensure the statefulset replicas is up to date (driven by scaledown processing)
@@ -384,7 +359,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 				" (current StatefulSet size: "+strconv.Itoa(int(calculatedStatefulSetReplicaSize))+
 				"). Transaction recovery scaledown process has not cleaned all pods. Please, check status of the WildflyServer "+wildflyServer.Name,
 				"StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
-			r.recorder.Event(wildflyServer, corev1.EventTypeWarning, "WildFlyServerScaledown",
+			r.Recorder.Event(wildflyServer, corev1.EventTypeWarning, "WildFlyServerScaledown",
 				"Transaction recovery slowed down the scaledown.")
 			requeue = requeueLater
 		}
@@ -417,7 +392,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 
 		if delete {
 			// VolumeClaimTemplates has changed, the statefulset can not be updated and must be deleted
-			if err = resources.Delete(wildflyServer, r.client, foundStatefulSet); err != nil {
+			if err = resources.Delete(wildflyServer, r.Client, foundStatefulSet); err != nil {
 				log.Error(err, "Failed to Delete StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 				return requeueNow, err
 			}
@@ -429,7 +404,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 		foundStatefulSet.Spec.Template = statefulSet.Spec.Template
 		foundStatefulSet.Spec.Replicas = &desiredStatefulSetReplicaSize
 		foundStatefulSet.Annotations[resources.MarkerServerGeneration] = strconv.FormatInt(wildflyServer.Generation, 10)
-		if err = resources.Update(wildflyServer, r.client, foundStatefulSet); err != nil {
+		if err = resources.Update(wildflyServer, r.Client, foundStatefulSet); err != nil {
 			log.Error(err, "Failed to Update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			return requeueNow, err
 		}
@@ -439,7 +414,7 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 
 	if update {
 		log.Info("Updating statefulset", "StatefulSet.Replicas", foundStatefulSet.Spec.Replicas)
-		if err = resources.Update(wildflyServer, r.client, foundStatefulSet); err != nil {
+		if err = resources.Update(wildflyServer, r.Client, foundStatefulSet); err != nil {
 			log.Error(err, "Failed to update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			return requeueNow, err
 		}
@@ -449,13 +424,13 @@ func (r *ReconcileWildFlyServer) checkStatefulSet(wildflyServer *wildflyv1alpha1
 	return requeue, nil
 }
 
-func (r *ReconcileWildFlyServer) manageError(w *wildflyv1alpha1.WildFlyServer, err error) (reconcile.Result, error) {
+func (r *WildFlyServerReconciler) manageError(w *wildflyv1alpha1.WildFlyServer, err error) (reconcile.Result, error) {
 	if err == nil {
-		r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError", "Unknown Error")
+		r.Recorder.Event(w, corev1.EventTypeWarning, "WildFlyProcessingError", "Unknown Error")
 		return reconcile.Result{}, err
 	}
 
-	r.recorder.Event(w, v1.EventTypeWarning, "WildFlyProcessingError", err.Error())
+	r.Recorder.Event(w, corev1.EventTypeWarning, "WildFlyProcessingError", err.Error())
 	return reconcile.Result{}, err
 }
 
@@ -468,7 +443,7 @@ func validate(w *wildflyv1alpha1.WildFlyServer) (bool, error) {
 
 // matches checks if the envVar from the WildFlyServerSpec matches the same env var from the container.
 // If it does not match, it updates the container EnvVar with the fields from the WildFlyServerSpec and return false.
-func matches(container *v1.Container, envVar corev1.EnvVar) bool {
+func matches(container *corev1.Container, envVar corev1.EnvVar) bool {
 	for index, e := range container.Env {
 		if envVar.Name == e.Name {
 			if !reflect.DeepEqual(envVar, e) {
@@ -485,14 +460,14 @@ func matches(container *v1.Container, envVar corev1.EnvVar) bool {
 
 // GetPodsForWildFly lists pods which belongs to the WildFly server
 //   the pods are differentiated based on the selectors
-func GetPodsForWildFly(r *ReconcileWildFlyServer, w *wildflyv1alpha1.WildFlyServer) (*corev1.PodList, error) {
+func GetPodsForWildFly(r *WildFlyServerReconciler, w *wildflyv1alpha1.WildFlyServer) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
 
 	listOpts := []client.ListOption{
 		client.InNamespace(w.Namespace),
 		client.MatchingLabels(LabelsForWildFly(w)),
 	}
-	err := r.client.List(context.TODO(), podList, listOpts...)
+	err := r.Client.List(context.TODO(), podList, listOpts...)
 
 	if err == nil {
 		// sorting pods by number in the name
@@ -555,14 +530,14 @@ func errorIsNoMatchesForKind(err error, kind string, version string) bool {
 	return strings.HasPrefix(err.Error(), fmt.Sprintf("no matches for kind \"%s\" in version \"%s\"", kind, version))
 }
 
-// isOpenShift returns true when the container platform is detected as OpenShift
-func isOpenShift(c *rest.Config) bool {
-	isOpenShift, err := openshiftutils.IsOpenShift(c)
-	if err != nil {
-		return false
-	}
-	return isOpenShift
-}
+//// hasServiceMonitor checks if ServiceMonitor is registered in the cluster.
+//func hasServiceMonitor(config *rest.Config) (bool, error) {
+//	dc := discovery.NewDiscoveryClientForConfigOrDie(config)
+//	apiVersion := "monitoring.coreos.com/v1"
+//	kind := "ServiceMonitor"
+//
+//	return k8sutil.ResourceExists(dc, apiVersion, kind)
+//}
 
 // hasServiceMonitor checks if ServiceMonitor kind is registered in the cluster.
 func hasServiceMonitor() bool {

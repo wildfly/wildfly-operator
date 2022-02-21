@@ -1,24 +1,24 @@
-package wildflyserver
+package controllers
 
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strings"
-	"testing"
-	"time"
-
-	"github.com/operator-framework/operator-sdk/pkg/log/zap"
-
+	"github.com/prometheus/common/log"
 	testifyAssert "github.com/stretchr/testify/assert"
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
-	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
+	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/api/v1alpha1"
+	wildflyutil "github.com/wildfly/wildfly-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"regexp"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"strings"
+	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,7 +26,6 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -40,7 +39,7 @@ var (
 	// variables to be setup and re-used in the method over the file
 	assert *testifyAssert.Assertions
 	cl     client.Client
-	r      *ReconcileWildFlyServer
+	r      *WildFlyServerReconciler
 
 	// Mock request to simulate Reconcile() being called on an event for a watched resource.
 	req = reconcile.Request{
@@ -78,7 +77,7 @@ var (
 
 func setupBeforeScaleDown(t *testing.T, wildflyServer *wildflyv1alpha1.WildFlyServer, expectedReplicaSize int32) {
 	// Set the logger to development mode for verbose logs.
-	logf.SetLogger(zap.Logger())
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	assert = testifyAssert.New(t)
 
 	// Objects to track in the fake client.
@@ -88,14 +87,19 @@ func setupBeforeScaleDown(t *testing.T, wildflyServer *wildflyv1alpha1.WildFlySe
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(wildflyv1alpha1.SchemeGroupVersion, wildflyServer)
+	s.AddKnownTypes(wildflyv1alpha1.GroupVersion, wildflyServer)
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(s, objs...)
-	// Create a ReconcileWildFlyServer object with the scheme and fake client.
-	r = &ReconcileWildFlyServer{client: cl, scheme: s, recorder: eventRecorderMock{}, isOpenShift: false}
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objs...).Build()
+	// Create a WildFlyServerReconciler object with the scheme and fake client.
+	r = &WildFlyServerReconciler{Client: cl,
+		Scheme:      s,
+		Recorder:    eventRecorderMock{},
+		IsOpenShift: false,
+		Log:         ctrl.Log.WithName("test").WithName("transaction"),
+	}
 
 	// Statefulset will be created
-	_, err := r.Reconcile(req)
+	_, err := r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 
 	// Check if stateful set has been created and has the correct size.
@@ -122,7 +126,7 @@ func setupBeforeScaleDown(t *testing.T, wildflyServer *wildflyv1alpha1.WildFlySe
 
 	log.Info("Waiting for WildflyServer is updated to the state where WildflyServer.Status.Pods refers the Pod created by the test")
 	err = wait.Poll(100*time.Millisecond, 5*time.Second, func() (done bool, err error) {
-		_, err = r.Reconcile(req)
+		_, err = r.Reconcile(context.TODO(), req)
 		require.NoError(t, err)
 
 		podList, err := GetPodsForWildFly(r, wildflyServer)
@@ -155,7 +159,7 @@ func TestRecoveryScaleDownToPodInvestigation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Reconcile for the scale down - updating the pod labels
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	// Pod label has to be changed to not being active for service
 	podList, err := GetPodsForWildFly(r, wildflyServer)
@@ -173,7 +177,7 @@ func TestRecoveryScaleDownToPodInvestigation(t *testing.T) {
 	wildflyutil.RemoteOps = &remoteOpsMock
 
 	// Reconcile for the scale down - updating the pod state at the wildflyserver CR
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	err = cl.Get(context.TODO(), req.NamespacedName, wildflyServer)
 	require.NoError(t, err)
@@ -198,7 +202,7 @@ func TestRecoveryScaleDown(t *testing.T) {
 	err := cl.Update(context.TODO(), wildflyServer)
 
 	// Reconcile for the scale down - updating the pod labels
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 
 	// Mocking the jboss-cli.sh calls to reach the loop on working with pods at "processTransactionRecoveryScaleDown"
@@ -225,7 +229,7 @@ func TestRecoveryScaleDown(t *testing.T) {
 	wildflyutil.RemoteOps = &remoteOpsMock
 
 	// Reconcile for the scale down - updating the pod state at the wildflyserver CR
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	err = cl.Get(context.TODO(), req.NamespacedName, wildflyServer)
 	require.NoError(t, err)
@@ -241,7 +245,7 @@ func TestRecoveryScaleDown(t *testing.T) {
 	assert.Equal(wildflyv1alpha1.PodStateScalingDownClean, wildflyServer.Status.Pods[0].State)
 
 	// Reconcile is waiting for StatefulSet controller to remove pods
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	err = cl.Get(context.TODO(), req.NamespacedName, wildflyServer)
 	assert.Equal(int32(1), wildflyServer.Status.Replicas)
@@ -253,7 +257,7 @@ func TestRecoveryScaleDown(t *testing.T) {
 	err = cl.Delete(context.TODO(), &podList.Items[0])
 	require.NoError(t, err)
 	// Reconcile makes the WildFlyServer status to be changed
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	err = cl.Get(context.TODO(), req.NamespacedName, wildflyServer)
 	require.NoError(t, err)
@@ -271,7 +275,7 @@ func TestSkipRecoveryScaleDownWhenNoTxnSubsystem(t *testing.T) {
 	err := cl.Update(context.TODO(), wildflyServer)
 
 	// Reconcile for the scale down - updating the pod labels
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 
 	// Mocking the jboss-cli.sh calls to return of there is no transactions subsystem available
@@ -281,7 +285,7 @@ func TestSkipRecoveryScaleDownWhenNoTxnSubsystem(t *testing.T) {
 	wildflyutil.RemoteOps = &remoteOpsMock
 
 	// Reconcile for the txn scale down processing - recovery skipped
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	// StatefulSet needs to be updated in scaled down manner
 	statefulSet := &appsv1.StatefulSet{}
@@ -305,7 +309,7 @@ func TestSkipRecoveryScaleDownWhenEmptyDirStorage(t *testing.T) {
 	err := cl.Update(context.TODO(), wildflyServer)
 
 	// Reconcile for the scale down - updating the pod labels
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 
 	// Mocking the jboss-cli.sh calls to return that JDBC object store is not used
@@ -316,7 +320,7 @@ func TestSkipRecoveryScaleDownWhenEmptyDirStorage(t *testing.T) {
 	wildflyutil.RemoteOps = &remoteOpsMock
 
 	// Reconcile for the txn scale down procesing - recovery skipped
-	_, err = r.Reconcile(req)
+	_, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	// StatefulSet needs to be updated in scaled down manner
 	statefulSet := &appsv1.StatefulSet{}
