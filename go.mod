@@ -1,31 +1,33 @@
 module github.com/wildfly/wildfly-operator
 
-go 1.13
+go 1.16
 
 require (
-	github.com/RHsyseng/operator-utils v1.4.5
-	github.com/coreos/prometheus-operator v0.41.0
-	github.com/go-logr/logr v0.1.0
-	github.com/go-openapi/spec v0.19.9
-	github.com/openshift/api v0.0.0-20200521101457-60c476765272
-	github.com/operator-framework/operator-sdk v0.18.2
-	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
+	github.com/Azure/go-autorest/autorest v0.11.10 // indirect
+	github.com/RHsyseng/operator-utils v1.4.7
+	github.com/go-logr/logr v0.4.0
+	github.com/go-openapi/swag v0.19.10 // indirect
+	github.com/onsi/ginkgo/v2 v2.1.3
+	github.com/onsi/gomega v1.18.1
+	github.com/openshift/api v0.0.0-20210928121311-b64fe3d0dc32
+	github.com/operator-framework/operator-lib v0.3.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.50.0
+	github.com/prometheus/client_golang v1.8.0 // indirect
+	github.com/prometheus/common v0.14.0
+	github.com/stretchr/testify v1.7.0
 	github.com/tevino/abool v1.2.0
-	k8s.io/api v0.18.14
-	k8s.io/apimachinery v0.18.14
+	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43 // indirect
+	k8s.io/api v0.20.4
+	k8s.io/apimachinery v0.20.4
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6
-	sigs.k8s.io/controller-runtime v0.6.2
+	k8s.io/kube-openapi v0.0.0-20220124234850-424119656bbf
+	k8s.io/utils v0.0.0-20210802155522-efc7438f0176
+	sigs.k8s.io/controller-runtime v0.8.3
 )
 
 replace (
-	github.com/Azure/go-autorest => github.com/Azure/go-autorest v13.3.2+incompatible // Required by OLM
-	// OpenShift release-4.5
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20200526144822-34f54f12813a
-	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
-	// Pinned to kubernetes-1.18.2
-	k8s.io/api => k8s.io/api v0.18.14
-	k8s.io/apimachinery => k8s.io/apimachinery v0.18.14
-	k8s.io/client-go => k8s.io/client-go v0.18.14 // Required by prometheus-operator
+	k8s.io/api => k8s.io/api v0.19.14
+	k8s.io/apimachinery => k8s.io/apimachinery v0.19.14
+	k8s.io/client-go => k8s.io/client-go v0.19.14
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.8.3
 )
