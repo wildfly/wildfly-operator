@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/api/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,7 +22,7 @@ import (
 var log = logf.Log.WithName("wildflyserver_resources")
 
 // Create creates a new resource from the objectDefinition and set w as its ControllerReference
-func Create(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, objectDefinition runtime.Object) error {
+func Create(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, objectDefinition client.Object) error {
 	logger := logWithValues(w, objectDefinition)
 	logger.Info("Creating resource")
 
@@ -45,7 +45,7 @@ func Create(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runt
 }
 
 // Get returns the object from the objectDefinition
-func Get(w *wildflyv1alpha1.WildFlyServer, namespacedName types.NamespacedName, client client.Client, objectDefinition runtime.Object) error {
+func Get(w *wildflyv1alpha1.WildFlyServer, namespacedName types.NamespacedName, client client.Client, objectDefinition client.Object) error {
 	logger := log.WithValues("WildFlyServer.Namespace", w.Namespace, "WildFlyServer.Name", w.Name, "Resource.Name", namespacedName.Name)
 	logger.Info("Getting resource")
 
@@ -61,7 +61,7 @@ func Get(w *wildflyv1alpha1.WildFlyServer, namespacedName types.NamespacedName, 
 }
 
 // Update updates the resource specified by the objectDefinition.
-func Update(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition runtime.Object) error {
+func Update(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition client.Object) error {
 	logger := logWithValues(w, objectDefinition)
 	logger.Info("Updating Resource")
 
@@ -80,7 +80,7 @@ func Update(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefini
 	return nil
 }
 
-func Patch(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition runtime.Object, patch client.Patch) error {
+func Patch(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition client.Object, patch client.Patch) error {
 	logger := logWithValues(w, objectDefinition)
 	logger.Info("Patching Resource")
 
@@ -100,7 +100,7 @@ func Patch(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinit
 }
 
 // UpdateStatus updates status of the resource specified by the objectDefinition.
-func UpdateStatus(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition runtime.Object) error {
+func UpdateStatus(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition client.Object) error {
 	logger := logWithValues(w, objectDefinition)
 	logger.Info("Updating status of resource")
 
@@ -128,7 +128,7 @@ func UpdateWildFlyServerStatus(w *wildflyv1alpha1.WildFlyServer, client client.C
 }
 
 // Delete deletes the resource specified by the objectDefinition.
-func Delete(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition runtime.Object) error {
+func Delete(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition client.Object) error {
 	logger := logWithValues(w, objectDefinition)
 	logger.Info("Deleting Resource")
 

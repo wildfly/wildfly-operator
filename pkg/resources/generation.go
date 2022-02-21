@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"strconv"
 
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -23,7 +22,7 @@ import (
 var (
 	numberOne = int64(1)
 	// options to tail one line from the log of a pod
-	tailOneLineLogOptions = v1.PodLogOptions{TailLines: &numberOne, Timestamps: true}
+	tailOneLineLogOptions = corev1.PodLogOptions{TailLines: &numberOne, Timestamps: true}
 	// regexp searching for timestamp at the start of the string
 	timestampFromLogLine = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}[^ ]+`)
 	// start of the time timestamp
@@ -129,7 +128,7 @@ func (RemoteOperationsStruct) SocketConnect(hostname string, port int32, command
 }
 
 // ObtainLogLatestTimestamp reads log from pod and find out
-//   what is the most latest log record at the time
+//   what is the latest log record at the time
 //   and returns time stamp of the record
 func (RemoteOperationsStruct) ObtainLogLatestTimestamp(pod *corev1.Pod) (*time.Time, error) {
 	lineReader, err := readPodLog(pod, &tailOneLineLogOptions)
@@ -162,7 +161,7 @@ func (RemoteOperationsStruct) ObtainLogLatestTimestamp(pod *corev1.Pod) (*time.T
 // VerifyLogContainsRegexp checks if a line in the log from the pod matches the provided regexp
 //   the log could be limited to be taken from particular time further, when no time defined the log is not limited by time
 func (RemoteOperationsStruct) VerifyLogContainsRegexp(pod *corev1.Pod, logFromTime *time.Time, regexpLineCheck *regexp.Regexp) (string, error) {
-	timeLimitingPodLogOptions := v1.PodLogOptions{}
+	timeLimitingPodLogOptions := corev1.PodLogOptions{}
 	if logFromTime != nil {
 		metav1LogFromTime := metav1.NewTime(*logFromTime)
 		timeLimitingPodLogOptions.SinceTime = &metav1LogFromTime

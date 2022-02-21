@@ -10,10 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
-	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
+	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/api/v1alpha1"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
+	wildflyutil "github.com/wildfly/wildfly-operator/pkg/util"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
