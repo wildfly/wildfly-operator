@@ -119,13 +119,13 @@ unit-test: generate fmt vet ## Run unit-tests.
 	go test -v ./controllers/...
 
 .PHONY: test
-local-test: manifests generate fmt vet envtest ## Run tests in a local cluster.
+local-test: manifests generate fmt vet envtest ## Run tests by running the Operator in local.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v ./test/e2e/... -coverprofile cover.out
 
-.PHONY: test-e2e
+.PHONY: test-e2e ## Run tests deploying the Operator in the Cluster.
 test: prepare-test-e2e run-test-e2e ## Run the E2E tests.
 
-.PHONY: test-e2e-minikube
+.PHONY: test-e2e-minikube ## Run tests deploying the Operator in the Cluster by using minikube
 test-e2e-minikube: prepare-test-e2e
 	docker run -d -p 5000:5000 --restart=always --name image-registry registry || true
 	IMG="localhost:5000/wildfly-operator:latest" make docker-build docker-push run-test-e2e
