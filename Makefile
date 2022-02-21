@@ -230,11 +230,15 @@ rm -rf $$TMP_DIR ;\
 endef
 
 .PHONY: bundle
-bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
+bundle: setup-operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
+
+.PHONY: setup-operator-sdk
+setup-operator-sdk:
+	which ./operator-sdk > /dev/null || ./build/setup-operator-sdk.sh
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
