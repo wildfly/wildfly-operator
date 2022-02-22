@@ -15,7 +15,7 @@ spec:
       serviceAccountName: wildfly-operator
       containers:
       - command:
-        - /manager
+        - wildfly-operator
         args:
         - --leader-elect
         image: controller:latest

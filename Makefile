@@ -165,7 +165,7 @@ debug: dlv generate fmt vet manifests
 
 .PHONY: docker-build
 docker-build: unit-test openapi ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	./build/build.sh ${IMG}
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
