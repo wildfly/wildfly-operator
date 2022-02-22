@@ -172,10 +172,10 @@ docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
 # Download Delve locally if necessary
-dlv = $(shell pwd)/bin/dlv
+DLV = $(shell pwd)/bin/dlv
 .PHONY: dlv
 dlv:
-    $(call go-get-tool,$(DLV),github.com/go-delve/delve/cmd/dlv@latest)
+	$(call go-get-tool,$(DLV),github.com/go-delve/delve/cmd/dlv@latest)
 
 ##@ Deployment
 
