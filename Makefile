@@ -96,9 +96,8 @@ dry-run: manifests
 	mkdir -p dry-run
 	$(KUSTOMIZE) build config/default > dry-run/manifests.yaml
 
-# Generate the openapi
 .PHONY: openapi-setup
-openapi:
+openapi: ## Generate the OpenAPI.
 	which ./openapi-gen > /dev/null || go build -o ./openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
 	./openapi-gen --logtostderr=true -o "" -i ./api/v1alpha1 -O zz_generated.openapi -p ./api/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
@@ -119,13 +118,14 @@ unit-test: generate fmt vet ## Run unit-tests.
 	go test -v ./controllers/...
 
 .PHONY: test
-local-test: manifests generate fmt vet envtest ## Run tests by running the Operator in local.
+local-test: manifests generate fmt vet envtest ## Run E2E tests running the Operator locally outside the cluster.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v ./test/e2e/... -coverprofile cover.out
 
-.PHONY: test-e2e ## Run tests deploying the Operator in the Cluster.
-test: prepare-test-e2e run-test-e2e ## Run the E2E tests.
+.PHONY: test-e2e
+test: prepare-test-e2e run-test-e2e ## Run E2E tests running the Operator as a Deployment inside the cluster.
 
-.PHONY: test-e2e-minikube ## Run tests deploying the Operator in the Cluster by using minikube
+## Run E2E tests running the Operator as a Deployment inside a local minikube cluster installation.
+.PHONY: test-e2e-minikube
 test-e2e-minikube: prepare-test-e2e
 	docker run -d -p 5000:5000 --restart=always --name image-registry registry || true
 	IMG="localhost:5000/wildfly-operator:latest" make docker-build docker-push run-test-e2e
@@ -171,12 +171,6 @@ docker-build: unit-test openapi ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
-# Download Delve locally if necessary
-DLV = $(shell pwd)/bin/dlv
-.PHONY: dlv
-dlv:
-	$(call go-get-tool,$(DLV),github.com/go-delve/delve/cmd/dlv@latest)
-
 ##@ Deployment
 
 ifndef ignore-not-found
@@ -214,6 +208,11 @@ ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
 envtest: ## Download envtest-setup locally if necessary.
 	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+
+DLV = $(shell pwd)/bin/dlv
+.PHONY: dlv
+dlv: ## Download Delve locally if necessary.
+	$(call go-get-tool,$(DLV),github.com/go-delve/delve/cmd/dlv@latest)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
