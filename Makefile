@@ -98,7 +98,7 @@ dry-run: manifests
 
 .PHONY: openapi-setup
 openapi: ## Generate the OpenAPI.
-	which ./openapi-gen > /dev/null || go build -o ./openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
+	which ./openapi-gen > /dev/null || go build -mod=mod -o ./openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
 	./openapi-gen --logtostderr=true -o "" -i ./api/v1alpha1 -O zz_generated.openapi -p ./api/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
 .PHONY: generate
