@@ -11,9 +11,9 @@ This document describes the types introduced by the WildFly Operator to be consu
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `metadata` | Standard object's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta[metav1.ObjectMeta] | false
+| `metadata` | Standard object's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta[metav1.ObjectMeta] | false
 | `spec` | Specification of the desired behaviour of the WildFly deployment (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info]) | <<wildflyserverspec>> | true
-| `status` | Most recent observed status of the WildFly deployment. Read-only. (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status#spec-and-status[more info]) | <<wildflyserverstatus>> | false |
+| `status` | Most recent observed status of the WildFly deployment. Read-only. (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info]) | <<wildflyserverstatus>> | false |
 |=======================
 
 [[wildflyservelist]]
@@ -24,7 +24,7 @@ This document describes the types introduced by the WildFly Operator to be consu
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `metadata` | Standard list's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#listmeta-v1-meta[metav1.ListMeta] | false
+| `metadata` | Standard list's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#listmeta-v1-meta[metav1.ListMeta] | false
 | `items` | List of `WildFlyServer` | []<<wildflyserver>> | true
 |=======================
 
@@ -44,7 +44,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | `bootableJar` | BootableJar specifies whether the application image is using WildFly S2I Builder/Runtime images or Bootable Jar. If omitted,
 it defaults to false (application image is expected to use WildFly S2I Builder/Runtime images) | bool | false
 | `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
-| `resources`| Resources spec to specify the request or limits of the Stateful Set. If ommited, the namespace defaults are used. | *<<resources>> | false
+| `resources`| Resources spec to specify the request or limits of the Stateful Set. If omitted, the namespace defaults are used (https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[more info]). | *<<Resources>> | false
 | `storage` | Storage spec to specify how storage should be used. If omitted, an `EmptyDir` is used (that will not persist data across pod restart) | *<<storagespec>> |false
 | `serviceAccountName` | Name of the ServiceAccount to use to run the WildFlyServer Pods | string | false
 | `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envfromsource-v1-core[corev1.EnvFromSource] |false
@@ -55,20 +55,11 @@ it defaults to false (application image is expected to use WildFly S2I Builder/R
 | `sessionAffinity`| If connections from the same client IP are passed to the same WildFlyServer instance/pod each time (false if omitted) | bool | false
 |=======================
 
-[[resources]]
+[[Resources]]
 ## `Resources`
 
-`Resources` defines the configured resources for a `WildflyServer` resources. If the resource is not defined or `Request` or `Limits` is empty this resources will removed from the `Stateful Set`
-The description of this resource is a standard `Container` resource and is the same as the kubernetes api found on kubernetes.
-
-This resource is not limited to only cpu and memory for more information on container resources:
-https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-
-[options="header,footer"]
-|=======================
-| Field  | Description |Scheme| Required
-| `resources` | ResourceRequirements describes the compute resource requirements. | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#resourcerequirements-v1-core[corev1.ResourceRequirements] | false
-|=======================
+`Resources` defines the configured resources for a `WildflyServer` resource. If the `Resources` field is not defined or `Request` or `Limits` is empty,  this resource is removed from the `StatefulSet`
+The description of this resource is a standard `Container` resource and uses the scheme for https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#resourcerequirements-v1-core[corev1.ResourceRequirements].
 
 [[storagespec]]
 ## `StorageSpec`
@@ -109,6 +100,7 @@ transaction, make sure to specify a `volumeClaimTemplate` that so that the same 
 |=======================
 | Field  | Description |Scheme| Required
 | `replicas` | Replicas is the actual number of replicas for the application | int32 | true
+| `selector` | selector for pods, used by HorizontalPodAutoscaler | string | true
 | `hosts` | Hosts that route to the application HTTP service | []string | true
 | `pods` | Status of the pods | []<<podstatus>> | true
 | `scalingdownPods` | Number of pods which are under scale down cleaning process | int32 | true
