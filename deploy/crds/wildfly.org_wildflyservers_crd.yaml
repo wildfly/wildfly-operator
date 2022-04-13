@@ -567,7 +567,6 @@ spec:
             required:
             - replicas
             - scalingdownPods
-            - selector
             type: object
         type: object
     served: true
