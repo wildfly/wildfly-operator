@@ -100,7 +100,7 @@ transaction, make sure to specify a `volumeClaimTemplate` that so that the same 
 |=======================
 | Field  | Description |Scheme| Required
 | `replicas` | Replicas is the actual number of replicas for the application | int32 | true
-| `selector` | selector for pods, used by HorizontalPodAutoscaler | string | true
+| `selector` | selector for pods, used by HorizontalPodAutoscaler | string | false
 | `hosts` | Hosts that route to the application HTTP service | []string | true
 | `pods` | Status of the pods | []<<podstatus>> | true
 | `scalingdownPods` | Number of pods which are under scale down cleaning process | int32 | true
