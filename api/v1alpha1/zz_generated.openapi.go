@@ -393,13 +393,12 @@ func schema__api_v1alpha1_WildFlyServerStatus(ref common.ReferenceCallback) comm
 					"selector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "selector for pods, used by HorizontalPodAutoscaler",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
-				Required: []string{"replicas", "scalingdownPods", "selector"},
+				Required: []string{"replicas", "scalingdownPods"},
 			},
 		},
 		Dependencies: []string{
