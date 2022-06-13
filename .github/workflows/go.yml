@@ -40,5 +40,5 @@ jobs:
         password: ${{ env.REGISTRY_PASSWORD }}
     - name: Build and Push Image (main only)
       if: github.ref == 'refs/heads/main'
-      run: make push
+      run: make manifests docker-build docker-push
 

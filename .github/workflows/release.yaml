@@ -29,4 +29,4 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
       - name: Build and Push Image Tag
-        run: TAG=${GITHUB_REF##*/} make push
+        run: IMG="quay.io/wildfly/wildfly-operator:${GITHUB_REF##*/}" make manifests docker-build docker-push
