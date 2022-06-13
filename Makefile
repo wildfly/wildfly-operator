@@ -150,6 +150,11 @@ clean: kustomize
 
 ##@ Build
 
+.PHONY: vendor
+vendor:  ## Add missing and remove unused modules and make vendored copy of dependencies
+	go mod tidy
+	go mod vendor
+
 .PHONY: build
 build: generate fmt vet openapi ## Build manager binary.
 	go build -o bin/manager main.go
@@ -164,7 +169,7 @@ debug: dlv generate fmt vet manifests
 	JBOSS_HOME=/wildfly JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server OPERATOR_NAME=wildfly-operator  ./bin/dlv --listen=:2345 --headless=true --api-version=2 --accept-multiclient exec bin/manager
 
 .PHONY: docker-build
-docker-build: unit-test openapi ## Build docker image with the manager.
+docker-build: unit-test openapi vendor ## Build docker image with the manager.
 	./build/build.sh ${IMG}
 
 .PHONY: docker-push
