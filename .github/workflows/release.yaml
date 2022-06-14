@@ -22,7 +22,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v2
-      - name: Docker Login to Quay.io (master only)
+      - name: Docker Login to Quay.io (main only)
         uses: docker/login-action@v1.8.0
         with:
           registry: ${{ env.REGISTRY }}
