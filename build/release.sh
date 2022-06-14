@@ -32,11 +32,11 @@ main() {
   else
     # push the tag
     git push upstream ${RELEASE_NAME}
-    # merge the release branch into master
-    git checkout master
+    # merge the release branch into main
+    git checkout main
     git merge --ff-only ${RELEASE_BRANCH}
-    # and push master to upstream
-    git push upstream master
+    # and push main to upstream
+    git push upstream main
     git branch -D ${RELEASE_BRANCH}
   fi
 }

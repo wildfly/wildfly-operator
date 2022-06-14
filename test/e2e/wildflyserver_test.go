@@ -1,3 +1,4 @@
+//go:build !unit
 // +build !unit
 
 package e2e
@@ -36,7 +37,7 @@ func TestWildFlyServer(t *testing.T) {
 		// It can be run when the operator is inside the container platform.
 		// However for the CI tests, that means that it will not use the operator code
 		// from the same commit but the latest image from wildfly/wildfly-operator
-		// (corresponding to the latest commit on master branch)
+		// (corresponding to the latest commit on main branch)
 		t.Run("ScaleDownTest", wildflyScaleDownTest)
 	}
 }
