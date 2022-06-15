@@ -72,7 +72,7 @@ database-password:  16 bytes
 
 # Deploy the application
 
-The application is defined in the https://github.com/wildfly/wildfly-operator/blob/master/examples/tasksrs/crds/taskrs-app.yaml[taksrs-app.yaml file]:
+The application is defined in the https://github.com/wildfly/wildfly-operator/blob/main/examples/tasksrs/crds/taskrs-app.yaml[taksrs-app.yaml file]:
 
 [source,yaml]
 ----
@@ -105,7 +105,7 @@ spec:
         name: postgresql
 ----
 
-This custom resource will run the https://github.com/wildfly/wildfly-s2i/tree/master/test/test-app-postgres[test-app-postgres] application from the https://quay.io/repository/wildfly-quickstarts/taskrs-app[quay.io/wildfly-quickstarts/taskrs-app:latest] image that is using the https://github.com/wildfly/wildfly-s2i[Source-to-Image (S2I) template for WildFly].
+This custom resource will run the https://github.com/wildfly/wildfly-s2i/tree/main/test/test-app-postgres[test-app-postgres] application from the https://quay.io/repository/wildfly-quickstarts/taskrs-app[quay.io/wildfly-quickstarts/taskrs-app:latest] image that is using the https://github.com/wildfly/wildfly-s2i[Source-to-Image (S2I) template for WildFly].
 
 The application requires the following Environment variables to configure its connection to PostgreSQL:
 

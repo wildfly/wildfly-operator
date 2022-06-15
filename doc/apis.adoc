@@ -11,9 +11,9 @@ This document describes the types introduced by the WildFly Operator to be consu
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `metadata` | Standard object's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta[metav1.ObjectMeta] | false
-| `spec` | Specification of the desired behaviour of the WildFly deployment (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info]) | <<wildflyserverspec>> | true
-| `status` | Most recent observed status of the WildFly deployment. Read-only. (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info]) | <<wildflyserverstatus>> | false |
+| `metadata` | Standard object's metadata (https://github.com/kubernetes/community/blob/main/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta[metav1.ObjectMeta] | false
+| `spec` | Specification of the desired behaviour of the WildFly deployment (https://github.com/kubernetes/community/blob/main/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info]) | <<wildflyserverspec>> | true
+| `status` | Most recent observed status of the WildFly deployment. Read-only. (https://github.com/kubernetes/community/blob/main/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info]) | <<wildflyserverstatus>> | false |
 |=======================
 
 [[wildflyservelist]]
@@ -24,7 +24,7 @@ This document describes the types introduced by the WildFly Operator to be consu
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `metadata` | Standard list's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#listmeta-v1-meta[metav1.ListMeta] | false
+| `metadata` | Standard list's metadata (https://github.com/kubernetes/community/blob/main/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#listmeta-v1-meta[metav1.ListMeta] | false
 | `items` | List of `WildFlyServer` | []<<wildflyserver>> | true
 |=======================
 

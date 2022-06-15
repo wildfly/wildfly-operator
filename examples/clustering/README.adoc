@@ -18,7 +18,7 @@ Since the default clustering mechanism used by WildFly requires interaction with
 $ kubectl apply -f examples/clustering/crds/role_binding.yaml
 ----
 
-The application is defined in the https://github.com/wildfly/wildfly-operator/blob/master/examples/clustering/crds/clusterbenc.yaml[clusterbench.yaml file]:
+The application is defined in the https://github.com/wildfly/wildfly-operator/blob/main/examples/clustering/crds/clusterbenc.yaml[clusterbench.yaml file]:
 
 [source,yaml]
 ----
