@@ -14,6 +14,7 @@ import (
 	wfly "github.com/wildfly/wildfly-operator/pkg/controller/util"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -222,8 +223,9 @@ func (r *ReconcileWildFlyServer) setupRecoveryPropertiesAndRestart(reqLogger log
 func (r *ReconcileWildFlyServer) updatePodLabel(w *wildflyv1alpha1.WildFlyServer, scaleDownPod *corev1.Pod, labelName, labelValue string) (bool, error) {
 	updated := false
 	if scaleDownPod.ObjectMeta.Labels[labelName] != labelValue {
+		patch := client.MergeFrom(scaleDownPod.DeepCopyObject())
 		scaleDownPod.ObjectMeta.Labels[labelName] = labelValue
-		if err := resources.Update(w, r.client, scaleDownPod); err != nil {
+		if err := resources.Patch(w, r.client, scaleDownPod, patch); err != nil {
 			return false, fmt.Errorf("Failed to update pod labels for pod %v with label [%s=%s], error: %v",
 				scaleDownPod.ObjectMeta.Name, labelName, labelValue, err)
 		}

@@ -80,6 +80,25 @@ func Update(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefini
 	return nil
 }
 
+func Patch(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition runtime.Object, patch client.Patch) error {
+	logger := logWithValues(w, objectDefinition)
+	logger.Info("Patching Resource")
+
+	meta := objectDefinition.(metav1.Object)
+	// mark the object with the current wildflyserver generation unless it is the wildflyserver itself
+	if objectDefinition != w {
+		MarkServerGeneration(w, meta)
+	}
+
+	if err := client.Patch(context.TODO(), objectDefinition, patch); err != nil {
+		logger.Error(err, "Failed to patch resource")
+		return err
+	}
+
+	logger.Info("Patched resource")
+	return nil
+}
+
 // UpdateStatus updates status of the resource specified by the objectDefinition.
 func UpdateStatus(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinition runtime.Object) error {
 	logger := logWithValues(w, objectDefinition)
