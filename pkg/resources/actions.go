@@ -40,7 +40,7 @@ func Create(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runt
 		return err
 	}
 
-	logger.Info("Created resource")
+	logger.V(1).Info("Created resource")
 	return nil
 }
 
@@ -56,7 +56,7 @@ func Get(w *wildflyv1alpha1.WildFlyServer, namespacedName types.NamespacedName, 
 		return err
 	}
 
-	logger.Info("Got resource")
+	logger.V(1).Info("Got resource")
 	return nil
 }
 
@@ -76,7 +76,7 @@ func Update(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefini
 		return err
 	}
 
-	logger.Info("Updated resource")
+	logger.V(1).Info("Updated resource")
 	return nil
 }
 
@@ -95,7 +95,7 @@ func Patch(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefinit
 		return err
 	}
 
-	logger.Info("Patched resource")
+	logger.V(1).Info("Patched resource")
 	return nil
 }
 
@@ -109,7 +109,7 @@ func UpdateStatus(w *wildflyv1alpha1.WildFlyServer, client client.Client, object
 		return err
 	}
 
-	logger.Info("Updated status of resource")
+	logger.V(1).Info("Updated status of resource")
 	return nil
 }
 
@@ -123,7 +123,7 @@ func UpdateWildFlyServerStatus(w *wildflyv1alpha1.WildFlyServer, client client.C
 		return err
 	}
 
-	logger.Info("Updated status of WildFlyServer")
+	logger.V(1).Info("Updated status of WildFlyServer")
 	return nil
 }
 
@@ -137,7 +137,7 @@ func Delete(w *wildflyv1alpha1.WildFlyServer, client client.Client, objectDefini
 		return err
 	}
 
-	logger.Info("Deleted resource")
+	logger.V(1).Info("Deleted resource")
 	return nil
 }
 
