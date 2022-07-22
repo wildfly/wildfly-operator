@@ -1,6 +1,6 @@
 domain: org
 layout: go.kubebuilder.io/v3
-projectName: temp
+projectName: wildfly-operator
 repo: github.com/wildfly/wildfly-operator
 resources:
 - api:
