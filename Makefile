@@ -153,13 +153,16 @@ clean: kustomize
 
 ##@ Build
 
-.PHONY: vendor
-vendor:  ## Add missing and remove unused modules and make vendored copy of dependencies
+.PHONY: tidy
+tidy: ## Download any require dependency, clean up modules and refresh go.sum
 	go mod tidy
+
+.PHONY: vendor
+vendor:  tidy ## Add missing and remove unused modules and make vendored copy of dependencies
 	go mod vendor
 
 .PHONY: build
-build: generate fmt vet openapi ## Build manager binary.
+build: vendor generate fmt vet openapi ## Build manager binary.
 	go build -o bin/manager main.go
 
 .PHONY: run
