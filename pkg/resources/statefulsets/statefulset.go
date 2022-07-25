@@ -315,20 +315,18 @@ func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 					Command: []string{"/bin/bash", "-c", readinessProbeScript},
 				},
 			},
-		}
-	}
-	if w.Spec.BootableJar {
-		return &corev1.Probe{
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path: "/health/ready",
-					Port: intstr.FromString("admin"),
-				},
-			},
 			InitialDelaySeconds: 60,
 		}
 	}
-	return nil
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/health/ready",
+				Port: intstr.FromString("admin"),
+			},
+		},
+		InitialDelaySeconds: 60,
+	}
 }
 
 func envForClustering(labels string) []corev1.EnvVar {
