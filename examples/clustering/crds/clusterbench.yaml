@@ -4,5 +4,4 @@ metadata:
   name: clusterbench
 spec:
   applicationImage: "quay.io/wildfly-quickstarts/clusterbench:latest"
-
   replicas: 2

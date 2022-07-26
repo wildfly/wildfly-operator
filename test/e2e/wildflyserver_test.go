@@ -127,7 +127,7 @@ var _ = Describe("WildFly Server tests", func() {
 	})
 
 	It("WildFlyServer can form a cluster", func() {
-		applicationImage := "quay.io/wildfly-quickstarts/clusterbench-ee7:22.0"
+		applicationImage := "quay.io/wildfly-quickstarts/clusterbench:latest"
 		name := "cluster-bench"
 		ctx := context.Background()
 
