@@ -2,7 +2,7 @@ package routes
 
 import (
 	routev1 "github.com/openshift/api/route/v1"
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
+	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/api/v1alpha1"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
 	"k8s.io/apimachinery/pkg/api/errors"

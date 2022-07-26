@@ -1,10 +1,22 @@
+# tools for the development
 /openapi-gen
 /operator-sdk
-/operator-sdk-e2e-tests
 
-# Temporary Build Files
-build/_output
-build/_test
+#envtest temporal files
+testbin/*
+
+# dry-run folder, used to generate manifest for inspection
+dry-run/*
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+cover.out
+
+# Auto generated files
+bin/*
+
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 ### Emacs ###
 # -*- mode: gitignore; -*-

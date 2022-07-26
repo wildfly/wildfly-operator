@@ -2,14 +2,14 @@ package openshift
 
 import (
 	"errors"
-	"github.com/RHsyseng/operator-utils/pkg/resource"
 	"github.com/ghodss/yaml"
 	consolev1 "github.com/openshift/api/console/v1"
 	amv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 )
 
-func GetConsoleYAMLSample(res resource.KubernetesResource) (*consolev1.ConsoleYAMLSample, error) {
+func GetConsoleYAMLSample(res client.Object) (*consolev1.ConsoleYAMLSample, error) {
 	annotations := res.GetAnnotations()
 	snippetStr := annotations["consoleSnippet"]
 	var snippet bool = false

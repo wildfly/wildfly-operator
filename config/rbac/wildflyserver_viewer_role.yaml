@@ -1,0 +1,20 @@
+# permissions for end users to view wildflyservers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: wildflyserver-viewer-role
+rules:
+- apiGroups:
+  - wildfly.org
+  resources:
+  - wildflyservers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - wildfly.org
+  resources:
+  - wildflyservers/status
+  verbs:
+  - get

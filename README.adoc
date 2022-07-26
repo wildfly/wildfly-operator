@@ -28,14 +28,14 @@ The examples require that https://kubernetes.io/docs/setup/minikube/[Minikube] i
 [source,shell]
 ----
 # install WildFlyServer CRD
-$ kubectl apply -f deploy/crds/wildfly.org_wildflyservers_crd.yaml
+$ make install
 # Install all resources for the WildFly Operator
-$ kubectl apply -f deploy/operator.yaml
+$ make deploy
 ----
 
 ### Install a custom resource
 
-An example of a custom resource of `WildFlyServer` is described in https://github.com/wildfly/wildfly-operator/blob/main/deploy/crds/quickstart-cr.yaml[quickstart-cr.yaml]:
+An example of a custom resource of `WildFlyServer` is described in https://github.com/wildfly/wildfly-operator/blob/main/config/samples/quickstart-cr.yaml[quickstart-cr.yaml]:
 
 [source,yaml]
 ----
@@ -69,7 +69,7 @@ This simple application illustrates that successive calls will be load balanced 
 
 [source,shell]
 ----
-$ kubectl create -f deploy/crds/quickstart-cr.yaml
+$ kubectl create -f config/samples/quickstart-cr.yaml
 wildflyserver.wildfly.org/quickstart created
 ----
 
@@ -176,7 +176,7 @@ Status:
 Events:      <none>
 ----
 
-You can then remove this custom resource and its assocated resources:
+You can then remove this custom resource and its associated resources:
 
 [source,shell]
 ----
@@ -185,11 +185,22 @@ $ kubectl delete wildflyserver quickstart
 wildflyserver.wildfly.org "quickstart" deleted
 ----
 
+You can remove the WildFly Operator resources:
+[source,shell]
+----
+$ make undeploy
+customresourcedefinition.apiextensions.k8s.io "wildflyservers.wildfly.org" deleted
+serviceaccount "wildfly-operator" deleted
+role.rbac.authorization.k8s.io "wildfly-operator" deleted
+rolebinding.rbac.authorization.k8s.io "wildfly-operator" deleted
+deployment.apps "wildfly-operator" deleted
+----
+
 #### OpenShift
 
 The examples can also be installed in OpenShift and requires a few additional steps.
 
-The instructions requires that https://github.com/minishift/minishift[Minishift] is installed and running.
+The instructions require that https://github.com/minishift/minishift[Minishift] is installed and running.
 
 Deploying the operator and its resources by executing the following commands:
 
@@ -197,13 +208,13 @@ Deploying the operator and its resources by executing the following commands:
 ----
 $ oc login -u system:admin
 $ oc adm policy add-cluster-role-to-user cluster-admin developer
-$ oc apply -f deploy/crds/wildfly_v1alpha1_wildflyserver_crd.yaml
-$ oc apply -f deploy/operator.yaml
+$ make install
+$ make deploy
 
 $ oc login -u developer
 ----
 
-After installing the `WildFlyServer` resource from `deploy/crds/quickstart-cr.yaml`, you have to create a route to expose it from OpenShift:
+After installing the `WildFlyServer` resource from `config/samples/quickstart-cr.yaml`, you have to create a route to expose it from OpenShift:
 
 [source,shell]
 ----
@@ -234,7 +245,6 @@ $ curl "http://$(oc get route quickstart-loadbalancer --template='{{ .spec.host 
 ## System Requirements
 
 * https://github.com/golang/go[go] with `$GOPATH` set to `$HOME/go`
-* https://github.com/golang/dep#installation[dep]
 * Docker
 * Either https://github.com/minishift/minishift[Minishift] or https://kubernetes.io/docs/setup/minikube/[Minikube]    
 
@@ -261,10 +271,222 @@ $ make
 $ make build
 ```
 
+### Running the Operator
+
+The Operator can run in two modes:
+
+ * *Local mode*: It runs the Operator as a local application running on your local computer. When using this mode, you don’t
+need to build an Operator image. The operator becomes a local application that will be monitoring resources of your
+kubernetes/OpenShift cluster.
+ * *Deploy mode*: Your Operator will be deployed and run in your cluster and not in your local computer. To use this mode
+you need to build the Operator, push its image in a public container registry, for example, quay.io, and then deploy it
+as a regular resource on your cluster.
+
+#### Local Mode
+
+The following commands run the Operator as a local application and deploy the quickstart on minikube:
+
+[source,shell]
+----
+$ make install
+$ make run WATCH_NAMESPACE="$(kubectl get sa default -o jsonpath='{.metadata.namespace}')"
+$ kubectl create -f config/samples/quickstart-cr.yaml
+----
+
+`make install` builds the CRD by using kustomize. +
+`make run` will build the Operator and run it as a local application. +
+You have to define the namespace you want to watch for changes by specifying the `WATCH_NAMESPACE` environment variable.
+
+The following command removes the quickstart custom resource:
+
+[source,shell]
+----
+$ kubectl delete -f config/samples/quickstart-cr.yaml
+----
+
+You can stop the Operator by using CTL-C.
+
+If you want to Debug the Operator code in Local Mode, use `make debug` instead of `make run`:
+
+[source,shell]
+----
+$ make debug WATCH_NAMESPACE="$(kubectl get sa default -o jsonpath='{.metadata.namespace}')"
+----
+
+This target will download https://github.com/go-delve/delve[Delve] and will start the Operator listening at 2345 port. You can later attach a debugger from your IDE.
+
+#### Deploy Mode
+
+In this mode you need to build the Operator, push its image in a public container registry, and deploy it as a regular resource.
+
+To build the Operator image and push it to quay.io, execute the following command:
+
+[source,shell]
+----
+$ make manifests docker-build docker-push IMG="quay.io/my-quay-user/wildfly-operator-dev:latest"
+----
+
+To deploy this image in your cluster and deploy the quickstart example, execute the following:
+
+[source,shell]
+----
+$ make deploy IMG="quay.io/my-quay-user/wildfly-operator-dev:latest"
+$ kubectl create -f config/samples/quickstart-cr.yaml
+----
+
+To remove the quickstart custom resource, execute the following:
+
+[source,shell]
+----
+$ kubectl delete -f config/samples/quickstart-cr.yaml
+----
+
+To remove the Operator from your cluster, execute the following:
+
+[source,shell]
+----
+$ make undeploy
+----
+
+## Test suite
+
+### Run unit tests
+
+[source,shell]
+----
+$ make unit-test
+----
+
 ### Run end-to-end (e2e) tests
 
-The tests relies on Minikube as the container platform
+To run the e2e tests you need to have a cluster accessible from your local machine and have logged in as kubeadmin.
 
-````
-$ eval $(minikube -p minikube docker-env) && make test-e2e-minikube
-````
+#### Run end-to-end (e2e) tests in local mode
+This is useful for development since you don’t need to build and push the Operator image to a docker registry.
+The Operator will be deployed as a local application. Execute the following to run the test suite deploying the Operator as a local application:
+
+[source,shell]
+----
+$ make local-test
+----
+
+The test suite creates the resources for each test under the `wildfly-op-test-ns` namespace.
+You can monitor the resources created by the test suite in a different terminal window by issuing:
+
+[source,shell]
+----
+$ kubectl get pods -w -n wildfly-op-test-ns
+----
+
+If you stop the execution or if a test fails, you have to clean any resource left in your cluster before running the tests again:
+
+[source,shell]
+----
+$ make clean
+----
+
+Note: Transaction recovery tests will be skipped under this mode since they cannot be run outside the cluster.
+
+#### Run end-to-end (e2e) tests in Deploy Mode
+
+In this mode, the Operator will run in Deploy Mode, so you need to have the latest Operator image available somewhere.
+Before running the e2e tests. Execute the following to build and push the Operator you want to test to a public container registry, for example to
+https://quay.io/[quay.io]
+
+[source,shell]
+----
+$ QUAYIO_USERNAME="my-quay-user"
+$ make manifests docker-build docker-push IMG="quay.io/${QUAYIO_USERNAME}/wildfly-operator-dev:latest"
+----
+
+Once you have your Operator image publicly accessible, run the tests specifying the location of the Operator image under test:
+
+[source,shell]
+----
+$ make test IMG="quay.io/${QUAYIO_USERNAME}/wildfly-operator-dev:latest"
+----
+
+The test suite creates the resources for each test under the `wildfly-op-test-ns` namespace.
+You can monitor the resources created by the test suite in a different terminal window by issuing:
+
+[source,shell]
+----
+$ oc get pods -w -n wildfly-op-test-ns
+----
+
+If a test fails or if you stop the testsuite before it finish normally, clean up the resources before starting it again
+
+[source,shell]
+----
+$ make clean
+----
+
+### OLM installation
+
+You can install the Operator by using OLM. This could be useful to verify how changes in the CSV will be
+applied. The following instructions describes how to prepare the Operator image, bundle and catalog to deploy the
+Operator in a cluster that uses OML. The example commands use `quay.io` as container registry and OpenShift as kubernetes cluster:
+
+Execute the following command to build the Operator image, bundle and catalog:
+
+[source,shell]
+----
+$ QUAYIO_USERNAME="my-quay-user"
+$ make manifests docker-build docker-push bundle bundle-build bundle-push catalog-build catalog-push \
+IMG="quay.io/${QUAYIO_USERNAME}/wildfly-operator-dev:latest" \
+BUNDLE_IMG="quay.io/${QUAYIO_USERNAME}/wildfly-operator-bundle:1.0.0" \
+CATALOG_IMG="quay.io/${QUAYIO_USERNAME}/wildfly-operator-catalog:1.0.0"
+----
+
+* `manifests docker-build docker-push`: Will create your Operator image and push it to your container registry.
+* `bundle bundle-build bundle-push`: Will build a bundle with the resources needed by the operator. You can
+modify the autogenerated CSV by looking at `bundle/manifests/` directory.
+* `catalog-build catalog-push`: Will create a catalog containing the bundled Operator.
+
+Then deploy a `CatalogSource` which contains information for accessing a repository of Operators.
+When using OpenShift, the catalog source needs to be created on the `openshift-marketplace` namespace:
+
+[source,yaml]
+----
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: cs-wildfly-operator
+  namespace: openshift-marketplace
+spec:
+  displayName: WildFly Operator Dev
+  publisher: Company-Name
+  sourceType: grpc
+  image: quay.io/your-username/wildfly-operator-catalog:1.0.0
+  updateStrategy:
+    registryPoll:
+      interval: 10m
+----
+
+Wait until your Operator is recognized by OLM:
+
+[source,shell]
+----
+$ oc get packagemanifests | grep wildfly-operator
+wildfly-operator                                   WildFly Operator Dev   48s
+----
+
+Once the operator is recognised by OML, you can install the Operator from the OpenShift web console or, for example,
+by directly adding a subscription from the command line:
+
+[source,yaml]
+----
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: subscription-wildfly-operator
+spec:
+  channel: alpha
+  installPlanApproval: Automatic
+  name: wildfly-operator
+  source: cs-wildfly-operator
+  sourceNamespace: openshift-marketplace
+  startingCSV: wildfly-operator.v1.0.0
+----
+
+The Operator will be installed on the current namespace.

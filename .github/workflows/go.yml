@@ -20,7 +20,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
-        go-version: 1.13
+        go-version: 1.17.7
     - name: Build
       run: make build
     - name: Set up Minikube
@@ -40,5 +40,5 @@ jobs:
         password: ${{ env.REGISTRY_PASSWORD }}
     - name: Build and Push Image (main only)
       if: github.ref == 'refs/heads/main'
-      run: make push
+      run: make manifests docker-build docker-push
 

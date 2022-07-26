@@ -10,10 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/pkg/apis/wildfly/v1alpha1"
-	wildflyutil "github.com/wildfly/wildfly-operator/pkg/controller/util"
+	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/api/v1alpha1"
 	"github.com/wildfly/wildfly-operator/pkg/resources"
 	"github.com/wildfly/wildfly-operator/pkg/resources/services"
+	wildflyutil "github.com/wildfly/wildfly-operator/pkg/util"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -270,12 +270,12 @@ func createResources(r *corev1.ResourceRequirements) corev1.ResourceRequirements
 	return rTemplate
 }
 
-// createLivenessProbe create a Exec probe if the SERVER_LIVENESS_SCRIPT env var is present
+// createLivenessProbe create an Exec probe if the SERVER_LIVENESS_SCRIPT env var is present
 // *and* the application is not using Bootable Jar.
 // Otherwise, it creates a HTTPGet probe that checks the /health/live endpoint on the admin port.
 //
 // If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
-// complies to the Kuberenetes probes requirements.
+// complies to the Kubernetes probes requirements.
 func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
 	if defined && !w.Spec.BootableJar {
@@ -299,13 +299,11 @@ func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	}
 }
 
-// createReadinessProbe create a Exec probe if the SERVER_READINESS_SCRIPT env var is present
+// createReadinessProbe create an Exec probe if the SERVER_READINESS_SCRIPT env var is present
 // *and* the application is not using Bootable Jar.
-// If the application is using Bootable Jar, it creates a HTTPGet probe on /health/ready.
-// Otherwise, it returns nil (i.e. no readiness probe is configured).
 //
 // If defined, the SERVER_READINESS_SCRIPT env var must be the path of a shell script that
-// complies to the Kuberenetes probes requirements.
+// complies to the Kubernetes probes requirements.
 func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
 	if defined && !w.Spec.BootableJar {
@@ -315,20 +313,20 @@ func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 					Command: []string{"/bin/bash", "-c", readinessProbeScript},
 				},
 			},
+			InitialDelaySeconds: 30,
+			FailureThreshold:    6,
 		}
 	}
-	if w.Spec.BootableJar {
-		return &corev1.Probe{
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path: "/health/ready",
-					Port: intstr.FromString("admin"),
-				},
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/health/ready",
+				Port: intstr.FromString("admin"),
 			},
-			InitialDelaySeconds: 60,
-		}
+		},
+		InitialDelaySeconds: 30,
+		FailureThreshold:    6,
 	}
-	return nil
 }
 
 func envForClustering(labels string) []corev1.EnvVar {
