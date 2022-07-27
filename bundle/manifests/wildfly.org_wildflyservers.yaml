@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
   name: wildflyservers.wildfly.org
 spec:
@@ -301,7 +301,7 @@ spec:
                   volumeClaimTemplate:
                     description: VolumeClaimTemplate defines the template to store
                       WildFlyServer standalone data directory. The name of the template
-                      is derived from the WildFlyServer name.  The corresponding volume
+                      is derived from the WildFlyServer name. The corresponding volume
                       will be mounted in ReadWriteOnce access mode. This template
                       should be used to specify specific Resources requirements in
                       the template spec.
@@ -584,5 +584,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

@@ -73,7 +73,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: wildfly-operator
-                image: quay.io/yborgess/wildfly-operator-dev:latest
+                image: quay.io/wildfly/wildfly-operator:latest
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
