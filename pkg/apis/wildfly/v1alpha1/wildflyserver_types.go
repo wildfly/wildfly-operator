@@ -51,6 +51,54 @@ type WildFlyServerSpec struct {
 	// ResourcesSpec defines the resources used by the WildFlyServer, ie CPU and memory, use limits and requests.
 	// More info: https://pkg.go.dev/k8s.io/api@v0.18.14/core/v1#ResourceRequirements
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// LivenessProbe defines the periodic probe of container liveness. Container will be restarted if the probe fails.
+	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
+	// ReadinessProbe defines the periodic probe of container service readiness. Container will be removed from service endpoints if the probe fails.
+	ReadinessProbe *ProbeSpec `json:"readinessProbe,omitempty"`
+	// StartupProbe indicates that the Pod has successfully initialized. If specified, no other probes are executed until this completes successfully.
+	// If this probe fails, the Pod will be restarted, just as if the livenessProbe failed. This can be used to provide different probe parameters at the beginning of a Pod's lifecycle,
+	// when it might take a long time to load data or warm a cache, than during steady-state operation.
+	StartupProbe *ProbeSpec `json:"startupProbe,omitempty"`
+}
+
+// ProbeSpec describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.
+// The Operator will configure the exec/httpGet fields. Notice these fields are not exposed to the user since they are an implementation detail
+// that depends on the server image used to create the application image.
+// +k8s:openapi-gen=true
+type ProbeSpec struct {
+	// Number of seconds after the container has started before probes are initiated.
+	// It defaults to 60 seconds for liveness probe. It defaults to 10 seconds for readiness probe. It defaults to 0 seconds for startup probe.
+	// Minimum value is 0.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
+	// Number of seconds after which the probe times out.
+	// Defaults to 1 second. Minimum value is 1.
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
+	// How often (in seconds) to perform the probe.
+	// Default to 10 seconds. Minimum value is 1.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	PeriodSeconds int32 `json:"periodSeconds,omitempty"`
+	// Minimum consecutive successes for the probe to be considered successful after having failed.
+	// Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	SuccessThreshold int32 `json:"successThreshold,omitempty"`
+	// Minimum consecutive failures for the probe to be considered failed after having succeeded.
+	// Defaults to 3. Minimum value is 1.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	FailureThreshold int32 `json:"failureThreshold,omitempty"`
+	// Depending on the kind of base application image, the Operator will configure an HTTP or Exec probe. For example, to keep compatibility mode with legacy servers, all non-Bootable JAR based application images
+	// will be configured to use Exec probes by default. This flag allows you to force switching the probe configuration to use an HTTP request instead of executing a script. Notice this flag works in one way only, configuring http:false
+	// does not imply the probe will be forced to switch to an Exec probe instead of HTTP one.
+	// +optional
+	// +kubebuilder:default:=false
+	Http bool `json:"http,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer

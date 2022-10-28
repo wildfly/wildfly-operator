@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"strconv"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
@@ -100,6 +101,8 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 						LivenessProbe: createLivenessProbe(w),
 						// Readiness Probe is optional
 						ReadinessProbe: createReadinessProbe(w),
+						// StartupProbe Probe is optional
+						StartupProbe: createStartupProbe(w),
 						// Resources
 						Resources: createResources(w.Spec.Resources),
 					}},
@@ -270,22 +273,148 @@ func createResources(r *corev1.ResourceRequirements) corev1.ResourceRequirements
 	return rTemplate
 }
 
-// createLivenessProbe create a Exec probe if the SERVER_LIVENESS_SCRIPT env var is present
-// *and* the application is not using Bootable Jar.
+// createLivenessProbe create an Exec probe if the SERVER_LIVENESS_SCRIPT env var is present
+// *and* the application is not using Bootable Jar *and* user is not forcing the creation of an HTTP GET by using WildFlyServer.Spec.LivenessProbe.Http.
 // Otherwise, it creates a HTTPGet probe that checks the /health/live endpoint on the admin port.
 //
 // If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
-// complies to the Kuberenetes probes requirements.
+// complies to the Kubernetes probes requirements.
+// If SERVER_LIVENESS_SCRIPT script does not exist, then the Probe will execute the script defined by SERVER_LIVENESS_SCRIPT_FALLBACK
+// If this script does not exist, the probe will execute and http get by using curl.
 func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
-	if defined && !w.Spec.BootableJar {
+
+	var initialDelaySeconds int32 = 60
+	var timeoutSeconds int32
+	var periodSeconds int32
+	var successThreshold int32
+	var failureThreshold int32
+	var http bool
+
+	if w.Spec.LivenessProbe != nil {
+		initialDelaySeconds = w.Spec.LivenessProbe.InitialDelaySeconds
+		timeoutSeconds = w.Spec.LivenessProbe.TimeoutSeconds
+		periodSeconds = w.Spec.LivenessProbe.PeriodSeconds
+		successThreshold = w.Spec.LivenessProbe.SuccessThreshold
+		failureThreshold = w.Spec.LivenessProbe.FailureThreshold
+		http = w.Spec.LivenessProbe.Http
+	}
+
+	return createLivenessStartupCommonProbe(defined, w.Spec.BootableJar, livenessProbeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, http)
+}
+
+// createReadinessProbe create an Exec probe if the SERVER_READINESS_SCRIPT env var is present
+// *and* the application is not using Bootable Jar *and* user is not forcing the creation of an HTTP GET by using WildFlyServer.Spec.ReadinessProbe.Http.
+//
+// If defined, the SERVER_READINESS_SCRIPT env var must be the path of a shell script that
+// complies to the Kubernetes probes requirements.
+// If SERVER_READINESS_SCRIPT script does not exist, then the Probe will execute the script defined by SERVER_READINESS_SCRIPT_FALLBACK
+// If this script does not exist, the probe will execute and http get by using curl.
+func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
+	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
+
+	var initialDelaySeconds int32 = 10
+	var timeoutSeconds int32
+	var periodSeconds int32
+	var successThreshold int32
+	var failureThreshold int32
+	var http bool
+
+	if w.Spec.ReadinessProbe != nil {
+		initialDelaySeconds = w.Spec.ReadinessProbe.InitialDelaySeconds
+		timeoutSeconds = w.Spec.ReadinessProbe.TimeoutSeconds
+		periodSeconds = w.Spec.ReadinessProbe.PeriodSeconds
+		successThreshold = w.Spec.ReadinessProbe.SuccessThreshold
+		failureThreshold = w.Spec.ReadinessProbe.FailureThreshold
+		http = w.Spec.ReadinessProbe.Http
+	}
+
+	if defined && !w.Spec.BootableJar && !http {
+		readinessProbeScriptFallback, definedFallback := os.LookupEnv("SERVER_READINESS_SCRIPT_FALLBACK")
+		if !definedFallback {
+			readinessProbeScriptFallback = "curl 127.0.0.1:" + strconv.Itoa(int(resources.HTTPManagementPort)) + "/health/ready"
+		}
+		probeScript := "if [ -f '" + readinessProbeScript + "' ]; then " + readinessProbeScript + "; else " + readinessProbeScriptFallback + "; fi"
 		return &corev1.Probe{
 			Handler: corev1.Handler{
 				Exec: &corev1.ExecAction{
-					Command: []string{"/bin/bash", "-c", livenessProbeScript},
+					Command: []string{"/bin/bash", "-c", probeScript},
 				},
 			},
-			InitialDelaySeconds: 60,
+			InitialDelaySeconds: initialDelaySeconds,
+			TimeoutSeconds:      timeoutSeconds,
+			PeriodSeconds:       periodSeconds,
+			SuccessThreshold:    successThreshold,
+			FailureThreshold:    failureThreshold,
+		}
+	}
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/health/ready",
+				Port: intstr.FromString("admin"),
+			},
+		},
+		InitialDelaySeconds: initialDelaySeconds,
+		TimeoutSeconds:      timeoutSeconds,
+		PeriodSeconds:       periodSeconds,
+		SuccessThreshold:    successThreshold,
+		FailureThreshold:    failureThreshold,
+	}
+}
+
+// createStartupProbe create an Exec probe if the SERVER_LIVENESS_SCRIPT env var is present
+// *and* the application is not using Bootable Jar *and* user is not forcing the creation of an HTTP GET by using WildFlyServer.Spec.StartupProbe.Http.
+// Otherwise, it creates a HTTPGet probe that checks the /health/live endpoint on the admin port.
+//
+// If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
+// complies to the Kubernetes probes requirements.
+// If SERVER_LIVENESS_SCRIPT script does not exist, then the Probe will execute the script defined by SERVER_LIVENESS_SCRIPT_FALLBACK
+// If this script does not exist, the probe will execute and http get by using curl.
+func createStartupProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
+	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
+
+	var initialDelaySeconds int32
+	var timeoutSeconds int32
+	var periodSeconds int32
+	var successThreshold int32
+	var failureThreshold int32
+	var http bool
+
+	if w.Spec.StartupProbe != nil {
+		initialDelaySeconds = w.Spec.StartupProbe.InitialDelaySeconds
+		timeoutSeconds = w.Spec.StartupProbe.TimeoutSeconds
+		periodSeconds = w.Spec.StartupProbe.PeriodSeconds
+		successThreshold = w.Spec.StartupProbe.SuccessThreshold
+		failureThreshold = w.Spec.StartupProbe.FailureThreshold
+		http = w.Spec.StartupProbe.Http
+
+		//Only if StartupProbe was defined by the user
+		return createLivenessStartupCommonProbe(defined, w.Spec.BootableJar, livenessProbeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, http)
+	}
+
+	return nil
+}
+
+// creates the common parts for the Linevess and Startup Probes
+func createLivenessStartupCommonProbe(scriptDefined bool, bootableJar bool, livenessProbeScript string, initialDelaySeconds int32, timeoutSeconds int32, periodSeconds int32, successThreshold int32, failureThreshold int32, forceHttp bool) *corev1.Probe {
+	if scriptDefined && !bootableJar && !forceHttp {
+		livenessProbeScriptFallback, definedFallback := os.LookupEnv("SERVER_LIVENESS_SCRIPT_FALLBACK")
+		if !definedFallback {
+			livenessProbeScriptFallback = "curl 127.0.0.1:" + strconv.Itoa(int(resources.HTTPManagementPort)) + "/health/live"
+		}
+		probeScript := "if [ -f '" + livenessProbeScript + "' ]; then " + livenessProbeScript + "; else " + livenessProbeScriptFallback + "; fi"
+		return &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{"/bin/bash", "-c", probeScript},
+				},
+			},
+			InitialDelaySeconds: initialDelaySeconds,
+			TimeoutSeconds:      timeoutSeconds,
+			PeriodSeconds:       periodSeconds,
+			SuccessThreshold:    successThreshold,
+			FailureThreshold:    failureThreshold,
 		}
 	}
 	return &corev1.Probe{
@@ -295,40 +424,12 @@ func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 				Port: intstr.FromString("admin"),
 			},
 		},
-		InitialDelaySeconds: 60,
+		InitialDelaySeconds: initialDelaySeconds,
+		TimeoutSeconds:      timeoutSeconds,
+		PeriodSeconds:       periodSeconds,
+		SuccessThreshold:    successThreshold,
+		FailureThreshold:    failureThreshold,
 	}
-}
-
-// createReadinessProbe create a Exec probe if the SERVER_READINESS_SCRIPT env var is present
-// *and* the application is not using Bootable Jar.
-// If the application is using Bootable Jar, it creates a HTTPGet probe on /health/ready.
-// Otherwise, it returns nil (i.e. no readiness probe is configured).
-//
-// If defined, the SERVER_READINESS_SCRIPT env var must be the path of a shell script that
-// complies to the Kuberenetes probes requirements.
-func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
-	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
-	if defined && !w.Spec.BootableJar {
-		return &corev1.Probe{
-			Handler: corev1.Handler{
-				Exec: &corev1.ExecAction{
-					Command: []string{"/bin/bash", "-c", readinessProbeScript},
-				},
-			},
-		}
-	}
-	if w.Spec.BootableJar {
-		return &corev1.Probe{
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path: "/health/ready",
-					Port: intstr.FromString("admin"),
-				},
-			},
-			InitialDelaySeconds: 60,
-		}
-	}
-	return nil
 }
 
 func envForClustering(labels string) []corev1.EnvVar {

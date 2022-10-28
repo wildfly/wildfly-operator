@@ -205,6 +205,109 @@ spec:
                 minItems: 1
                 type: array
                 x-kubernetes-list-type: atomic
+              livenessProbe:
+                description: LivenessProbe defines the periodic probe of container
+                  liveness. Container will be restarted if the probe fails.
+                properties:
+                  failureThreshold:
+                    description: Minimum consecutive failures for the probe to be
+                      considered failed after having succeeded. Defaults to 3. Minimum
+                      value is 1.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  http:
+                    default: false
+                    description: Depending on the kind of base application image,
+                      the Operator will configure an HTTP or Exec probe. For example,
+                      to keep compatibility mode with legacy servers, all non-Bootable
+                      JAR based application images will be configured to use Exec
+                      probes by default. This flag allows you to force switching the
+                      probe configuration to use an HTTP request instead of executing
+                      a script. Notice this flag works in one way only, configuring
+                      http:false does not imply the probe will be forced to switch
+                      to an Exec probe instead of HTTP one.
+                    type: boolean
+                  initialDelaySeconds:
+                    description: Number of seconds after the container has started
+                      before probes are initiated. It defaults to 60 seconds for liveness
+                      probe. It defaults to 10 seconds for readiness probe. It defaults
+                      to 0 seconds for startup probe. Minimum value is 0.
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  periodSeconds:
+                    description: How often (in seconds) to perform the probe. Default
+                      to 10 seconds. Minimum value is 1.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  successThreshold:
+                    description: Minimum consecutive successes for the probe to be
+                      considered successful after having failed. Defaults to 1. Must
+                      be 1 for liveness and startup. Minimum value is 1.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  timeoutSeconds:
+                    description: 'Number of seconds after which the probe times out.
+                      Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                    format: int32
+                    minimum: 1
+                    type: integer
+                type: object
+              readinessProbe:
+                description: ReadinessProbe defines the periodic probe of container
+                  service readiness. Container will be removed from service endpoints
+                  if the probe fails.
+                properties:
+                  failureThreshold:
+                    description: Minimum consecutive failures for the probe to be
+                      considered failed after having succeeded. Defaults to 3. Minimum
+                      value is 1.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  http:
+                    default: false
+                    description: Depending on the kind of base application image,
+                      the Operator will configure an HTTP or Exec probe. For example,
+                      to keep compatibility mode with legacy servers, all non-Bootable
+                      JAR based application images will be configured to use Exec
+                      probes by default. This flag allows you to force switching the
+                      probe configuration to use an HTTP request instead of executing
+                      a script. Notice this flag works in one way only, configuring
+                      http:false does not imply the probe will be forced to switch
+                      to an Exec probe instead of HTTP one.
+                    type: boolean
+                  initialDelaySeconds:
+                    description: Number of seconds after the container has started
+                      before probes are initiated. It defaults to 60 seconds for liveness
+                      probe. It defaults to 10 seconds for readiness probe. It defaults
+                      to 0 seconds for startup probe. Minimum value is 0.
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  periodSeconds:
+                    description: How often (in seconds) to perform the probe. Default
+                      to 10 seconds. Minimum value is 1.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  successThreshold:
+                    description: Minimum consecutive successes for the probe to be
+                      considered successful after having failed. Defaults to 1. Must
+                      be 1 for liveness and startup. Minimum value is 1.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  timeoutSeconds:
+                    description: 'Number of seconds after which the probe times out.
+                      Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                    format: int32
+                    minimum: 1
+                    type: integer
+                type: object
               replicas:
                 description: Replicas is the desired number of replicas for the application
                 format: int32
@@ -265,6 +368,62 @@ spec:
                     type: string
                 required:
                 - name
+                type: object
+              startupProbe:
+                description: StartupProbe indicates that the Pod has successfully
+                  initialized. If specified, no other probes are executed until this
+                  completes successfully. If this probe fails, the Pod will be restarted,
+                  just as if the livenessProbe failed. This can be used to provide
+                  different probe parameters at the beginning of a Pod's lifecycle,
+                  when it might take a long time to load data or warm a cache, than
+                  during steady-state operation.
+                properties:
+                  failureThreshold:
+                    description: Minimum consecutive failures for the probe to be
+                      considered failed after having succeeded. Defaults to 3. Minimum
+                      value is 1.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  http:
+                    default: false
+                    description: Depending on the kind of base application image,
+                      the Operator will configure an HTTP or Exec probe. For example,
+                      to keep compatibility mode with legacy servers, all non-Bootable
+                      JAR based application images will be configured to use Exec
+                      probes by default. This flag allows you to force switching the
+                      probe configuration to use an HTTP request instead of executing
+                      a script. Notice this flag works in one way only, configuring
+                      http:false does not imply the probe will be forced to switch
+                      to an Exec probe instead of HTTP one.
+                    type: boolean
+                  initialDelaySeconds:
+                    description: Number of seconds after the container has started
+                      before probes are initiated. It defaults to 60 seconds for liveness
+                      probe. It defaults to 10 seconds for readiness probe. It defaults
+                      to 0 seconds for startup probe. Minimum value is 0.
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  periodSeconds:
+                    description: How often (in seconds) to perform the probe. Default
+                      to 10 seconds. Minimum value is 1.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  successThreshold:
+                    description: Minimum consecutive successes for the probe to be
+                      considered successful after having failed. Defaults to 1. Must
+                      be 1 for liveness and startup. Minimum value is 1.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  timeoutSeconds:
+                    description: 'Number of seconds after which the probe times out.
+                      Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                    format: int32
+                    minimum: 1
+                    type: integer
                 type: object
               storage:
                 description: StorageSpec defines specific storage required for the
