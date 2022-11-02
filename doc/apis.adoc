@@ -45,6 +45,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 it defaults to false (application image is expected to use WildFly S2I Builder/Runtime images) | bool | false
 | `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
 | `resources`| Resources spec to specify the request or limits of the Stateful Set. If omitted, the namespace defaults are used (https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[more info]). | *<<Resources>> | false
+| `securityContext`| SecurityContext spec to define privilege and access control settings for the pod containers created by the Stateful set. If omitted default privileges are used (https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#securitycontext-v1-core[*corev1.SecurityContext] | false
 | `storage` | Storage spec to specify how storage should be used. If omitted, an `EmptyDir` is used (that will not persist data across pod restart) | *<<storagespec>> |false
 | `serviceAccountName` | Name of the ServiceAccount to use to run the WildFlyServer Pods | string | false
 | `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envfromsource-v1-core[corev1.EnvFromSource] |false

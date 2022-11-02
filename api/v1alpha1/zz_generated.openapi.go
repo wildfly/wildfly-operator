@@ -321,12 +321,18 @@ func schema__api_v1alpha1_WildFlyServerSpec(ref common.ReferenceCallback) common
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecurityContext",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
 				},
 				Required: []string{"applicationImage", "replicas"},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.StandaloneConfigMapSpec", "./api/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
+			"./api/v1alpha1.StandaloneConfigMapSpec", "./api/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext"},
 	}
 }
 

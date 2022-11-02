@@ -102,6 +102,8 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 						ReadinessProbe: createReadinessProbe(w),
 						// Resources
 						Resources: createResources(w.Spec.Resources),
+						// SecurityContext
+						SecurityContext: w.Spec.SecurityContext,
 					}},
 					ServiceAccountName: w.Spec.ServiceAccountName,
 				},
@@ -112,6 +114,11 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	// if the user specified the resources directive propagate it to the container (required for HPA).
 	if w.Spec.Resources != nil {
 		statefulSet.Spec.Template.Spec.Containers[0].Resources = *w.Spec.Resources
+	}
+
+	// if the user specified the securityContext directive propagate it to the container (required for HPA).
+	if w.Spec.SecurityContext != nil {
+		statefulSet.Spec.Template.Spec.Containers[0].SecurityContext = *&w.Spec.SecurityContext
 	}
 
 	if len(w.Spec.EnvFrom) > 0 {
