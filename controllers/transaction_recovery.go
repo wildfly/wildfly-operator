@@ -239,9 +239,10 @@ func (r *WildFlyServerReconciler) updatePodLabel(w *wildflyv1alpha1.WildFlyServe
 }
 
 // processTransactionRecoveryScaleDown runs transaction recovery on provided number of pods
-//   mustReconcile returns int constant; 'requeueNow' if the reconcile requeue loop should be called as soon as possible,
-//                 'requeueLater' if requeue loop is needed but it could be delayed, 'requeueOff' if requeue loop is not necessary
-//   err reports error which occurs during method processing
+//
+//	mustReconcile returns int constant; 'requeueNow' if the reconcile requeue loop should be called as soon as possible,
+//	              'requeueLater' if requeue loop is needed but it could be delayed, 'requeueOff' if requeue loop is not necessary
+//	err reports error which occurs during method processing
 func (r *WildFlyServerReconciler) processTransactionRecoveryScaleDown(reqLogger logr.Logger, w *wildflyv1alpha1.WildFlyServer,
 	numberOfPodsToScaleDown int, podList *corev1.PodList) (mustReconcile int, err error) {
 
@@ -412,7 +413,8 @@ func (r *WildFlyServerReconciler) processTransactionRecoveryScaleDown(reqLogger 
 }
 
 // setLabelAsDisabled returns true when label was updated or an issue on update requires recociliation
-//  returns error when an error occurs during processing, otherwise if no error occurs nil is returned
+//
+//	returns error when an error occurs during processing, otherwise if no error occurs nil is returned
 func (r *WildFlyServerReconciler) setLabelAsDisabled(w *wildflyv1alpha1.WildFlyServer, reqLogger logr.Logger, labelName string, numberOfPodsToScaleDown int,
 	podList *corev1.PodList) (bool, error) {
 	wildflyServerNumberOfPods := len(podList.Items)
@@ -446,7 +448,8 @@ func (r *WildFlyServerReconciler) setLabelAsDisabled(w *wildflyv1alpha1.WildFlyS
 }
 
 // isJDBCLogStoreInUse executes jboss CLI command to search if transctions are saved in the JDBC object store
-//   i.e. the transaction log is not stored in the file system but out of the StatefulSet controlled $JBOSS_HOME /data directory
+//
+//	i.e. the transaction log is not stored in the file system but out of the StatefulSet controlled $JBOSS_HOME /data directory
 func isJDBCLogStoreInUse(pod *corev1.Pod) (bool, error) {
 	isJDBCTxnStore, err := wfly.ExecuteAndGetResult(pod, wfly.MgmtOpTxnCheckJdbcStore)
 	if err != nil {
@@ -460,7 +463,8 @@ func isJDBCLogStoreInUse(pod *corev1.Pod) (bool, error) {
 }
 
 // skipRecoveryAndForceScaleDown serves to sets the scaling down pods as being processed by recovery and mark them
-//   to be deleted by statefulset update. This is used for cases when recovery process should be skipped.
+//
+//	to be deleted by statefulset update. This is used for cases when recovery process should be skipped.
 func (r *WildFlyServerReconciler) skipRecoveryAndForceScaleDown(w *wildflyv1alpha1.WildFlyServer, totalNumberOfPods int,
 	numberOfPodsToScaleDown int, podList *corev1.PodList) (mustReconcile int, err error) {
 	log := r.Log

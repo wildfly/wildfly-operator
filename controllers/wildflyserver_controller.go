@@ -459,7 +459,8 @@ func matches(container *corev1.Container, envVar corev1.EnvVar) bool {
 }
 
 // GetPodsForWildFly lists pods which belongs to the WildFly server
-//   the pods are differentiated based on the selectors
+//
+//	the pods are differentiated based on the selectors
 func GetPodsForWildFly(r *WildFlyServerReconciler, w *wildflyv1alpha1.WildFlyServer) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
 
@@ -511,7 +512,8 @@ func getPodStatus(pods []corev1.Pod, originalPodStatuses []wildflyv1alpha1.PodSt
 }
 
 // LabelsForWildFly return a map of labels that are used for identification
-//  of objects belonging to the particular WildflyServer instance
+//
+//	of objects belonging to the particular WildflyServer instance
 func LabelsForWildFly(w *wildflyv1alpha1.WildFlyServer) map[string]string {
 	labels := make(map[string]string)
 	labels["app.kubernetes.io/name"] = w.Name
