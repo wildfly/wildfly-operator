@@ -122,7 +122,7 @@ func wildflyClusterViewTest(t *testing.T, f *framework.Framework, ctx *framework
 	}
 
 	// create wildflyserver custom resource
-	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/clusterbench-ee7:"+applicationTag, 2, false)
+	wildflyServer := MakeBasicWildFlyServer(namespace, name, "quay.io/wildfly-quickstarts/clusterbench:"+applicationTag, 2, false)
 
 	err = CreateAndWaitUntilReady(f, ctx, t, wildflyServer)
 	if err != nil {
