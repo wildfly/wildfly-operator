@@ -494,3 +494,84 @@ func TestWildFlyServerWithResources(t *testing.T) {
 	assert.Equal(limitCpu, statefulSet.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU])
 	assert.Equal(limitMem, statefulSet.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory])
 }
+
+func TestWildFlyServerWithSecurityContext(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	assert := testifyAssert.New(t)
+
+	allowPrivilegeEscalation := new(bool)
+	*allowPrivilegeEscalation = false
+	privileged := new(bool)
+	*privileged = false
+	readOnlyRootFilesystem := new(bool)
+	*readOnlyRootFilesystem = true
+	runAsNonRoot := new(bool)
+	*runAsNonRoot = true
+
+	var (
+		capabilities = &corev1.Capabilities{
+			Drop: []corev1.Capability{
+				"ALL",
+			},
+		}
+	)
+
+	// A WildFlyServer resource with metadata and spec.
+	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			ApplicationImage: applicationImage,
+			Replicas:         replicas,
+			SecurityContext: &corev1.SecurityContext{
+				AllowPrivilegeEscalation: allowPrivilegeEscalation,
+				Capabilities:             capabilities,
+				Privileged:               privileged,
+				ReadOnlyRootFilesystem:   readOnlyRootFilesystem,
+				RunAsNonRoot:             runAsNonRoot,
+			},
+		},
+	}
+	// Objects to track in the fake client.
+	objs := []runtime.Object{
+		wildflyServer,
+	}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(wildflyv1alpha1.GroupVersion, wildflyServer)
+	// Create a fake client to mock API calls.
+	cl := fake.NewClientBuilder().WithRuntimeObjects(objs...).Build()
+	// Create a WildFlyServerReconciler object with the scheme and fake client.
+	r := &WildFlyServerReconciler{
+		Client: cl,
+		Scheme: s,
+		Log:    ctrl.Log.WithName("test").WithName("WildFlyServer"),
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	// statefulset will be created
+	_, err := r.Reconcile(context.TODO(), req)
+	require.NoError(t, err)
+
+	// Check if stateful set has been created with the correct configuration.
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+	assert.Equal(replicas, *statefulSet.Spec.Replicas)
+	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+	assert.Equal(allowPrivilegeEscalation, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext.AllowPrivilegeEscalation)
+	assert.Equal(capabilities.Drop[0], statefulSet.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities.Drop[0])
+	assert.Equal(privileged, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext.Privileged)
+	assert.Equal(readOnlyRootFilesystem, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext.ReadOnlyRootFilesystem)
+	assert.Equal(runAsNonRoot, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot)
+}

@@ -67,6 +67,8 @@ type WildFlyServerSpec struct {
 	// ResourcesSpec defines the resources used by the WildFlyServer, ie CPU and memory, use limits and requests.
 	// More info: https://pkg.go.dev/k8s.io/api@v0.18.14/core/v1#ResourceRequirements
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// SecurityContext
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // StandaloneConfigMapSpec defines the desired configMap configuration to obtain the standalone configuration for WildFlyServer
