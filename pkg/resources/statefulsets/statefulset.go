@@ -165,10 +165,20 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	}
 
 	// mount the volume for the server standalone data directory
-	volumeMounts = append(volumeMounts, corev1.VolumeMount{
-		Name:      standaloneDataVolumeName,
-		MountPath: path.Join(resources.JBossHomeDataDir(w.Spec.BootableJar), resources.StandaloneServerDataDirRelativePath),
-	})
+	volumeMounts = append(volumeMounts, 
+		corev1.VolumeMount{
+			Name:      standaloneDataVolumeName,
+			MountPath: path.Join(resources.JBossHomeDataDir(w.Spec.BootableJar), resources.StandaloneServerDataDirRelativePath, "kernel"),
+			SubPath: "kernel"},
+		corev1.VolumeMount{
+			Name:      standaloneDataVolumeName,
+			MountPath: path.Join(resources.JBossHomeDataDir(w.Spec.BootableJar), resources.StandaloneServerDataDirRelativePath, "ejb-xa-recovery"),
+			SubPath: "ejb-xa-recovery"},
+		corev1.VolumeMount{
+			Name:      standaloneDataVolumeName,
+			MountPath: path.Join(resources.JBossHomeDataDir(w.Spec.BootableJar), resources.StandaloneServerDataDirRelativePath, "tx-object-store"),
+			SubPath: "tx-object-store"})
+
 
 	// mount the volume to read the standalone XML configuration from a ConfigMap
 	standaloneConfigMap := w.Spec.StandaloneConfigMap

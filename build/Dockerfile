@@ -1,7 +1,7 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
 ENV OPERATOR=/usr/local/bin/wildfly-operator \
-    JBOSS_HOME=/wildfly \
+    JBOSS_HOME=/opt/server \
     JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server \
     JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data \
     USER_UID=1001 \
