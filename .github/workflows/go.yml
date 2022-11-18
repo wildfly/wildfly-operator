@@ -36,14 +36,16 @@ jobs:
         minikube image load --pull=true quay.io/wildfly-quickstarts/clusterbench:latest
     - name: Containerized End-to-End Tests
       run: eval $(minikube -p minikube docker-env) && make test-e2e-minikube
-    - name: Docker Login to Quay.io (main only)
+    - name: Docker Login to Quay.io (main and 0.5.x only)
       uses: docker/login-action@v1.8.0
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/0.5.x'
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ env.REGISTRY_USER }}
         password: ${{ env.REGISTRY_PASSWORD }}
-    - name: Build and Push Image (main only)
+    - name: Build and Push Image (main)
       if: github.ref == 'refs/heads/main'
-      run: make manifests docker-build docker-push
-
+      run: IMG=quay.io/${{ env.REGISTRY_USER }}/wildfly-operator:latest make manifests docker-build docker-push
+    - name: Build and Push Image (0.5.x)
+      if: github.ref == 'refs/heads/0.5.x'
+      run: TAG=0.5.x IMAGE=wildfly-operator DOCKER_REPO=quay.io/${{ env.REGISTRY_USER }}/ make push
