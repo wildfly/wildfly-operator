@@ -1,17 +1,17 @@
 = WildFly Operator - User Documentation
 :toc:               left
 
-This guide documents the various features and capabilites provides by the WildFly Operator.
+This guide documents the various features and capabilities provides by the WildFly Operator.
 
 This guide is complemented by the link:./apis.adoc[API Documentation].
 
 [[basic-install]]
-# Basic Install (Phase I)
+== Basic Install (Phase I)
 
 The features and capabilities of **Basic Install (Phase I)** deals with the provisioning, installation and configuration of a Java application managed by the WildFly Operator.
 
 [[application-image]]
-## Specify the Docker Application Image
+== Specify the Docker Application Image
 
 The `applicationImage` specifies the Docker application image that contains the Java application.
 The operator support two kind of application images:
@@ -40,7 +40,7 @@ The WildFly Operator will trigger new deployment of the application whenever the
 ====
 
 [[bootableJar]]
-## Specify a Bootable JAR application image
+== Specify a Bootable JAR application image
 
 The `bootableJar` specifies whether the application image is a Bootable JAR server. If this configuration is unspecified, the WildFly Operator assumes that the application image is an S2I image.
 
@@ -57,7 +57,7 @@ There are some restrictions about the base image you can use to launch the Boota
     * The Bootable JAR must be built for a server configured for the cloud environment. This is done by enabling the `cloud` configuration item on the `wildfly-jar-maven-plugin` configuration. See https://docs.wildfly.org/bootablejar/#wildfly_jar_configuring_cloud[Configuring the server for cloud execution] on the `wildfly-jar-maven-plugin` documentation.
 
 [[size]]
-## Specify the Size of the Application
+== Specify the Size of the Application
 
 The `replicas` specifies the size of the application, i.e. the number of pods that runs the application image.
 
@@ -69,7 +69,7 @@ spec:
 ----
 
 [[resources]]
-## Specify the Resource requirements for the container
+== Specify the Resource requirements for the container
 
 The `resources` spec is defined in the link:./apis.adoc#Resources[Resources API Documentation].
 
@@ -92,7 +92,7 @@ For more examples visit:
 * https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/
 
 [[storage]]
-## Specify the Storage Requirements for the Server Data Directory
+== Specify the Storage Requirements for the Server Data Directory
 
 The `storage` defines the storage requirements for WildFly's own data.
 The application may require persistent storage for some data (e.g. transaction or messaging logs) that must persist across Pod restarts.
@@ -107,7 +107,7 @@ or configure the transaction subsystem to store transaction log in database with
 link:https://docs.wildfly.org/23/wildscribe/subsystem/transactions/index.html#attr-use-jdbc-store[use of JDBC store].
 ====
 
-A `volumeClaimTemplate` cna be specifed to configure `Resources` requirements to store WildFly standalone data directory.
+A `volumeClaimTemplate` cna be specified to configure `Resources` requirements to store WildFly standalone data directory.
 The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode.
 
 The `storage` spec is defined in the link:./apis.adoc#StorageSpec[StorageSpec API Documentation].
@@ -127,7 +127,7 @@ spec:
 The persistent volume that meets this storage requirement is mounted on the `/wildfly/standalone/data` directory (corresponding to WildFly's `jboss.server.data.dir` path).
 
 [[env]]
-## Configure the Application Environment
+== Configure the Application Environment
 
 Environment can be configured using the `env` spec.
 Environment variables can come directly from values (such as the `POSTGRESQL_SERVICE_HOST` example below) or from secrets (e.g. the `POSTGRESQL_USER` example below).
@@ -194,7 +194,7 @@ my-very-secure-pasword
 ----
 
 [[configmaps]]
-## Configure ConfigMaps
+== Configure ConfigMaps
 
 ConfigMaps can be mounted as volumes to be accessed from the application.
 
@@ -230,7 +230,7 @@ value2
 ----
 
 [[standalone-config-map]]
-## Bring Your Own Standalone XML Configuration
+== Bring Your Own Standalone XML Configuration
 
 It is possible to directly provide WildFly standalone configuration instead of the one in the application image (that comes from WildFly S2I).
 
@@ -249,7 +249,7 @@ spec:
 In this example, the `clusterbench-config-map` must be created *before* the WildFly Operator deploys the application.
 
 [source,shell]
-.Example of reating a ConfigMap from a standalone XML file
+.Example of creating a ConfigMap from a standalone XML file
 ----
 $ kubectl create configmap clusterbench-config-map --from-file examples/clustering/config/standalone-openshift.xml
 configmap/clusterbench-config-map created
@@ -260,16 +260,16 @@ configmap/clusterbench-config-map created
 This feature is not supported by a Bootable JAR application image. If you enabled it, your application image will not be deployed in the cluster.
 ====
 
-## Monitor WildFly Metrics
+== Monitor WildFly Metrics
 
 If the Prometheus Operator is deployed on the cluster (and the `ServiceMonitor` Custom Resource Definition is installed), the WildFly operator automatically creates a `ServiceMonitor` to expose its metrics to Prometheus.
 
-## OpenShift Features
+== OpenShift Features
 
 Some Operator features are only available when running on OpenShift if Kubernetes does not provide the required resources to activate these features.
 
 [[seamless-upgrades]]
-### Seamless Upgrades
+=== Seamless Upgrades
 
 On OpenShift, it is possible to use an imagestream tag for the `applicationImage` to provide seamless upgrades.
 
@@ -279,7 +279,7 @@ If that's the case, the WildFly Operator will trigger new deployment of the appl
 This allows to take full advantage of the OpenShift ecosystem to build the image using `BuildConfig` in order to trigger new deployments when the code of the application changes (using WebHooks to trigger new builds and then new deployments) or when WildFly S2I images changes (which can also trigger new build).
 
 [[http-route-creation]]
-### Creation of an HTTP Route
+=== Creation of an HTTP Route
 
 By default, when the Operator runs on OpenShift, it creates an external route to the HTTP port of the Java application.
 
@@ -293,7 +293,7 @@ spec:
 ----
 
 [[scaledown-transaction-recovery]]
-## Transaction recovery during scaledown
+== Transaction recovery during scaledown
 
 As the application deployed in the WildFly application server
 may use JTA transactions there and the question emerges: what does happen when the cluster is scaled down?
@@ -311,9 +311,10 @@ and only then marks the pod as clean for termination.
 Decreasing the replica size in the `WildFlyServer` customer resource is done at field `WildFlyServer.Spec.Replicas` (see <<size>>).
 You can use for example patch command like
 
-```
+[source]
+----
 oc patch wildflyserver <name> -p '[{"op":"replace", "path":"/spec/replicas", "value":0}]' --type json
-```
+----
 
 or you can manually edit and change the replica number with `oc edit wildflyserver <name>`.
 
@@ -330,7 +331,7 @@ WARNING: Narayana recovery listener has to be enabled in the WildFly transaction
          See the link:https://wildscribe.github.io/WildFly/18.0/subsystem/transactions/index.html[`recovery-listener` attribute of the transaction subsystem].
 
 when the scaledown process begins the pod state (`oc get pod <pod_name>``) is still marked as `Running`.
-The reason is that that the pod needs to be able to finish all the unfinished transactions and which includes the remote EJB calls that target it.
+The reason is that the pod needs to be able to finish all the unfinished transactions and which includes the remote EJB calls that target it.
 If you want to observe the state of the scaledown processing you need to observe the status of the `WildFlyServer` instance.
 When running `oc describe wildflyserver <name>` you can see the status of the Pods.
 
@@ -367,9 +368,9 @@ If there are no pods in scaledown process the numbers of `WildFlyServer.Status.R
 This feature is not supported by a Bootable JAR application image. The transaction recovery facility will be ignored for Bootable JAR application images.
 ====
 
-### Transaction scaledown special cases
+=== Transaction scaledown special cases
 
-#### Heuristics transactions
+==== Heuristics transactions
 
 As it's well-known the transaction may finish either with commit or roll-back.
 Unfortunately there is a third outcome which is _unknown_.
@@ -381,7 +382,7 @@ and to resolve the heuristic transaction.
 When all the formerly heuristics records are removed from the transaction object store then the operator
 marks the pod as `SCALING_DOWN_CLEAN` and the pod is terminated.
 
-#### SCALING_DOWN_CLEAN state and StatefulSet behaviour
+==== SCALING_DOWN_CLEAN state and StatefulSet behaviour
 
 There is a special case coming from the design of the `StatefulSet` that ensures that the network hostname is stable
 (it does not change on the pod restart). The `StatefulSet` depends on ordering of the pods. The pod are named by the defined order.
