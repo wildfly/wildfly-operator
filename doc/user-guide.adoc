@@ -107,7 +107,7 @@ or configure the transaction subsystem to store transaction log in database with
 link:https://docs.wildfly.org/23/wildscribe/subsystem/transactions/index.html#attr-use-jdbc-store[use of JDBC store].
 ====
 
-A `volumeClaimTemplate` cna be specified to configure `Resources` requirements to store WildFly standalone data directory.
+A `volumeClaimTemplate` can be specified to configure `Resources` requirements to store WildFly standalone data directory.
 The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode.
 
 The `storage` spec is defined in the link:./apis.adoc#StorageSpec[StorageSpec API Documentation].
