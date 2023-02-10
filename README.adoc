@@ -214,16 +214,7 @@ $ make deploy
 $ oc login -u developer
 ----
 
-After installing the `WildFlyServer` resource from `config/samples/quickstart-cr.yaml`, you have to create a route to expose it from OpenShift:
-
-[source,shell]
-----
-$ oc expose svc/quickstart-loadbalancer
-
-route.route.openshift.io/quickstart-loadbalancer exposed
-----
-
-This will expose the service from OpenShift. To know the URL of the exposed service, run:
+When a `WildFlyServer` resource is installed from `config/samples/quickstart-cr.yaml`, a `route` is automatically created to expose the application. To know the URL of the exposed service, run:
 
 [source,shell]
 ----
