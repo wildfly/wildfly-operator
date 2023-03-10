@@ -56,6 +56,12 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 		wildflyImageTypeAnnotation = resources.ImageTypeBootable
 	}
 
+	allowPrivilegeEscalation := new(bool)
+	*allowPrivilegeEscalation = false
+
+	runAsNonRoot := new(bool)
+	*runAsNonRoot = true
+
 	statefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -84,6 +90,9 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 					},
 				},
 				Spec: corev1.PodSpec{
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsNonRoot: runAsNonRoot,
+					},
 					Containers: []corev1.Container{{
 						Name:  w.Name,
 						Image: applicationImage,
@@ -102,6 +111,14 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 						ReadinessProbe: createReadinessProbe(w),
 						// Resources
 						Resources: createResources(w.Spec.Resources),
+						SecurityContext: &corev1.SecurityContext{
+							AllowPrivilegeEscalation: allowPrivilegeEscalation,
+							Capabilities:             &corev1.Capabilities{
+								Drop: []corev1.Capability{
+									"ALL",
+								},
+							},
+						},
 					}},
 					ServiceAccountName: w.Spec.ServiceAccountName,
 				},
