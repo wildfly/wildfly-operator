@@ -29,6 +29,11 @@ jobs:
         minikube version: v1.22.0
         kubernetes version: v1.20.0
         driver: docker
+    - name: Load WildFly images used for testing
+      run: |-
+        minikube image load --pull=true quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0
+        minikube image load --pull=true quay.io/wildfly-quickstarts/wildfly-operator-quickstart:bootable-21.0
+        minikube image load --pull=true quay.io/wildfly-quickstarts/clusterbench:latest
     - name: Containerized End-to-End Tests
       run: eval $(minikube -p minikube docker-env) && make test-e2e-minikube
     - name: Docker Login to Quay.io (main only)

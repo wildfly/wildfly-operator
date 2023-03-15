@@ -142,7 +142,7 @@ run-test-e2e:
 	$(KUSTOMIZE) build config/rbac | kubectl apply -f -
 	mkdir -p dry-run
 	$(KUSTOMIZE) build config/tests > dry-run/test-resources.yaml
-	LOCAL_MANAGER=0 go test -v ./test/e2e/... -coverprofile cover.out
+	LOCAL_MANAGER=0 go test -timeout 20m -v ./test/e2e/... -coverprofile cover.out
 	$(KUSTOMIZE) build config/rbac | kubectl delete --ignore-not-found=true -f -
 
 .PHONY: clean
