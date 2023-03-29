@@ -323,7 +323,7 @@ func schema__api_v1alpha1_WildFlyServerSpec(ref common.ReferenceCallback) common
 					},
 					"securityContext": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecurityContext",
+							Description: "SecurityContext defines the security capabilities required to run the application. If omitted, a default security context is created which runs with a non-root \"jboss (185)\" user without priviledges escalation and all security capabilities dropped.",
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
 						},
 					},

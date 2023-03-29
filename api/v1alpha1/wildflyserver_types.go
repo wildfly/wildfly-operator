@@ -67,7 +67,9 @@ type WildFlyServerSpec struct {
 	// ResourcesSpec defines the resources used by the WildFlyServer, ie CPU and memory, use limits and requests.
 	// More info: https://pkg.go.dev/k8s.io/api@v0.18.14/core/v1#ResourceRequirements
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-	// SecurityContext
+	// SecurityContext defines the security capabilities required to run the application.
+	// If omitted, a default security context is created which runs with a non-root "jboss (185)" user without priviledges
+	// escalation and all security capabilities dropped.
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
