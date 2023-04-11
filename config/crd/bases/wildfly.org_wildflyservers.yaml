@@ -251,7 +251,8 @@ spec:
                 type: array
                 x-kubernetes-list-type: set
               securityContext:
-                description: SecurityContext
+                description: SecurityContext defines the security capabilities required
+                  to run the application.
                 properties:
                   allowPrivilegeEscalation:
                     description: 'AllowPrivilegeEscalation controls whether a process
