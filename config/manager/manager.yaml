@@ -13,6 +13,9 @@ spec:
         name: wildfly-operator
     spec:
       serviceAccountName: wildfly-operator
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - command:
         - wildfly-operator
@@ -51,4 +54,10 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+              - ALL
       terminationGracePeriodSeconds: 10
