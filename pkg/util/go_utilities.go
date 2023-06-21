@@ -19,7 +19,8 @@ var (
 )
 
 // ContainsInMap returns true if the map m contains at least one of the string
-//   presented as argument `vals`, otherwise false is returned
+//
+//	presented as argument `vals`, otherwise false is returned
 func ContainsInMap(m map[string]string, vals ...string) bool {
 	for _, x := range m {
 		for _, v := range vals {
@@ -32,7 +33,8 @@ func ContainsInMap(m map[string]string, vals ...string) bool {
 }
 
 // ContainsInList returns true if the string s is included in the list,
-//   otherwise false is returned
+//
+//	otherwise false is returned
 func ContainsInList(list []string, s string) bool {
 	for _, v := range list {
 		if v == s {
@@ -43,7 +45,8 @@ func ContainsInList(list []string, s string) bool {
 }
 
 // RemoveFromList iterates over the list and removes all occurences
-//   of the string s. The list without the s strings is returned.
+//
+//	of the string s. The list without the s strings is returned.
 func RemoveFromList(list []string, s string) []string {
 	for i, v := range list {
 		if v == s {
@@ -54,7 +57,8 @@ func RemoveFromList(list []string, s string) []string {
 }
 
 // SortPodListByName sorts the pod list by number in the name
-//  expecting the format which the StatefulSet works with which is `<podname>-<number>`
+//
+//	expecting the format which the StatefulSet works with which is `<podname>-<number>`
 func SortPodListByName(podList *corev1.PodList) *corev1.PodList {
 	sort.SliceStable(podList.Items, func(i, j int) bool {
 		reOut1 := regexpPatternEndsWithNumber.FindStringSubmatch(podList.Items[i].ObjectMeta.Name)
@@ -80,7 +84,8 @@ func SortPodListByName(podList *corev1.PodList) *corev1.PodList {
 }
 
 // CopyMap duplicates map as it creates new map and puts there all the
-//   key value pairs that were included in the first map
+//
+//	key value pairs that were included in the first map
 func CopyMap(originalMap map[string]string) map[string]string {
 	return MapMerge(originalMap, nil)
 }
@@ -101,7 +106,8 @@ func MapMerge(firstMap map[string]string, secondOverwritingMap map[string]string
 }
 
 // GetEnvAsInt returns defined environment variable as an integer
-//  or default value is returned if the env var is not configured
+//
+//	or default value is returned if the env var is not configured
 func GetEnvAsInt(key string, fallbackInteger int64) int64 {
 	valueStr, ok := os.LookupEnv(key)
 	if ok {
@@ -114,12 +120,13 @@ func GetEnvAsInt(key string, fallbackInteger int64) int64 {
 }
 
 // GetEnvAsDuration returns defined environment variable as duration
-//  while it expects the environment variable contains the number defined in duration type
-//  defined as a third parameter. The result will be returned as duration.
-//  If env variable is not found then the default value as duration is returned (defined by the duration type)
-//  e.g. call 'GetEnvAsDuration("TIMEOUT", 10, time.Second)' means
-//   search for the TIMEOUT env variable and the value is expected being defined in seconds,
-//   if the env var is not found then returns duration of 10 seconds
+//
+//	while it expects the environment variable contains the number defined in duration type
+//	defined as a third parameter. The result will be returned as duration.
+//	If env variable is not found then the default value as duration is returned (defined by the duration type)
+//	e.g. call 'GetEnvAsDuration("TIMEOUT", 10, time.Second)' means
+//	 search for the TIMEOUT env variable and the value is expected being defined in seconds,
+//	 if the env var is not found then returns duration of 10 seconds
 func GetEnvAsDuration(key string, fallbackDurationAmount int64, durationType time.Duration) time.Duration {
 	valueAsInt := GetEnvAsInt(key, fallbackDurationAmount)
 	return time.Duration(valueAsInt) * durationType
