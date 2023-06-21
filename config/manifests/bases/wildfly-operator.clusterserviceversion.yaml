@@ -55,6 +55,9 @@ spec:
               labels:
                 name: wildfly-operator
             spec:
+              securityContext:
+               seccompProfile:
+                 type: RuntimeDefault
               containers:
               - command:
                 - wildfly-operator
@@ -73,6 +76,12 @@ spec:
                 imagePullPolicy: Always
                 name: wildfly-operator
                 resources: {}
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  runAsNonRoot: true
+                  capabilities:
+                    drop:
+                      - ALL
               serviceAccountName: wildfly-operator
       permissions:
       - rules:
