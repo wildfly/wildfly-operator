@@ -106,7 +106,8 @@ func (RemoteOperationsStruct) Execute(pod *corev1.Pod, command string) (string, 
 }
 
 // SocketConnect send a command (a string) to the defined hostname and port
-//  where it connects to with 'net.Dial' tcp connection
+//
+//	where it connects to with 'net.Dial' tcp connection
 func (RemoteOperationsStruct) SocketConnect(hostname string, port int32, command string) (string, error) {
 	// connect to socket
 	toConnectTo := fmt.Sprintf("%v:%v", hostname, port)
@@ -128,8 +129,9 @@ func (RemoteOperationsStruct) SocketConnect(hostname string, port int32, command
 }
 
 // ObtainLogLatestTimestamp reads log from pod and find out
-//   what is the latest log record at the time
-//   and returns time stamp of the record
+//
+//	what is the latest log record at the time
+//	and returns time stamp of the record
 func (RemoteOperationsStruct) ObtainLogLatestTimestamp(pod *corev1.Pod) (*time.Time, error) {
 	lineReader, err := readPodLog(pod, &tailOneLineLogOptions)
 	if err != nil {
@@ -159,7 +161,8 @@ func (RemoteOperationsStruct) ObtainLogLatestTimestamp(pod *corev1.Pod) (*time.T
 }
 
 // VerifyLogContainsRegexp checks if a line in the log from the pod matches the provided regexp
-//   the log could be limited to be taken from particular time further, when no time defined the log is not limited by time
+//
+//	the log could be limited to be taken from particular time further, when no time defined the log is not limited by time
 func (RemoteOperationsStruct) VerifyLogContainsRegexp(pod *corev1.Pod, logFromTime *time.Time, regexpLineCheck *regexp.Regexp) (string, error) {
 	timeLimitingPodLogOptions := corev1.PodLogOptions{}
 	if logFromTime != nil {

@@ -53,8 +53,9 @@ func IsMgmtOutcomeSuccesful(jsonBody map[string]interface{}) bool {
 }
 
 // ExecuteMgmtOp executes WildFly managemnt operation represented as a string
-//  the execution runs as shh remote command with jboss-cli.sh executed on the pod
-//  returns the JSON as the return value from the operation
+//
+//	the execution runs as shh remote command with jboss-cli.sh executed on the pod
+//	returns the JSON as the return value from the operation
 func ExecuteMgmtOp(pod *corev1.Pod, mgmtOpString string) (map[string]interface{}, error) {
 	jbossCliCommand := fmt.Sprintf("${JBOSS_HOME}/bin/jboss-cli.sh --output-json -c --commands='%s'", mgmtOpString)
 	resString, err := RemoteOps.Execute(pod, jbossCliCommand)
@@ -86,7 +87,8 @@ func ExecuteMgmtOp(pod *corev1.Pod, mgmtOpString string) (map[string]interface{}
 }
 
 // decodeJSONBody takes the io.Reader (res) as expected to be representation of a JSON
-//   and decodes it to the form of the JSON type "native" to golang
+//
+//	and decodes it to the form of the JSON type "native" to golang
 func decodeJSON(reader *io.ReadCloser) (map[string]interface{}, error) {
 	var resJSON map[string]interface{}
 	err := json.NewDecoder(*reader).Decode(&resJSON)
@@ -97,7 +99,8 @@ func decodeJSON(reader *io.ReadCloser) (map[string]interface{}, error) {
 }
 
 // ReadJSONDataByIndex iterates over the JSON object to return
-//   data saved at the provided index. It returns json data as interface{}.
+//
+//	data saved at the provided index. It returns json data as interface{}.
 func ReadJSONDataByIndex(json interface{}, indexes ...string) interface{} {
 	jsonInProgress := json
 	for _, index := range indexes {
@@ -153,9 +156,10 @@ func GetTransactionRecoveryPort(pod *corev1.Pod) (int32, error) {
 }
 
 // ExecuteOpAndWaitForServerBeingReady executes WildFly management operation on the pod
-//  this operation is checked to succeed and then waits for the container is ready
-//  this method is assumed to be used for reload/restart operations
-//  returns error if execution was not processed successfully
+//
+//	this operation is checked to succeed and then waits for the container is ready
+//	this method is assumed to be used for reload/restart operations
+//	returns error if execution was not processed successfully
 func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, pod *corev1.Pod) error {
 	podName := pod.ObjectMeta.Name
 
@@ -184,8 +188,9 @@ func ExecuteOpAndWaitForServerBeingReady(reqLogger logr.Logger, mgmtOp string, p
 }
 
 // IsAppServerRunningViaJBossCli runs JBoss CLI call to app server to find out if is in state 'running'
-//   if 'running' then returns true, otherwise false
-//   when false is returned then error contains a message with app server's state
+//
+//	if 'running' then returns true, otherwise false
+//	when false is returned then error contains a message with app server's state
 func IsAppServerRunningViaJBossCli(pod *corev1.Pod) (bool, error) {
 	jsonResult, err := ExecuteMgmtOp(pod, MgmtOpServerStateRead)
 	if err == nil {
@@ -210,8 +215,9 @@ func ListSubsystems(pod *corev1.Pod) ([]string, error) {
 }
 
 // ExecuteAndGetResult executes the JBoss CLI operation provided as the string in parameter 'managementOperation'
-//   It will be executed by call of 'jboss-cli.sh' at the particular pod.
-//   When succesful it returns the result part of the returned json, otherwise it returns nil with error describing failure details.
+//
+//	It will be executed by call of 'jboss-cli.sh' at the particular pod.
+//	When succesful it returns the result part of the returned json, otherwise it returns nil with error describing failure details.
 func ExecuteAndGetResult(pod *corev1.Pod, managementOperation string) (interface{}, error) {
 	podName := pod.ObjectMeta.Name
 	jsonResult, err := ExecuteMgmtOp(pod, managementOperation)

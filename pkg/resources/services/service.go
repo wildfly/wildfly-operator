@@ -162,7 +162,7 @@ func AdminServiceName(w *wildflyv1alpha1.WildFlyServer) string {
 // ClusterServiceName returns the name of the cluster service.
 //
 // The service remains named with the -loadbalancer suffix for backwards compatibility
-/// even if it is now a ClusterIP service.
+// / even if it is now a ClusterIP service.
 func ClusterServiceName(w *wildflyv1alpha1.WildFlyServer) string {
 	return w.Name + "-loadbalancer"
 }
