@@ -37,7 +37,6 @@ import (
 
 	"k8s.io/client-go/tools/record"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"strconv"
 	"strings"
@@ -305,7 +304,6 @@ func (r *WildFlyServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // A non-nil error if an error happens while updating/deleting the statefulset.
 func (r *WildFlyServerReconciler) checkStatefulSet(wildflyServer *wildflyv1alpha1.WildFlyServer, foundStatefulSet *appsv1.StatefulSet,
 	podList *corev1.PodList) (mustReconcile int, err error) {
-	log := log.FromContext(context.TODO())
 
 	var update bool
 	var requeue = requeueOff
@@ -314,14 +312,14 @@ func (r *WildFlyServerReconciler) checkStatefulSet(wildflyServer *wildflyv1alpha
 	desiredStatefulSetReplicaSize := wildflyServerSpecSize
 	// - for scale up
 	if wildflyServerSpecSize > *foundStatefulSet.Spec.Replicas {
-		log.Info("Scaling up and updating replica size to "+strconv.Itoa(int(wildflyServerSpecSize)),
+		r.Log.Info("Scaling up and updating replica size to "+strconv.Itoa(int(wildflyServerSpecSize)),
 			"StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 		foundStatefulSet.Spec.Replicas = &desiredStatefulSetReplicaSize
 		update = true
 	}
 	// - for scale down
 	if wildflyServerSpecSize < *foundStatefulSet.Spec.Replicas {
-		log.Info("For statefulset scaling down need to verify if pods were cleaned by recovery",
+		r.Log.Info("For statefulset scaling down need to verify if pods were cleaned by recovery",
 			"StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 		// Change the number of replicas in statefulset, changing based on the pod state
 		nameToPodState := make(map[string]string)
@@ -348,14 +346,14 @@ func (r *WildFlyServerReconciler) checkStatefulSet(wildflyServer *wildflyv1alpha
 		calculatedStatefulSetReplicaSize := int32(numberOfPods - numberOfPodsToShutdown)
 		desiredStatefulSetReplicaSize = calculatedStatefulSetReplicaSize
 		if wildflyServerSpecSize <= calculatedStatefulSetReplicaSize && *foundStatefulSet.Spec.Replicas > calculatedStatefulSetReplicaSize {
-			log.Info("Scaling down and updating replica size to "+strconv.Itoa(int(calculatedStatefulSetReplicaSize)),
+			r.Log.Info("Scaling down and updating replica size to "+strconv.Itoa(int(calculatedStatefulSetReplicaSize)),
 				"StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			foundStatefulSet.Spec.Replicas = &desiredStatefulSetReplicaSize
 			update = true
 		}
 		// There are some unclean pods which can't be scaled down
 		if wildflyServerSpecSize < calculatedStatefulSetReplicaSize {
-			log.Info("Statefulset was not scaled to the desired replica size "+strconv.Itoa(int(wildflyServerSpecSize))+
+			r.Log.Info("Statefulset was not scaled to the desired replica size "+strconv.Itoa(int(wildflyServerSpecSize))+
 				" (current StatefulSet size: "+strconv.Itoa(int(calculatedStatefulSetReplicaSize))+
 				"). Transaction recovery scaledown process has not cleaned all pods. Please, check status of the WildflyServer "+wildflyServer.Name,
 				"StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
@@ -393,10 +391,10 @@ func (r *WildFlyServerReconciler) checkStatefulSet(wildflyServer *wildflyv1alpha
 		if delete {
 			// VolumeClaimTemplates has changed, the statefulset can not be updated and must be deleted
 			if err = resources.Delete(wildflyServer, r.Client, foundStatefulSet); err != nil {
-				log.Error(err, "Failed to Delete StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+				r.Log.Error(err, "Failed to Delete StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 				return requeueNow, err
 			}
-			log.Info("Deleting StatefulSet that is not up to date with the WildFlyServer StorageSpec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			r.Log.Info("Deleting StatefulSet that is not up to date with the WildFlyServer StorageSpec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			return requeueNow, nil
 		}
 
@@ -405,17 +403,17 @@ func (r *WildFlyServerReconciler) checkStatefulSet(wildflyServer *wildflyv1alpha
 		foundStatefulSet.Spec.Replicas = &desiredStatefulSetReplicaSize
 		foundStatefulSet.Annotations[resources.MarkerServerGeneration] = strconv.FormatInt(wildflyServer.Generation, 10)
 		if err = resources.Update(wildflyServer, r.Client, foundStatefulSet); err != nil {
-			log.Error(err, "Failed to Update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			r.Log.Error(err, "Failed to Update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			return requeueNow, err
 		}
-		log.Info("Updating StatefulSet to be up to date with the WildFlyServer Spec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+		r.Log.Info("Updating StatefulSet to be up to date with the WildFlyServer Spec", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 		return requeueNow, nil
 	}
 
 	if update {
-		log.Info("Updating statefulset", "StatefulSet.Replicas", foundStatefulSet.Spec.Replicas)
+		r.Log.Info("Updating statefulset", "StatefulSet.Replicas", foundStatefulSet.Spec.Replicas)
 		if err = resources.Update(wildflyServer, r.Client, foundStatefulSet); err != nil {
-			log.Error(err, "Failed to update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
+			r.Log.Error(err, "Failed to update StatefulSet.", "StatefulSet.Namespace", foundStatefulSet.Namespace, "StatefulSet.Name", foundStatefulSet.Name)
 			return requeueNow, err
 		}
 		return requeueNow, nil

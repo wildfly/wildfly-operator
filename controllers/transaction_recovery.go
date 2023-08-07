@@ -467,7 +467,6 @@ func isJDBCLogStoreInUse(pod *corev1.Pod) (bool, error) {
 //	to be deleted by statefulset update. This is used for cases when recovery process should be skipped.
 func (r *WildFlyServerReconciler) skipRecoveryAndForceScaleDown(w *wildflyv1alpha1.WildFlyServer, totalNumberOfPods int,
 	numberOfPodsToScaleDown int, podList *corev1.PodList) (mustReconcile int, err error) {
-	log := r.Log
 
 	for scaleDownIndex := 1; scaleDownIndex <= numberOfPodsToScaleDown; scaleDownIndex++ {
 		scaleDownPodName := podList.Items[totalNumberOfPods-scaleDownIndex].ObjectMeta.Name
@@ -481,7 +480,7 @@ func (r *WildFlyServerReconciler) skipRecoveryAndForceScaleDown(w *wildflyv1alph
 	// process update on the WildFlyServer resource
 	err = resources.UpdateWildFlyServerStatus(w, r.Client)
 	if err != nil {
-		log.Error(err, "Error on updating WildFlyServer when skipping recovery scale down")
+		r.Log.Error(err, "Error on updating WildFlyServer when skipping recovery scale down")
 	}
 	return requeueOff, nil
 }
