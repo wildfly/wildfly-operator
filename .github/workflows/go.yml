@@ -36,11 +36,6 @@ jobs:
         minikube image load --pull=true quay.io/wildfly-quickstarts/clusterbench:latest
     - name: Containerized End-to-End Tests
       run: eval $(minikube -p minikube docker-env) && make test-e2e-minikube
-    - name: Push documentation to gh-pages
-      uses: manoelcampos/asciidoctor-ghpages-action@v2
-      if: github.ref == 'refs/heads/main'
-      with:
-        source_dir: ./doc
     - name: Docker Login to Quay.io (main only)
       uses: docker/login-action@v1.8.0
       if: github.ref == 'refs/heads/main'
@@ -51,4 +46,9 @@ jobs:
     - name: Build and Push Image (main only)
       if: github.ref == 'refs/heads/main'
       run: make manifests docker-build docker-push
+    - name: Push documentation to gh-pages (main only)
+      uses: manoelcampos/asciidoctor-ghpages-action@v2
+      if: github.ref == 'refs/heads/main'
+      with:
+        source_dir: ./doc
 
