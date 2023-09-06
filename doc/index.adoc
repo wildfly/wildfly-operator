@@ -1,0 +1,16 @@
+= WildFly Operator - Documentation
+:toc:               left
+
+
+== WildFly Operator for Kubernetes/OpenShift
+
+The WildFly Operator for Kubernetes provides easy monitoring and configuration for Java applications deployed on WildFly application server using the Source-to-Image (S2I) template for WildFly.
+
+Once installed, the WildFly Operator provides the following features:
+
+* Create/Destroy: Easily launch an application deployed on WildFly
+* Simple Configuration: Configure the fundamentals of WildFly-based application including number of nodes, application image, etc.
+
+The WildFly Operator defines a `WildFlyServer` custom resource definition (CRD) to control the behaviour of the deployed appliction. The xref:apis.adoc[API documentation] provides a full description of its capabilities.
+
+The xref:user-guide.adoc[User Guide] showcases various features and capabilities provides by the WildFly Operator.

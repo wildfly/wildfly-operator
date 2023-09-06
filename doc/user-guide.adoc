@@ -3,7 +3,7 @@
 
 This guide documents the various features and capabilities provides by the WildFly Operator.
 
-This guide is complemented by the link:./apis.adoc[API Documentation].
+This guide is complemented by the xref:./apis.adoc[API Documentation].
 
 [[basic-install]]
 == Basic Install (Phase I)
