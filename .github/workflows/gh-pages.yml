@@ -16,9 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
+        uses: actions/checkout@v4
       - name: Build with Asciidoctor
         uses: manoelcampos/asciidoctor-ghpages-action@v2
         with:
