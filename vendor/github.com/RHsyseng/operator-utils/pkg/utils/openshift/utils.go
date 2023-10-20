@@ -54,7 +54,8 @@ func LookupOpenShiftVersion(cfg *rest.Config) (platform.OpenShiftVersion, error)
 Supported platform: OpenShift
 cfg : OpenShift platform config, use runtime config if nil is passed in.
 version: Supported version format : Major.Minor
-	       e.g.: 4.3
+
+	e.g.: 4.3
 */
 func CompareOpenShiftVersion(cfg *rest.Config, version string) (int, error) {
 	return platform.K8SBasedPlatformVersioner{}.CompareOpenShiftVersion(nil, cfg, version)

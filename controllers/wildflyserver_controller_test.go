@@ -106,6 +106,7 @@ func TestWildFlyServerControllerCreatesStatefulSet(t *testing.T) {
 
 func TestEnvUpdate(t *testing.T) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	log := ctrl.Log.WithName("TestEnvUpdate")
 	assert := testifyAssert.New(t)
 
 	initialEnv := &corev1.EnvVar{
@@ -178,13 +179,14 @@ func TestEnvUpdate(t *testing.T) {
 	wildflyServer.Spec.Env[0].Value = "UPDATE"
 	wildflyServer.SetGeneration(wildflyServer.GetGeneration() + 1)
 	err = cl.Update(context.TODO(), wildflyServer)
-	t.Logf("WildFlyServerSpec generation %d", wildflyServer.GetGeneration())
+	log.Info("WildFlyServerSpec generation", "Generation", wildflyServer.GetGeneration())
 	require.NoError(t, err)
 
 	res, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	if !res.Requeue {
-		t.Error("reconcile did not requeue request as expected")
+		log.Error(nil, "reconcile did not requeue request as expected")
+		t.FailNow()
 	}
 
 	// check that the statefulset env has been updated
@@ -199,19 +201,21 @@ func TestEnvUpdate(t *testing.T) {
 	wildflyServer.Spec.Env = []corev1.EnvVar{}
 	wildflyServer.SetGeneration(wildflyServer.GetGeneration() + 1)
 	err = cl.Update(context.TODO(), wildflyServer)
-	t.Logf("WildFlyServerSpec generation %d", wildflyServer.GetGeneration())
+	log.Info("WildFlyServerSpec generation", "Generation", wildflyServer.GetGeneration())
 	require.NoError(t, err)
 	res, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	if !res.Requeue {
-		t.Error("reconcile did not requeue request as expected")
+		log.Error(nil, "reconcile did not requeue request as expected")
+		t.FailNow()
 	}
 	// check that the statefulset env has been removed
 	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
 	require.NoError(t, err)
 	for _, env := range statefulSet.Spec.Template.Spec.Containers[0].Env {
 		if env.Name == "TEST_START" {
-			t.Error("TEST_START env var must be removed")
+			log.Error(nil, "TEST_START env var must be removed")
+			t.FailNow()
 		}
 	}
 
@@ -225,13 +229,14 @@ func TestEnvUpdate(t *testing.T) {
 	}
 	wildflyServer.SetGeneration(wildflyServer.GetGeneration() + 1)
 	err = cl.Update(context.TODO(), wildflyServer)
-	t.Logf("WildFlyServerSpec generation %d", wildflyServer.GetGeneration())
+	log.Info("WildFlyServerSpec generation", "Generation", wildflyServer.GetGeneration())
 	require.NoError(t, err)
 
 	res, err = r.Reconcile(context.TODO(), req)
 	require.NoError(t, err)
 	if !res.Requeue {
-		t.Error("reconcile did not requeue request as expected")
+		log.Error(nil, "reconcile did not requeue request as expected")
+		t.FailNow()
 	}
 
 	// check that the statefulset env has been added

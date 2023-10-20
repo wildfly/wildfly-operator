@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	openapi_v2 "github.com/googleapis/gnostic/openapiv2"
+	openapi_v2 "github.com/google/gnostic/openapiv2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
@@ -55,6 +55,20 @@ func MapKnownVersion(info PlatformInfo) OpenShiftVersion {
 		"1.18":  "4.5",
 		"1.19+": "4.6",
 		"1.19":  "4.6",
+		"1.20+": "4.7",
+		"1.20":  "4.7",
+		"1.21+": "4.8",
+		"1.21":  "4.8",
+		"1.22+": "4.9",
+		"1.22":  "4.9",
+		"1.23+": "4.10",
+		"1.23":  "4.10",
+		"1.24+": "4.11",
+		"1.24":  "4.11",
+		"1.25+": "4.12",
+		"1.25":  "4.12",
+		"1.26+": "4.13",
+		"1.26":  "4.13",
 	}
 	return OpenShiftVersion{Version: k8sToOcpMap[info.K8SVersion]}
 }
