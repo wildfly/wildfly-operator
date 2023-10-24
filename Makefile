@@ -46,6 +46,10 @@ ifeq ($(USE_IMAGE_DIGESTS), true)
 	BUNDLE_GEN_FLAGS += --use-image-digests
 endif
 
+# Set the Operator SDK version to use. By default, what is installed on the system is used.
+# This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
+OPERATOR_SDK_VERSION ?= v1.22.0
+
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/wildfly/wildfly-operator:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -100,18 +104,6 @@ help: ## Display this help.
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-# Generate the manifests in a directory
-.PHONY: dry-run
-dry-run: manifests
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	mkdir -p dry-run
-	$(KUSTOMIZE) build config/default > dry-run/manifests.yaml
-
-.PHONY: openapi-setup
-openapi: ## Generate the OpenAPI.
-	which ./openapi-gen > /dev/null || go build -mod=mod -o ./openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
-	./openapi-gen --logtostderr=true -o "" -i ./api/v1alpha1 -O zz_generated.openapi -p ./api/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
-
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -125,15 +117,15 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: unit-test
-unit-test: generate fmt vet ## Run unit-tests.
-	go test -v ./controllers/...
+unit-test: generate openapi fmt vet ## Run unit-tests.
+	go test -v $(shell go list ./... | grep -v /test/)
 
 .PHONY: test
-local-test: manifests generate fmt vet envtest ## Run E2E tests running the Operator locally outside the cluster.
+test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v ./test/e2e/... -coverprofile cover.out
 
 .PHONY: test-e2e
-test: prepare-test-e2e run-test-e2e ## Run E2E tests running the Operator as a Deployment inside the cluster.
+test-e2e: prepare-test-e2e run-test-e2e ## Run E2E tests running the Operator as a Deployment inside the cluster.
 
 ## Run E2E tests running the Operator as a Deployment inside a local minikube cluster installation.
 .PHONY: test-e2e-minikube
@@ -159,7 +151,23 @@ clean: kustomize
 	$(KUSTOMIZE) build config/rbac | kubectl delete --ignore-not-found=true -f -
 	echo "$$TEST_NAMESPACE_YAML" | kubectl delete --ignore-not-found=true -f -
 
+.PHONY: openapi
+openapi: openapi-gen ## Generate the OpenAPI.
+	$(OPENAPI_GEN) --logtostderr=true -o "" -i ./api/v1alpha1 -O zz_generated.openapi -p ./api/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
+
 ##@ Build
+
+.PHONY: build
+build: manifests generate openapi fmt vet ## Build manager binary.
+	go build -o bin/manager main.go
+
+.PHONY: run
+run: manifests generate openapi fmt vet ## Run a controller from your host.
+	go run ./main.go
+
+.PHONY: docker-build
+docker-build: unit-test ## Build docker image with the manager.
+	./build/build.sh ${IMG}
 
 .PHONY: tidy
 tidy: ## Download any require dependency, clean up modules and refresh go.sum
@@ -169,22 +177,18 @@ tidy: ## Download any require dependency, clean up modules and refresh go.sum
 vendor:  tidy ## Add missing and remove unused modules and make vendored copy of dependencies
 	go mod vendor
 
-.PHONY: build
-build: vendor generate fmt vet openapi ## Build manager binary.
-	go build -o bin/manager main.go
-
-.PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
-
 # Run the manager with debug enabled
-debug: dlv generate fmt vet manifests
-	go build -o bin/manager main.go
-	JBOSS_HOME=/wildfly JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server OPERATOR_NAME=wildfly-operator  ./bin/dlv --listen=:2345 --headless=true --api-version=2 --accept-multiclient exec bin/manager
+debug: dlv build
+	JBOSS_HOME=/wildfly JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data \
+JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server OPERATOR_NAME=wildfly-operator  \
+./bin/dlv --listen=:2345 --headless=true --api-version=2 --accept-multiclient exec bin/manager
 
-.PHONY: docker-build
-docker-build: unit-test openapi vendor ## Build docker image with the manager.
-	./build/build.sh ${IMG}
+# Generate the manifests in a directory
+.PHONY: dry-run
+dry-run: manifests kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	mkdir -p dry-run
+	$(KUSTOMIZE) build config/default > dry-run/manifests.yaml
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -213,46 +217,68 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-.PHONY: controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.0)
+##@ Build Dependencies
 
-KUSTOMIZE = $(shell pwd)/bin/kustomize
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+## Tool Binaries
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
+OPENAPI_GEN ?= $(LOCALBIN)/openapi-gen
+DLV ?= $(LOCALBIN)/dlv
+
+## Tool Versions
+KUSTOMIZE_VERSION ?= v3.8.7
+CONTROLLER_TOOLS_VERSION ?= v0.9.0
+
+KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@latest)
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
+$(KUSTOMIZE): $(LOCALBIN)
+	@if test -x $(LOCALBIN)/kustomize && ! $(LOCALBIN)/kustomize version | grep -q $(KUSTOMIZE_VERSION); then \
+		echo "$(LOCALBIN)/kustomize version is not expected $(KUSTOMIZE_VERSION). Removing it before installing."; \
+		rm -rf $(LOCALBIN)/kustomize; \
+	fi
+	test -s $(LOCALBIN)/kustomize || { curl -Ss $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
 
-ENVTEST = $(shell pwd)/bin/setup-envtest
+.PHONY: controller-gen
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
+$(CONTROLLER_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
 .PHONY: envtest
-envtest: ## Download envtest-setup locally if necessary.
-	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
+$(ENVTEST): $(LOCALBIN)
+	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-DLV = $(shell pwd)/bin/dlv
-.PHONY: dlv
-dlv: ## Download Delve locally if necessary.
-	$(call go-get-tool,$(DLV),github.com/go-delve/delve/cmd/dlv@latest)
-
-# go-get-tool will 'go get' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin GO111MODULE=on go install $(2) ;\
-}
-endef
+.PHONY: operator-sdk
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+operator-sdk: ## Download operator-sdk locally if necessary.
+ifeq (,$(wildcard $(OPERATOR_SDK)))
+ifeq (, $(shell which operator-sdk 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPERATOR_SDK)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
+	chmod +x $(OPERATOR_SDK) ;\
+	}
+else
+OPERATOR_SDK = $(shell which operator-sdk)
+endif
+endif
 
 .PHONY: bundle
-bundle: setup-operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
-	operator-sdk generate kustomize manifests -q
+bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
+	$(OPERATOR_SDK) generate kustomize manifests --interactive=false -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle $(BUNDLE_GEN_FLAGS)
-	operator-sdk bundle validate ./bundle
-
-.PHONY: setup-operator-sdk
-setup-operator-sdk:
-	which ./operator-sdk > /dev/null || ./build/setup-operator-sdk.sh
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
+	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
@@ -302,3 +328,13 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+.PHONY: openapi-gen
+openapi-gen: $(OPENAPI_GEN) ## Download envtest-setup locally if necessary.
+$(OPENAPI_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/openapi-gen || GOBIN=$(LOCALBIN) go install k8s.io/kube-openapi/cmd/openapi-gen@latest
+
+.PHONY: dlv
+dlv: $(DLV) ## Download envtest-setup locally if necessary.
+$(DLV): $(LOCALBIN)
+	test -s $(LOCALBIN)/dlv || GOBIN=$(LOCALBIN) go install github.com/go-delve/delve/cmd/dlv@latest

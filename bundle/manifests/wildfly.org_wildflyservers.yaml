@@ -78,12 +78,14 @@ spec:
                       type: string
                     value:
                       description: 'Variable references $(VAR_NAME) are expanded using
-                        the previous defined environment variables in the container
+                        the previously defined environment variables in the container
                         and any service environment variables. If a variable cannot
                         be resolved, the reference in the input string will be unchanged.
-                        The $(VAR_NAME) syntax can be escaped with a double $$, ie:
-                        $$(VAR_NAME). Escaped references will never be expanded, regardless
-                        of whether the variable exists or not. Defaults to "".'
+                        Double $$ are reduced to a single $, which allows for escaping
+                        the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce the
+                        string literal "$(VAR_NAME)". Escaped references will never
+                        be expanded, regardless of whether the variable exists or
+                        not. Defaults to "".'
                       type: string
                     valueFrom:
                       description: Source for the environment variable's value. Cannot
@@ -225,7 +227,7 @@ spec:
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
                     description: 'Limits describes the maximum amount of compute resources
-                      allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                      allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                   requests:
                     additionalProperties:
@@ -237,7 +239,7 @@ spec:
                     description: 'Requests describes the minimum amount of compute
                       resources required. If Requests is omitted for a container,
                       it defaults to Limits if that is explicitly specified, otherwise
-                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
               secrets:
@@ -249,6 +251,166 @@ spec:
                 minItems: 1
                 type: array
                 x-kubernetes-list-type: set
+              securityContext:
+                description: SecurityContext defines the security capabilities required
+                  to run the application.
+                properties:
+                  allowPrivilegeEscalation:
+                    description: 'AllowPrivilegeEscalation controls whether a process
+                      can gain more privileges than its parent process. This bool
+                      directly controls if the no_new_privs flag will be set on the
+                      container process. AllowPrivilegeEscalation is true always when
+                      the container is: 1) run as Privileged 2) has CAP_SYS_ADMIN
+                      Note that this field cannot be set when spec.os.name is windows.'
+                    type: boolean
+                  capabilities:
+                    description: The capabilities to add/drop when running containers.
+                      Defaults to the default set of capabilities granted by the container
+                      runtime. Note that this field cannot be set when spec.os.name
+                      is windows.
+                    properties:
+                      add:
+                        description: Added capabilities
+                        items:
+                          description: Capability represent POSIX capabilities type
+                          type: string
+                        type: array
+                      drop:
+                        description: Removed capabilities
+                        items:
+                          description: Capability represent POSIX capabilities type
+                          type: string
+                        type: array
+                    type: object
+                  privileged:
+                    description: Run container in privileged mode. Processes in privileged
+                      containers are essentially equivalent to root on the host. Defaults
+                      to false. Note that this field cannot be set when spec.os.name
+                      is windows.
+                    type: boolean
+                  procMount:
+                    description: procMount denotes the type of proc mount to use for
+                      the containers. The default is DefaultProcMount which uses the
+                      container runtime defaults for readonly paths and masked paths.
+                      This requires the ProcMountType feature flag to be enabled.
+                      Note that this field cannot be set when spec.os.name is windows.
+                    type: string
+                  readOnlyRootFilesystem:
+                    description: Whether this container has a read-only root filesystem.
+                      Default is false. Note that this field cannot be set when spec.os.name
+                      is windows.
+                    type: boolean
+                  runAsGroup:
+                    description: The GID to run the entrypoint of the container process.
+                      Uses runtime default if unset. May also be set in PodSecurityContext.  If
+                      set in both SecurityContext and PodSecurityContext, the value
+                      specified in SecurityContext takes precedence. Note that this
+                      field cannot be set when spec.os.name is windows.
+                    format: int64
+                    type: integer
+                  runAsNonRoot:
+                    description: Indicates that the container must run as a non-root
+                      user. If true, the Kubelet will validate the image at runtime
+                      to ensure that it does not run as UID 0 (root) and fail to start
+                      the container if it does. If unset or false, no such validation
+                      will be performed. May also be set in PodSecurityContext.  If
+                      set in both SecurityContext and PodSecurityContext, the value
+                      specified in SecurityContext takes precedence.
+                    type: boolean
+                  runAsUser:
+                    description: The UID to run the entrypoint of the container process.
+                      Defaults to user specified in image metadata if unspecified.
+                      May also be set in PodSecurityContext.  If set in both SecurityContext
+                      and PodSecurityContext, the value specified in SecurityContext
+                      takes precedence. Note that this field cannot be set when spec.os.name
+                      is windows.
+                    format: int64
+                    type: integer
+                  seLinuxOptions:
+                    description: The SELinux context to be applied to the container.
+                      If unspecified, the container runtime will allocate a random
+                      SELinux context for each container.  May also be set in PodSecurityContext.  If
+                      set in both SecurityContext and PodSecurityContext, the value
+                      specified in SecurityContext takes precedence. Note that this
+                      field cannot be set when spec.os.name is windows.
+                    properties:
+                      level:
+                        description: Level is SELinux level label that applies to
+                          the container.
+                        type: string
+                      role:
+                        description: Role is a SELinux role label that applies to
+                          the container.
+                        type: string
+                      type:
+                        description: Type is a SELinux type label that applies to
+                          the container.
+                        type: string
+                      user:
+                        description: User is a SELinux user label that applies to
+                          the container.
+                        type: string
+                    type: object
+                  seccompProfile:
+                    description: The seccomp options to use by this container. If
+                      seccomp options are provided at both the pod & container level,
+                      the container options override the pod options. Note that this
+                      field cannot be set when spec.os.name is windows.
+                    properties:
+                      localhostProfile:
+                        description: localhostProfile indicates a profile defined
+                          in a file on the node should be used. The profile must be
+                          preconfigured on the node to work. Must be a descending
+                          path, relative to the kubelet's configured seccomp profile
+                          location. Must only be set if type is "Localhost".
+                        type: string
+                      type:
+                        description: "type indicates which kind of seccomp profile
+                          will be applied. Valid options are: \n Localhost - a profile
+                          defined in a file on the node should be used. RuntimeDefault
+                          - the container runtime default profile should be used.
+                          Unconfined - no profile should be applied."
+                        type: string
+                    required:
+                    - type
+                    type: object
+                  windowsOptions:
+                    description: The Windows specific settings applied to all containers.
+                      If unspecified, the options from the PodSecurityContext will
+                      be used. If set in both SecurityContext and PodSecurityContext,
+                      the value specified in SecurityContext takes precedence. Note
+                      that this field cannot be set when spec.os.name is linux.
+                    properties:
+                      gmsaCredentialSpec:
+                        description: GMSACredentialSpec is where the GMSA admission
+                          webhook (https://github.com/kubernetes-sigs/windows-gmsa)
+                          inlines the contents of the GMSA credential spec named by
+                          the GMSACredentialSpecName field.
+                        type: string
+                      gmsaCredentialSpecName:
+                        description: GMSACredentialSpecName is the name of the GMSA
+                          credential spec to use.
+                        type: string
+                      hostProcess:
+                        description: HostProcess determines if a container should
+                          be run as a 'Host Process' container. This field is alpha-level
+                          and will only be honored by components that enable the WindowsHostProcessContainers
+                          feature flag. Setting this field without the feature flag
+                          will result in errors when validating the Pod. All of a
+                          Pod's containers must have the same effective HostProcess
+                          value (it is not allowed to have a mix of HostProcess containers
+                          and non-HostProcess containers).  In addition, if HostProcess
+                          is true then HostNetwork must also be set to true.
+                        type: boolean
+                      runAsUserName:
+                        description: The UserName in Windows to run the entrypoint
+                          of the container process. Defaults to the user specified
+                          in image metadata if unspecified. May also be set in PodSecurityContext.
+                          If set in both SecurityContext and PodSecurityContext, the
+                          value specified in SecurityContext takes precedence.
+                        type: string
+                    type: object
+                type: object
               serviceAccountName:
                 type: string
               sessionAffinity:
@@ -279,22 +441,22 @@ spec:
                       volumes support ownership management and SELinux relabeling.
                     properties:
                       medium:
-                        description: 'What type of storage medium should back this
-                          directory. The default is "" which means to use the node''s
-                          default medium. Must be an empty string (default) or Memory.
-                          More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
+                        description: 'medium represents what type of storage medium
+                          should back this directory. The default is "" which means
+                          to use the node''s default medium. Must be an empty string
+                          (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
                         type: string
                       sizeLimit:
                         anyOf:
                         - type: integer
                         - type: string
-                        description: 'Total amount of local storage required for this
-                          EmptyDir volume. The size limit is also applicable for memory
-                          medium. The maximum usage on memory medium EmptyDir would
-                          be the minimum value between the SizeLimit specified here
-                          and the sum of memory limits of all containers in a pod.
-                          The default is nil which means that the limit is undefined.
-                          More info: http://kubernetes.io/docs/user-guide/volumes#emptydir'
+                        description: 'sizeLimit is the total amount of local storage
+                          required for this EmptyDir volume. The size limit is also
+                          applicable for memory medium. The maximum usage on memory
+                          medium EmptyDir would be the minimum value between the SizeLimit
+                          specified here and the sum of memory limits of all containers
+                          in a pod. The default is nil which means that the limit
+                          is undefined. More info: http://kubernetes.io/docs/user-guide/volumes#emptydir'
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                     type: object
@@ -322,31 +484,63 @@ spec:
                         description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
                         type: object
                       spec:
-                        description: 'Spec defines the desired characteristics of
+                        description: 'spec defines the desired characteristics of
                           a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                         properties:
                           accessModes:
-                            description: 'AccessModes contains the desired access
+                            description: 'accessModes contains the desired access
                               modes the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                             items:
                               type: string
                             type: array
                           dataSource:
-                            description: 'This field can be used to specify either:
-                              * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot
-                              - Beta) * An existing PVC (PersistentVolumeClaim) *
-                              An existing custom resource/object that implements data
-                              population (Alpha) In order to use VolumeSnapshot object
-                              types, the appropriate feature gate must be enabled
-                              (VolumeSnapshotDataSource or AnyVolumeDataSource) If
-                              the provisioner or an external controller can support
-                              the specified data source, it will create a new volume
-                              based on the contents of the specified data source.
-                              If the specified data source is not supported, the volume
-                              will not be created and the failure will be reported
-                              as an event. In the future, we plan to support more
-                              data source types and the behavior of the provisioner
-                              may change.'
+                            description: 'dataSource field can be used to specify
+                              either: * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
+                              * An existing PVC (PersistentVolumeClaim) If the provisioner
+                              or an external controller can support the specified
+                              data source, it will create a new volume based on the
+                              contents of the specified data source. If the AnyVolumeDataSource
+                              feature gate is enabled, this field will always have
+                              the same contents as the DataSourceRef field.'
+                            properties:
+                              apiGroup:
+                                description: APIGroup is the group for the resource
+                                  being referenced. If APIGroup is not specified,
+                                  the specified Kind must be in the core API group.
+                                  For any other third-party types, APIGroup is required.
+                                type: string
+                              kind:
+                                description: Kind is the type of resource being referenced
+                                type: string
+                              name:
+                                description: Name is the name of resource being referenced
+                                type: string
+                            required:
+                            - kind
+                            - name
+                            type: object
+                          dataSourceRef:
+                            description: 'dataSourceRef specifies the object from
+                              which to populate the volume with data, if a non-empty
+                              volume is desired. This may be any local object from
+                              a non-empty API group (non core object) or a PersistentVolumeClaim
+                              object. When this field is specified, volume binding
+                              will only succeed if the type of the specified object
+                              matches some installed volume populator or dynamic provisioner.
+                              This field will replace the functionality of the DataSource
+                              field and as such if both fields are non-empty, they
+                              must have the same value. For backwards compatibility,
+                              both fields (DataSource and DataSourceRef) will be set
+                              to the same value automatically if one of them is empty
+                              and the other is non-empty. There are two important
+                              differences between DataSource and DataSourceRef: *
+                              While DataSource only allows two specific types of objects,
+                              DataSourceRef allows any non-core object, as well as
+                              PersistentVolumeClaim objects. * While DataSource ignores
+                              disallowed values (dropping them), DataSourceRef preserves
+                              all values, and generates an error if a disallowed value
+                              is specified. (Beta) Using this field requires the AnyVolumeDataSource
+                              feature gate to be enabled.'
                             properties:
                               apiGroup:
                                 description: APIGroup is the group for the resource
@@ -365,8 +559,12 @@ spec:
                             - name
                             type: object
                           resources:
-                            description: 'Resources represents the minimum resources
-                              the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                            description: 'resources represents the minimum resources
+                              the volume should have. If RecoverVolumeExpansionFailure
+                              feature is enabled users are allowed to specify resource
+                              requirements that are lower than previous value but
+                              must still be higher than capacity recorded in the status
+                              field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                             properties:
                               limits:
                                 additionalProperties:
@@ -376,7 +574,7 @@ spec:
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
                                 description: 'Limits describes the maximum amount
-                                  of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                                  of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                 type: object
                               requests:
                                 additionalProperties:
@@ -389,12 +587,12 @@ spec:
                                   of compute resources required. If Requests is omitted
                                   for a container, it defaults to Limits if that is
                                   explicitly specified, otherwise to an implementation-defined
-                                  value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                                  value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                 type: object
                             type: object
                           selector:
-                            description: A label query over volumes to consider for
-                              binding.
+                            description: selector is a label query over volumes to
+                              consider for binding.
                             properties:
                               matchExpressions:
                                 description: matchExpressions is a list of label selector
@@ -439,8 +637,8 @@ spec:
                                 type: object
                             type: object
                           storageClassName:
-                            description: 'Name of the StorageClass required by the
-                              claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                            description: 'storageClassName is the name of the StorageClass
+                              required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                             type: string
                           volumeMode:
                             description: volumeMode defines what type of volume is
@@ -448,20 +646,41 @@ spec:
                               when not included in claim spec.
                             type: string
                           volumeName:
-                            description: VolumeName is the binding reference to the
+                            description: volumeName is the binding reference to the
                               PersistentVolume backing this claim.
                             type: string
                         type: object
                       status:
-                        description: 'Status represents the current information/status
+                        description: 'status represents the current information/status
                           of a persistent volume claim. Read-only. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                         properties:
                           accessModes:
-                            description: 'AccessModes contains the actual access modes
+                            description: 'accessModes contains the actual access modes
                               the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                             items:
                               type: string
                             type: array
+                          allocatedResources:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: allocatedResources is the storage resource
+                              within AllocatedResources tracks the capacity allocated
+                              to a PVC. It may be larger than the actual capacity
+                              when a volume expansion operation is requested. For
+                              storage quota, the larger value from allocatedResources
+                              and PVC.spec.resources is used. If allocatedResources
+                              is not set, PVC.spec.resources alone is used for quota
+                              calculation. If a volume expansion capacity request
+                              is lowered, allocatedResources is only lowered if there
+                              are no expansion operations in progress and if the actual
+                              volume capacity is equal or lower than the requested
+                              capacity. This is an alpha field and requires enabling
+                              RecoverVolumeExpansionFailure feature.
+                            type: object
                           capacity:
                             additionalProperties:
                               anyOf:
@@ -469,36 +688,37 @@ spec:
                               - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
-                            description: Represents the actual resources of the underlying
-                              volume.
+                            description: capacity represents the actual resources
+                              of the underlying volume.
                             type: object
                           conditions:
-                            description: Current Condition of persistent volume claim.
-                              If underlying persistent volume is being resized then
-                              the Condition will be set to 'ResizeStarted'.
+                            description: conditions is the current Condition of persistent
+                              volume claim. If underlying persistent volume is being
+                              resized then the Condition will be set to 'ResizeStarted'.
                             items:
                               description: PersistentVolumeClaimCondition contails
                                 details about state of pvc
                               properties:
                                 lastProbeTime:
-                                  description: Last time we probed the condition.
+                                  description: lastProbeTime is the time we probed
+                                    the condition.
                                   format: date-time
                                   type: string
                                 lastTransitionTime:
-                                  description: Last time the condition transitioned
-                                    from one status to another.
+                                  description: lastTransitionTime is the time the
+                                    condition transitioned from one status to another.
                                   format: date-time
                                   type: string
                                 message:
-                                  description: Human-readable message indicating details
-                                    about last transition.
+                                  description: message is the human-readable message
+                                    indicating details about last transition.
                                   type: string
                                 reason:
-                                  description: Unique, this should be a short, machine
-                                    understandable string that gives the reason for
-                                    condition's last transition. If it reports "ResizeStarted"
-                                    that means the underlying persistent volume is
-                                    being resized.
+                                  description: reason is a unique, this should be
+                                    a short, machine understandable string that gives
+                                    the reason for condition's last transition. If
+                                    it reports "ResizeStarted" that means the underlying
+                                    persistent volume is being resized.
                                   type: string
                                 status:
                                   type: string
@@ -512,7 +732,14 @@ spec:
                               type: object
                             type: array
                           phase:
-                            description: Phase represents the current phase of PersistentVolumeClaim.
+                            description: phase represents the current phase of PersistentVolumeClaim.
+                            type: string
+                          resizeStatus:
+                            description: resizeStatus stores status of resize operation.
+                              ResizeStatus is not set by default but when expansion
+                              is complete resizeStatus is set to empty string by resize
+                              controller or kubelet. This is an alpha field and requires
+                              enabling RecoverVolumeExpansionFailure feature.
                             type: string
                         type: object
                     type: object
