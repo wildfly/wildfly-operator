@@ -1,6 +1,6 @@
 module github.com/wildfly/wildfly-operator
 
-go 1.21.3
+go 1.20
 
 require (
 	github.com/RHsyseng/operator-utils v1.4.7
