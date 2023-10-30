@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -76,7 +75,7 @@ func ExecuteMgmtOp(pod *corev1.Pod, mgmtOpString string) (map[string]interface{}
 	} else {
 		lastIndex++ // index plus one to include the } character
 	}
-	resIoReader := ioutil.NopCloser(strings.NewReader(resString[startIndex:lastIndex]))
+	resIoReader := io.NopCloser(strings.NewReader(resString[startIndex:lastIndex]))
 	defer resIoReader.Close()
 	jsonBody, err := decodeJSON(&resIoReader)
 	if err != nil {

@@ -292,7 +292,7 @@ func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
 	if defined && !w.Spec.BootableJar {
 		return &corev1.Probe{
-			Handler: corev1.Handler{
+			ProbeHandler: corev1.ProbeHandler{
 				Exec: &corev1.ExecAction{
 					Command: []string{"/bin/bash", "-c", livenessProbeScript},
 				},
@@ -301,7 +301,7 @@ func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 		}
 	}
 	return &corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/health/live",
 				Port: intstr.FromString("admin"),
@@ -320,7 +320,7 @@ func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
 	if defined && !w.Spec.BootableJar {
 		return &corev1.Probe{
-			Handler: corev1.Handler{
+			ProbeHandler: corev1.ProbeHandler{
 				Exec: &corev1.ExecAction{
 					Command: []string{"/bin/bash", "-c", readinessProbeScript},
 				},
@@ -330,7 +330,7 @@ func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 		}
 	}
 	return &corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/health/ready",
 				Port: intstr.FromString("admin"),

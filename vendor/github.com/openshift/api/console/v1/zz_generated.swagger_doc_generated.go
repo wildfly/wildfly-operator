@@ -31,11 +31,19 @@ func (CLIDownloadLink) SwaggerDoc() map[string]string {
 }
 
 var map_ConsoleCLIDownload = map[string]string{
-	"": "ConsoleCLIDownload is an extension for configuring openshift web console command line interface (CLI) downloads.",
+	"": "ConsoleCLIDownload is an extension for configuring openshift web console command line interface (CLI) downloads.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
 }
 
 func (ConsoleCLIDownload) SwaggerDoc() map[string]string {
 	return map_ConsoleCLIDownload
+}
+
+var map_ConsoleCLIDownloadList = map[string]string{
+	"": "Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+}
+
+func (ConsoleCLIDownloadList) SwaggerDoc() map[string]string {
+	return map_ConsoleCLIDownloadList
 }
 
 var map_ConsoleCLIDownloadSpec = map[string]string{
@@ -50,11 +58,19 @@ func (ConsoleCLIDownloadSpec) SwaggerDoc() map[string]string {
 }
 
 var map_ConsoleExternalLogLink = map[string]string{
-	"": "ConsoleExternalLogLink is an extension for customizing OpenShift web console log links.",
+	"": "ConsoleExternalLogLink is an extension for customizing OpenShift web console log links.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
 }
 
 func (ConsoleExternalLogLink) SwaggerDoc() map[string]string {
 	return map_ConsoleExternalLogLink
+}
+
+var map_ConsoleExternalLogLinkList = map[string]string{
+	"": "Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+}
+
+func (ConsoleExternalLogLinkList) SwaggerDoc() map[string]string {
+	return map_ConsoleExternalLogLinkList
 }
 
 var map_ConsoleExternalLogLinkSpec = map[string]string{
@@ -79,11 +95,19 @@ func (ApplicationMenuSpec) SwaggerDoc() map[string]string {
 }
 
 var map_ConsoleLink = map[string]string{
-	"": "ConsoleLink is an extension for customizing OpenShift web console links.",
+	"": "ConsoleLink is an extension for customizing OpenShift web console links.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
 }
 
 func (ConsoleLink) SwaggerDoc() map[string]string {
 	return map_ConsoleLink
+}
+
+var map_ConsoleLinkList = map[string]string{
+	"": "Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+}
+
+func (ConsoleLinkList) SwaggerDoc() map[string]string {
+	return map_ConsoleLinkList
 }
 
 var map_ConsoleLinkSpec = map[string]string{
@@ -108,11 +132,19 @@ func (NamespaceDashboardSpec) SwaggerDoc() map[string]string {
 }
 
 var map_ConsoleNotification = map[string]string{
-	"": "ConsoleNotification is the extension for configuring openshift web console notifications.",
+	"": "ConsoleNotification is the extension for configuring openshift web console notifications.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
 }
 
 func (ConsoleNotification) SwaggerDoc() map[string]string {
 	return map_ConsoleNotification
+}
+
+var map_ConsoleNotificationList = map[string]string{
+	"": "Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+}
+
+func (ConsoleNotificationList) SwaggerDoc() map[string]string {
+	return map_ConsoleNotificationList
 }
 
 var map_ConsoleNotificationSpec = map[string]string{
@@ -128,12 +160,87 @@ func (ConsoleNotificationSpec) SwaggerDoc() map[string]string {
 	return map_ConsoleNotificationSpec
 }
 
+var map_ConsoleQuickStart = map[string]string{
+	"": "ConsoleQuickStart is an extension for guiding user through various workflows in the OpenShift web console.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+}
+
+func (ConsoleQuickStart) SwaggerDoc() map[string]string {
+	return map_ConsoleQuickStart
+}
+
+var map_ConsoleQuickStartList = map[string]string{
+	"": "Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+}
+
+func (ConsoleQuickStartList) SwaggerDoc() map[string]string {
+	return map_ConsoleQuickStartList
+}
+
+var map_ConsoleQuickStartSpec = map[string]string{
+	"":                      "ConsoleQuickStartSpec is the desired quick start configuration.",
+	"displayName":           "displayName is the display name of the Quick Start.",
+	"icon":                  "icon is a base64 encoded image that will be displayed beside the Quick Start display name. The icon should be an vector image for easy scaling. The size of the icon should be 40x40.",
+	"tags":                  "tags is a list of strings that describe the Quick Start.",
+	"durationMinutes":       "durationMinutes describes approximately how many minutes it will take to complete the Quick Start.",
+	"description":           "description is the description of the Quick Start. (includes markdown)",
+	"prerequisites":         "prerequisites contains all prerequisites that need to be met before taking a Quick Start. (includes markdown)",
+	"introduction":          "introduction describes the purpose of the Quick Start. (includes markdown)",
+	"tasks":                 "tasks is the list of steps the user has to perform to complete the Quick Start.",
+	"conclusion":            "conclusion sums up the Quick Start and suggests the possible next steps. (includes markdown)",
+	"nextQuickStart":        "nextQuickStart is a list of the following Quick Starts, suggested for the user to try.",
+	"accessReviewResources": "accessReviewResources contains a list of resources that the user's access will be reviewed against in order for the user to complete the Quick Start. The Quick Start will be hidden if any of the access reviews fail.",
+}
+
+func (ConsoleQuickStartSpec) SwaggerDoc() map[string]string {
+	return map_ConsoleQuickStartSpec
+}
+
+var map_ConsoleQuickStartTask = map[string]string{
+	"":            "ConsoleQuickStartTask is a single step in a Quick Start.",
+	"title":       "title describes the task and is displayed as a step heading.",
+	"description": "description describes the steps needed to complete the task. (includes markdown)",
+	"review":      "review contains instructions to validate the task is complete. The user will select 'Yes' or 'No'. using a radio button, which indicates whether the step was completed successfully.",
+	"summary":     "summary contains information about the passed step.",
+}
+
+func (ConsoleQuickStartTask) SwaggerDoc() map[string]string {
+	return map_ConsoleQuickStartTask
+}
+
+var map_ConsoleQuickStartTaskReview = map[string]string{
+	"":               "ConsoleQuickStartTaskReview contains instructions that validate a task was completed successfully.",
+	"instructions":   "instructions contains steps that user needs to take in order to validate his work after going through a task. (includes markdown)",
+	"failedTaskHelp": "failedTaskHelp contains suggestions for a failed task review and is shown at the end of task. (includes markdown)",
+}
+
+func (ConsoleQuickStartTaskReview) SwaggerDoc() map[string]string {
+	return map_ConsoleQuickStartTaskReview
+}
+
+var map_ConsoleQuickStartTaskSummary = map[string]string{
+	"":        "ConsoleQuickStartTaskSummary contains information about a passed step.",
+	"success": "success describes the succesfully passed task.",
+	"failed":  "failed briefly describes the unsuccessfully passed task. (includes markdown)",
+}
+
+func (ConsoleQuickStartTaskSummary) SwaggerDoc() map[string]string {
+	return map_ConsoleQuickStartTaskSummary
+}
+
 var map_ConsoleYAMLSample = map[string]string{
-	"": "ConsoleYAMLSample is an extension for customizing OpenShift web console YAML samples.",
+	"": "ConsoleYAMLSample is an extension for customizing OpenShift web console YAML samples.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
 }
 
 func (ConsoleYAMLSample) SwaggerDoc() map[string]string {
 	return map_ConsoleYAMLSample
+}
+
+var map_ConsoleYAMLSampleList = map[string]string{
+	"": "Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+}
+
+func (ConsoleYAMLSampleList) SwaggerDoc() map[string]string {
+	return map_ConsoleYAMLSampleList
 }
 
 var map_ConsoleYAMLSampleSpec = map[string]string{

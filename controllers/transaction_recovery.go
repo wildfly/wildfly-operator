@@ -80,7 +80,7 @@ func (r *WildFlyServerReconciler) checkRecovery(reqLogger logr.Logger, scaleDown
 		// The pod was already searched for the recovery port, marking that into the annotations
 		annotations := wfly.MapMerge(
 			scaleDownPod.GetAnnotations(), map[string]string{markerRecoveryPort: strconv.FormatInt(int64(scaleDownPodRecoveryPort), 10)})
-		patch := client.MergeFrom(scaleDownPod.DeepCopyObject())
+		patch := client.MergeFrom(scaleDownPod.DeepCopy())
 		scaleDownPod.SetAnnotations(annotations)
 		if err := resources.Patch(w, r.Client, scaleDownPod, patch); err != nil {
 			return false, "", fmt.Errorf("Failed to update pod annotations, pod name %v, annotations to be set %v, error: %v",
@@ -91,7 +91,7 @@ func (r *WildFlyServerReconciler) checkRecovery(reqLogger logr.Logger, scaleDown
 		queriedScaleDownPodRecoveryPortString := scaleDownPod.Annotations[markerRecoveryPort]
 		queriedScaleDownPodRecoveryPort, err := strconv.Atoi(queriedScaleDownPodRecoveryPortString)
 		if err != nil {
-			patch := client.MergeFrom(scaleDownPod.DeepCopyObject())
+			patch := client.MergeFrom(scaleDownPod.DeepCopy())
 			delete(scaleDownPod.Annotations, markerRecoveryPort)
 			if errUpdate := resources.Patch(w, r.Client, scaleDownPod, patch); errUpdate != nil {
 				reqLogger.Info("Cannot update scaledown pod while resetting the recovery port annotation",
@@ -107,7 +107,7 @@ func (r *WildFlyServerReconciler) checkRecovery(reqLogger logr.Logger, scaleDown
 	reqLogger.Info("Executing recovery scan at "+scaleDownPodName, "Pod IP", scaleDownPodIP, "Recovery port", scaleDownPodRecoveryPort)
 	_, err = wfly.RemoteOps.SocketConnect(scaleDownPodIP, scaleDownPodRecoveryPort, txnRecoveryScanCommand)
 	if err != nil {
-		patch := client.MergeFrom(scaleDownPod.DeepCopyObject())
+		patch := client.MergeFrom(scaleDownPod.DeepCopy())
 		delete(scaleDownPod.Annotations, markerRecoveryPort)
 		if errUpdate := r.Client.Patch(context.TODO(), scaleDownPod, patch); errUpdate != nil {
 			reqLogger.Info("Cannot update scaledown pod while resetting the recovery port annotation",
@@ -211,7 +211,7 @@ func (r *WildFlyServerReconciler) setupRecoveryPropertiesAndRestart(reqLogger lo
 		reqLogger.Info("Marking pod as being setup for transaction recovery. Adding annotation "+markerRecoveryPropertiesSetup, "Pod Name", scaleDownPodName)
 		annotations := wfly.MapMerge(
 			scaleDownPod.GetAnnotations(), map[string]string{markerRecoveryPropertiesSetup: "true"})
-		patch := client.MergeFrom(scaleDownPod.DeepCopyObject())
+		patch := client.MergeFrom(scaleDownPod.DeepCopy())
 		scaleDownPod.SetAnnotations(annotations)
 		if err := resources.Patch(w, r.Client, scaleDownPod, patch); err != nil {
 			return requeueNow, fmt.Errorf("Failed to update pod annotations, pod name %v, annotations to be set %v, error: %v",
@@ -227,7 +227,7 @@ func (r *WildFlyServerReconciler) setupRecoveryPropertiesAndRestart(reqLogger lo
 func (r *WildFlyServerReconciler) updatePodLabel(w *wildflyv1alpha1.WildFlyServer, scaleDownPod *corev1.Pod, labelName, labelValue string) (bool, error) {
 	updated := false
 	if scaleDownPod.ObjectMeta.Labels[labelName] != labelValue {
-		patch := client.MergeFrom(scaleDownPod.DeepCopyObject())
+		patch := client.MergeFrom(scaleDownPod.DeepCopy())
 		scaleDownPod.ObjectMeta.Labels[labelName] = labelValue
 		if err := resources.Patch(w, r.Client, scaleDownPod, patch); err != nil {
 			return false, fmt.Errorf("Failed to update pod labels for pod %v with label [%s=%s], error: %v",

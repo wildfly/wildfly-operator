@@ -55,9 +55,6 @@ spec:
               labels:
                 name: wildfly-operator
             spec:
-              securityContext:
-               seccompProfile:
-                 type: RuntimeDefault
               containers:
               - command:
                 - wildfly-operator
@@ -78,10 +75,13 @@ spec:
                 resources: {}
                 securityContext:
                   allowPrivilegeEscalation: false
-                  runAsNonRoot: true
                   capabilities:
                     drop:
-                      - ALL
+                    - ALL
+                  runAsNonRoot: true
+              securityContext:
+                seccompProfile:
+                  type: RuntimeDefault
               serviceAccountName: wildfly-operator
       permissions:
       - rules:
@@ -192,7 +192,7 @@ spec:
   - email: wildfly-dev@lists.jboss.org
     name: WildFly Community
   maturity: alpha
-  minKubeVersion: 1.11.0
+  minKubeVersion: 1.24.0
   provider:
     name: WildFly
   selector:
