@@ -33,11 +33,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"reflect"
-
 	"k8s.io/client-go/tools/record"
 	"os"
+	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"strconv"
 	"strings"
 
@@ -105,7 +106,7 @@ func (r *WildFlyServerReconciler) Reconcile(ctx context.Context, request ctrl.Re
 
 	// Check if the statefulSet already exists, if not create a new one
 	statefulSet, err := statefulsets.GetOrCreateNewStatefulSet(wildflyServer, r.Client, r.Scheme,
-		LabelsForWildFly(wildflyServer), desiredReplicaSizeForNewStatefulSet)
+		LabelsForWildFly(wildflyServer), desiredReplicaSizeForNewStatefulSet, r.IsOpenShift)
 	if err != nil {
 		return reconcile.Result{}, err
 	} else if statefulSet == nil {
@@ -284,8 +285,7 @@ func (r *WildFlyServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&wildflyv1alpha1.WildFlyServer{})
 
-	builder.Owns(&appsv1.StatefulSet{}).
-		Owns(&corev1.Service{})
+	builder.Owns(&corev1.Service{})
 
 	if hasServiceMonitor() {
 		builder.Owns(&monitoringv1.ServiceMonitor{})
@@ -296,6 +296,7 @@ func (r *WildFlyServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		builder.Owns(&routev1.Route{})
 	}
 
+	builder.Watches(&source.Kind{Type: &appsv1.StatefulSet{}}, &handler.EnqueueRequestForOwner{OwnerType: &wildflyv1alpha1.WildFlyServer{}, IsController: false})
 	return builder.Complete(r)
 }
 
@@ -364,7 +365,7 @@ func (r *WildFlyServerReconciler) checkStatefulSet(wildflyServer *wildflyv1alpha
 	}
 
 	if !resources.IsCurrentGeneration(wildflyServer, foundStatefulSet) {
-		statefulSet := statefulsets.NewStatefulSet(wildflyServer, LabelsForWildFly(wildflyServer), desiredStatefulSetReplicaSize)
+		statefulSet := statefulsets.NewStatefulSet(wildflyServer, LabelsForWildFly(wildflyServer), desiredStatefulSetReplicaSize, r.IsOpenShift)
 		delete := false
 		// changes to VolumeClaimTemplates can not be updated and requires a delete/create of the statefulset
 		if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {

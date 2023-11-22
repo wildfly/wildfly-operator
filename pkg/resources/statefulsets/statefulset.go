@@ -28,11 +28,11 @@ import (
 var log = logf.Log.WithName("wildflyserver_statefulsets")
 
 // GetOrCreateNewStatefulSet either returns the statefulset or create it
-func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string, desiredReplicaSize int32) (*appsv1.StatefulSet, error) {
+func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runtime.Scheme, labels map[string]string, desiredReplicaSize int32, isOpenShift bool) (*appsv1.StatefulSet, error) {
 	statefulSet := &appsv1.StatefulSet{}
 	if err := resources.Get(w, types.NamespacedName{Name: w.Name, Namespace: w.Namespace}, client, statefulSet); err != nil {
 		if errors.IsNotFound(err) {
-			if err := resources.Create(w, client, scheme, NewStatefulSet(w, labels, desiredReplicaSize)); err != nil {
+			if err := resources.Create(w, client, scheme, NewStatefulSet(w, labels, desiredReplicaSize, isOpenShift)); err != nil {
 				return nil, err
 			}
 			return nil, nil
@@ -42,7 +42,7 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 }
 
 // NewStatefulSet returns a new statefulset
-func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, desiredReplicaSize int32) *appsv1.StatefulSet {
+func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, desiredReplicaSize int32, isOpenShift bool) *appsv1.StatefulSet {
 	replicas := desiredReplicaSize
 	applicationImage := w.Spec.ApplicationImage
 
@@ -54,6 +54,12 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 	wildflyImageTypeAnnotation := resources.ImageTypeGeneric
 	if w.Spec.BootableJar {
 		wildflyImageTypeAnnotation = resources.ImageTypeBootable
+	}
+
+	podAnnotations := make(map[string]string)
+	podAnnotations[resources.MarkerImageType] = wildflyImageTypeAnnotation
+	if isOpenShift {
+		podAnnotations["alpha.image.policy.openshift.io/resolve-names"] = "*"
 	}
 
 	statefulSet := &appsv1.StatefulSet{
@@ -78,10 +84,8 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labelsForActiveWildflyPod,
-					Annotations: map[string]string{
-						resources.MarkerImageType: wildflyImageTypeAnnotation,
-					},
+					Labels:      labelsForActiveWildflyPod,
+					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
