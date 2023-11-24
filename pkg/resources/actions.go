@@ -30,7 +30,7 @@ func Create(w *wildflyv1alpha1.WildFlyServer, client client.Client, scheme *runt
 	// mark the object with the current server generation
 	MarkServerGeneration(w, meta)
 
-	if err := controllerutil.SetControllerReference(w, meta, scheme); err != nil {
+	if err := controllerutil.SetOwnerReference(w, meta, scheme); err != nil {
 		logger.Error(err, "Failed to set controller reference for new resource")
 		return err
 	}

@@ -21,9 +21,9 @@ const (
 	ImageTypeGeneric = "generic"
 	// ImageTypeGeneric is one of the possible values for MarkerImageType annotation denoting a bootable JAR type image
 	ImageTypeBootable = "bootable-jar"
-	// SecretsDir is the the directory to mount volumes from Secrets
+	// SecretsDir is the directory to mount volumes from Secrets
 	SecretsDir = "/etc/secrets/"
-	// ConfigMapsDir is the the directory to mount volumes from ConfigMaps
+	// ConfigMapsDir is the directory to mount volumes from ConfigMaps
 	ConfigMapsDir = "/etc/configmaps/"
 	// StatefuleSetTemplateLabelsEnvVarName is the name of the envvar containg label/value map for pods created from the statefulset's template
 	StatefuleSetTemplateLabelsEnvVarName string = "STATEFULSET_TEMPLATE_LABELS"
