@@ -11,7 +11,7 @@ This document describes the types introduced by the WildFly Operator to be consu
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `metadata` | Standard object's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta[metav1.ObjectMeta] | false
+| `metadata` | Standard object's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta[metav1.ObjectMeta] | false
 | `spec` | Specification of the desired behaviour of the WildFly deployment (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info]) | <<wildflyserverspec>> | true
 | `status` | Most recent observed status of the WildFly deployment. Read-only. (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info]) | <<wildflyserverstatus>> | false |
 |=======================
@@ -24,7 +24,7 @@ This document describes the types introduced by the WildFly Operator to be consu
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `metadata` | Standard list's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#listmeta-v1-meta[metav1.ListMeta] | false
+| `metadata` | Standard list's metadata (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#listmeta-v1-meta[metav1.ListMeta] | false
 | `items` | List of `WildFlyServer` | []<<wildflyserver>> | true
 |=======================
 
@@ -40,27 +40,55 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 |=======================
 | Field  | Description |Scheme| Required
 | `applicationImage` | Name of the application image to be deployed | string | true
-| `replicas` | Replicas is the desired number of replicas for the application | int32 | true
 | `bootableJar` | BootableJar specifies whether the application image is using WildFly S2I Builder/Runtime images or Bootable Jar. If omitted,
 it defaults to false (application image is expected to use WildFly S2I Builder/Runtime images) | bool | false
-| `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
-| `resources`| Resources spec to specify the request or limits of the Stateful Set. If omitted, the namespace defaults are used (https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[more info]). | *<<Resources>> | false
-| `securityContext`| SecurityContext spec to define privilege and access control settings for the pod containers created by the Stateful set. If omitted default privileges are used (https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#securitycontext-v1-core[*corev1.SecurityContext] | false
-| `storage` | Storage spec to specify how storage should be used. If omitted, an `EmptyDir` is used (that will not persist data across pod restart) | *<<storagespec>> |false
-| `serviceAccountName` | Name of the ServiceAccount to use to run the WildFlyServer Pods | string | false
-| `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envfromsource-v1-core[corev1.EnvFromSource] |false
-| `env` | List of environment variable present in the containers | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envvar-v1-core[corev1.EnvVar] | false
-| `secrets` | List of secret names to mount as volumes in the containers. Each secret is mounted as a read-only volume under `/etc/secrets/<secret name>` | string[] | false 
 | `configMaps` | List of ConfigMap names to mount as volumes in the containers. Each config map is mounted as a read-only volume under `/etc/configmaps/<config map name>` | string[] | false
-| `disableHTTPRoute`| Disable the creation a route to the HTTP port of the application service (false if omitted) | bool | false
+| `disableHTTPRoute` | Disable the creation a route to the HTTP port of the application service (false if omitted) | bool | false
+| `env` | List of environment variable present in the containers | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#envvar-v1-core[corev1.EnvVar] | false
+| `envFrom` | List of environment variable present in the containers from source (either `ConfigMap` or `Secret`) | []https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#envfromsource-v1-core[corev1.EnvFromSource] |false
+| `livenessProbe` | Defines the periodic probe of container liveness. Container will be restarted if the probe fails | *<<probespec>> |false
+| `readinessProbe` | defines the periodic probe of container service readiness. Container will be removed from service endpoints if the probe fails | *<<probespec>> |false
+| `replicas` | Replicas is the desired number of replicas for the application | int32 | true
+| `resources`| Resources spec to specify the request or limits of the Stateful Set. If omitted, the namespace defaults are used (https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[more info]). | *<<Resources>> | false
+| `secrets` | List of secret names to mount as volumes in the containers. Each secret is mounted as a read-only volume under `/etc/secrets/<secret name>` | string[] | false
+| `securityContext`| SecurityContext spec to define privilege and access control settings for the pod containers created by the Stateful set. If omitted default privileges are used (https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container[more info]) | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#securitycontext-v1-core[*corev1.SecurityContext] | false
+| `serviceAccountName` | Name of the ServiceAccount to use to run the WildFlyServer Pods | string | false
 | `sessionAffinity`| If connections from the same client IP are passed to the same WildFlyServer instance/pod each time (false if omitted) | bool | false
+| `standaloneConfigMap` | spec to specify how standalone configuration can be read from a `ConfigMap` | *<<standaloneconfigmapspec>> |false
+| `startupProbe` | Indicates that the Pod has successfully initialized. If specified, no other probes are executed until this completes successfully. If this probe fails, the Pod will be restarted, just as if the livenessProbe failed. This can be used to provide different probe parameters at the beginning of a Pod's lifecycle, when it might take a long time to load data or warm a cache, than during steady-state operation. Contrary to the livenessProbe and readinessProbe, the startupProbe will not be created by default unless it is explicitly configured. | *<<probespec>> |false
+| `storage` | Storage spec to specify how storage should be used. If omitted, an `EmptyDir` is used (that will not persist data across pod restart) | *<<storagespec>> |false
+|=======================
+
+[[probespec]]
+## `ProbeSpec`
+ProbeSpec describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic. The Operator configures the exec/httpGet fields of the Probe. Notice these fields are not exposed to the user since they are an implementation detail that depends on the server image used to create the application image.
+
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+|`ProbeHandler`| Defines a specific action between Exec or HTTPGet action that should be taken in a probe. If Exec and HTTPGet handlers are both defined, the Operator will configure the Exec handler and will ignore the HTTPGet one.| *<<probehandler>>  | false
+|`failureThreshold`| Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.| integer | false
+|`initialDelaySeconds`| Number of seconds after the container has started before probes are initiated. It defaults to 60 seconds for liveness probe. It defaults to 10 seconds for readiness probe. It defaults to 0 seconds for startup probe. Minimum value is 0. |integer | false
+|`periodSeconds`| How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1.| integer | false
+|`successThreshold`| Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1.| integer | false
+|`timeoutSeconds`| Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. | integer | false
+|=======================
+
+[[probehandler]]
+## `ProbeHandler`
+ProbeHandler defines a specific action between Exec or HTTPGet that should be taken in a probe. If Exec and HTTPGet handlers are both defined, the Operator will configure the Exec handler and will ignore the HTTPGet one.
+[options="header,footer"]
+|=======================
+| Field  | Description |Scheme| Required
+|`Exec`| Specifies a command action to take. |https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#execaction-v1-core[ExecAction]|false
+|`HTTPGet`| HTTPGet specifies the http request to perform. | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#httpgetaction-v1-core[HTTPGetAction]| false
 |=======================
 
 [[Resources]]
 == `Resources`
 
 `Resources` defines the configured resources for a `WildflyServer` resource. If the `Resources` field is not defined or `Request` or `Limits` is empty,  this resource is removed from the `StatefulSet`
-The description of this resource is a standard `Container` resource and uses the scheme for https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#resourcerequirements-v1-core[corev1.ResourceRequirements].
+The description of this resource is a standard `Container` resource and uses the scheme for https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcerequirements-v1-core[corev1.ResourceRequirements].
 
 [[storagespec]]
 == `StorageSpec`
@@ -75,8 +103,8 @@ transaction, make sure to specify a `volumeClaimTemplate` that so that the same 
 [options="header,footer"]
 |=======================
 | Field  | Description |Scheme| Required
-| `emptyDir` | EmptyDirVolumeSource to be used by the WildFly `StatefulSet` | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#emptydirvolumesource-v1-core[*corev1.EmptyDirVolumeSource] | false
-| `volumeClaimTemplate` | A PersistentVolumeClaim spec to configure `Resources` requirements to store WildFly standalone data directory. The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode. | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#persistentvolumeclaim-v1-core[corev1.PersistentVolumeClaim] | false
+| `emptyDir` | EmptyDirVolumeSource to be used by the WildFly `StatefulSet` | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#emptydirvolumesource-v1-core[*corev1.EmptyDirVolumeSource] | false
+| `volumeClaimTemplate` | A PersistentVolumeClaim spec to configure `Resources` requirements to store WildFly standalone data directory. The name of the template is derived from the `WildFlyServer` name. The corresponding volume will be mounted in `ReadWriteOnce` access mode. | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#persistentvolumeclaim-v1-core[corev1.PersistentVolumeClaim] | false
 |=======================
 
 [[standaloneconfigmapspec]]

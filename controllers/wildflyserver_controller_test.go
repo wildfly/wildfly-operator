@@ -2,6 +2,9 @@ package controllers
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"os"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"testing"
@@ -579,4 +582,762 @@ func TestWildFlyServerWithSecurityContext(t *testing.T) {
 	assert.Equal(privileged, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext.Privileged)
 	assert.Equal(readOnlyRootFilesystem, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext.ReadOnlyRootFilesystem)
 	assert.Equal(runAsNonRoot, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot)
+}
+
+func TestWildFlyServerWithDefaultHttpProbes(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	assert := testifyAssert.New(t)
+
+	// First verify the default values are created when there is not
+	// any Probe configuration
+	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			ApplicationImage: applicationImage,
+			Replicas:         replicas,
+		},
+	}
+
+	// Objects to track in the fake client.
+	objs := []runtime.Object{
+		wildflyServer,
+	}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(wildflyv1alpha1.GroupVersion, wildflyServer)
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewClientBuilder().WithRuntimeObjects(objs...).Build()
+
+	// Create a WildFlyServerReconciler object with the scheme and fake client.
+	r := &WildFlyServerReconciler{
+		Client: cl,
+		Scheme: s,
+		Log:    ctrl.Log.WithName("test").WithName("WildFlyServer"),
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	// Creating StatefulSet and loop waiting for reconcile to end
+	_, err := reconcileUntilDone(t, r, req, 4)
+
+	// Check if stateful set has been created and has the correct size.
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+	assert.Equal(replicas, *statefulSet.Spec.Replicas)
+	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+
+	// check the Probes values
+	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
+	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsLivenessProbe.FailureThreshold)
+	assert.Equal("/health/live", stsLivenessProbe.HTTPGet.Path)
+	assert.Equal("admin", stsLivenessProbe.HTTPGet.Port.StrVal)
+
+	stsReadinessProbe := statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
+	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsReadinessProbe.FailureThreshold)
+	assert.Equal("/health/ready", stsReadinessProbe.HTTPGet.Path)
+	assert.Equal("admin", stsReadinessProbe.HTTPGet.Port.StrVal)
+
+	// By default, Startup probe is not defined in the StatefulSet
+	assert.Nil(statefulSet.Spec.Template.Spec.Containers[0].StartupProbe)
+
+	// Update the CR adding just an StartupProbe Configuration
+	startupProbe := &wildflyv1alpha1.ProbeSpec{
+		InitialDelaySeconds: 65,
+		TimeoutSeconds:      55,
+		PeriodSeconds:       75,
+		SuccessThreshold:    85,
+		FailureThreshold:    10,
+	}
+
+	wildflyServer.Spec.StartupProbe = startupProbe
+
+	wildflyServer.SetGeneration(wildflyServer.GetGeneration() + 1)
+	err = cl.Update(context.TODO(), wildflyServer)
+	t.Logf("WildFlyServerSpec generation %d", wildflyServer.GetGeneration())
+	require.NoError(t, err)
+
+	_, err = reconcileUntilDone(t, r, req, 10)
+
+	statefulSet = &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+
+	// check the Probes values
+	stsLivenessProbe = statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
+	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsLivenessProbe.FailureThreshold)
+	assert.Equal("/health/live", stsLivenessProbe.HTTPGet.Path)
+	assert.Equal("admin", stsLivenessProbe.HTTPGet.Port.StrVal)
+
+	stsReadinessProbe = statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
+	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsReadinessProbe.FailureThreshold)
+	assert.Equal("/health/ready", stsReadinessProbe.HTTPGet.Path)
+	assert.Equal("admin", stsReadinessProbe.HTTPGet.Port.StrVal)
+
+	stsStartupProbe := statefulSet.Spec.Template.Spec.Containers[0].StartupProbe
+	assert.Equal(int32(65), stsStartupProbe.InitialDelaySeconds)
+	assert.Equal(int32(55), stsStartupProbe.TimeoutSeconds)
+	assert.Equal(int32(75), stsStartupProbe.PeriodSeconds)
+	assert.Equal(int32(85), stsStartupProbe.SuccessThreshold)
+	assert.Equal(int32(10), stsStartupProbe.FailureThreshold)
+	assert.Equal("/health/live", stsStartupProbe.HTTPGet.Path)
+	assert.Equal("admin", stsStartupProbe.HTTPGet.Port.StrVal)
+
+	// Update the CR configuring values for the Probes
+	livenessProbe := &wildflyv1alpha1.ProbeSpec{
+		InitialDelaySeconds: 10,
+		TimeoutSeconds:      145,
+		PeriodSeconds:       15,
+		SuccessThreshold:    11,
+		FailureThreshold:    19,
+	}
+
+	readinessProbe := &wildflyv1alpha1.ProbeSpec{
+		InitialDelaySeconds: 20,
+		TimeoutSeconds:      245,
+		PeriodSeconds:       25,
+		SuccessThreshold:    21,
+		FailureThreshold:    29,
+	}
+
+	startupProbe = &wildflyv1alpha1.ProbeSpec{
+		InitialDelaySeconds: 30,
+		TimeoutSeconds:      345,
+		PeriodSeconds:       35,
+		SuccessThreshold:    31,
+		FailureThreshold:    39,
+	}
+	wildflyServer.Spec.LivenessProbe = livenessProbe
+	wildflyServer.Spec.ReadinessProbe = readinessProbe
+	wildflyServer.Spec.StartupProbe = startupProbe
+
+	wildflyServer.SetGeneration(wildflyServer.GetGeneration() + 1)
+	err = cl.Update(context.TODO(), wildflyServer)
+	t.Logf("WildFlyServerSpec generation %d", wildflyServer.GetGeneration())
+	require.NoError(t, err)
+
+	_, err = reconcileUntilDone(t, r, req, 10)
+
+	statefulSet = &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+
+	// check the Probes values
+	stsLivenessProbe = statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
+	assert.Equal(int32(10), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(145), stsLivenessProbe.TimeoutSeconds)
+	assert.Equal(int32(15), stsLivenessProbe.PeriodSeconds)
+	assert.Equal(int32(11), stsLivenessProbe.SuccessThreshold)
+	assert.Equal(int32(19), stsLivenessProbe.FailureThreshold)
+	assert.Equal("/health/live", stsLivenessProbe.HTTPGet.Path)
+	assert.Equal("admin", stsLivenessProbe.HTTPGet.Port.StrVal)
+
+	stsReadinessProbe = statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
+	assert.Equal(int32(20), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(245), stsReadinessProbe.TimeoutSeconds)
+	assert.Equal(int32(25), stsReadinessProbe.PeriodSeconds)
+	assert.Equal(int32(21), stsReadinessProbe.SuccessThreshold)
+	assert.Equal(int32(29), stsReadinessProbe.FailureThreshold)
+	assert.Equal("/health/ready", stsReadinessProbe.HTTPGet.Path)
+	assert.Equal("admin", stsReadinessProbe.HTTPGet.Port.StrVal)
+
+	stsStartupProbe = statefulSet.Spec.Template.Spec.Containers[0].StartupProbe
+	assert.Equal(int32(30), stsStartupProbe.InitialDelaySeconds)
+	assert.Equal(int32(345), stsStartupProbe.TimeoutSeconds)
+	assert.Equal(int32(35), stsStartupProbe.PeriodSeconds)
+	assert.Equal(int32(31), stsStartupProbe.SuccessThreshold)
+	assert.Equal(int32(39), stsStartupProbe.FailureThreshold)
+	assert.Equal("/health/live", stsStartupProbe.HTTPGet.Path)
+	assert.Equal("admin", stsStartupProbe.HTTPGet.Port.StrVal)
+}
+
+func TestWildFlyServerWithDefaultProbesScript(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	assert := testifyAssert.New(t)
+
+	livenessScriptName := "test-liveness-script.sh"
+	readinessScriptName := "test-readiness-script.sh"
+	os.Setenv("SERVER_LIVENESS_SCRIPT", livenessScriptName)
+	os.Setenv("SERVER_READINESS_SCRIPT", readinessScriptName)
+
+	// First verify the default values are created when there is not
+	// any Probe configuration
+	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			ApplicationImage: applicationImage,
+			Replicas:         replicas,
+		},
+	}
+
+	// Objects to track in the fake client.
+	objs := []runtime.Object{
+		wildflyServer,
+	}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(wildflyv1alpha1.GroupVersion, wildflyServer)
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewClientBuilder().WithRuntimeObjects(objs...).Build()
+
+	// Create a WildFlyServerReconciler object with the scheme and fake client.
+	r := &WildFlyServerReconciler{
+		Client: cl,
+		Scheme: s,
+		Log:    ctrl.Log.WithName("test").WithName("WildFlyServer"),
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	// Creating StatefulSet and loop waiting for reconcile to end
+	_, err := reconcileUntilDone(t, r, req, 4)
+
+	// Check if stateful set has been created and has the correct size.
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+	assert.Equal(replicas, *statefulSet.Spec.Replicas)
+	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+
+	// check the Probes values
+	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
+	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsLivenessProbe.FailureThreshold)
+	assert.Nil(stsLivenessProbe.HTTPGet)
+	assert.Equal("/bin/bash", stsLivenessProbe.Exec.Command[0])
+	assert.Equal("-c", stsLivenessProbe.Exec.Command[1])
+	assert.Equal("if [ -f 'test-liveness-script.sh' ]; then test-liveness-script.sh; else curl --fail http://127.0.0.1:9990/health/live; fi", stsLivenessProbe.Exec.Command[2])
+
+	stsReadinessProbe := statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
+	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsReadinessProbe.FailureThreshold)
+	assert.Nil(stsReadinessProbe.HTTPGet)
+	assert.Equal("/bin/bash", stsReadinessProbe.Exec.Command[0])
+	assert.Equal("-c", stsReadinessProbe.Exec.Command[1])
+	assert.Equal("if [ -f 'test-readiness-script.sh' ]; then test-readiness-script.sh; else curl --fail http://127.0.0.1:9990/health/ready; fi", stsReadinessProbe.Exec.Command[2])
+
+	assert.Nil(statefulSet.Spec.Template.Spec.Containers[0].StartupProbe)
+
+	// Update the CR configuring values for the Probes
+	livenessProbe := &wildflyv1alpha1.ProbeSpec{
+		InitialDelaySeconds: 14,
+		TimeoutSeconds:      158,
+		PeriodSeconds:       14,
+		SuccessThreshold:    13,
+		FailureThreshold:    17,
+	}
+
+	readinessProbe := &wildflyv1alpha1.ProbeSpec{
+		InitialDelaySeconds: 24,
+		TimeoutSeconds:      258,
+		PeriodSeconds:       24,
+		SuccessThreshold:    23,
+		FailureThreshold:    27,
+	}
+
+	startupProbe := &wildflyv1alpha1.ProbeSpec{
+		InitialDelaySeconds: 34,
+		TimeoutSeconds:      358,
+		PeriodSeconds:       34,
+		SuccessThreshold:    33,
+		FailureThreshold:    37,
+	}
+
+	wildflyServer.Spec.LivenessProbe = livenessProbe
+	wildflyServer.Spec.ReadinessProbe = readinessProbe
+	wildflyServer.Spec.StartupProbe = startupProbe
+
+	wildflyServer.SetGeneration(wildflyServer.GetGeneration() + 1)
+	err = cl.Update(context.TODO(), wildflyServer)
+	t.Logf("WildFlyServerSpec generation %d", wildflyServer.GetGeneration())
+	require.NoError(t, err)
+
+	_, err = reconcileUntilDone(t, r, req, 10)
+
+	statefulSet = &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+
+	// check the Probes values
+	stsLivenessProbe = statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
+	assert.Equal(int32(14), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(158), stsLivenessProbe.TimeoutSeconds)
+	assert.Equal(int32(14), stsLivenessProbe.PeriodSeconds)
+	assert.Equal(int32(13), stsLivenessProbe.SuccessThreshold)
+	assert.Equal(int32(17), stsLivenessProbe.FailureThreshold)
+	assert.Nil(stsLivenessProbe.HTTPGet)
+	assert.Equal("/bin/bash", stsLivenessProbe.Exec.Command[0])
+	assert.Equal("-c", stsLivenessProbe.Exec.Command[1])
+	assert.Equal("if [ -f 'test-liveness-script.sh' ]; then test-liveness-script.sh; else curl --fail http://127.0.0.1:9990/health/live; fi", stsLivenessProbe.Exec.Command[2])
+
+	stsReadinessProbe = statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
+	assert.Equal(int32(24), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(258), stsReadinessProbe.TimeoutSeconds)
+	assert.Equal(int32(24), stsReadinessProbe.PeriodSeconds)
+	assert.Equal(int32(23), stsReadinessProbe.SuccessThreshold)
+	assert.Equal(int32(27), stsReadinessProbe.FailureThreshold)
+	assert.Nil(stsReadinessProbe.HTTPGet)
+	assert.Equal("/bin/bash", stsReadinessProbe.Exec.Command[0])
+	assert.Equal("-c", stsReadinessProbe.Exec.Command[1])
+	assert.Equal("if [ -f 'test-readiness-script.sh' ]; then test-readiness-script.sh; else curl --fail http://127.0.0.1:9990/health/ready; fi", stsReadinessProbe.Exec.Command[2])
+
+	stsStartupProbe := statefulSet.Spec.Template.Spec.Containers[0].StartupProbe
+	assert.Equal(int32(34), stsStartupProbe.InitialDelaySeconds)
+	assert.Equal(int32(358), stsStartupProbe.TimeoutSeconds)
+	assert.Equal(int32(34), stsStartupProbe.PeriodSeconds)
+	assert.Equal(int32(33), stsStartupProbe.SuccessThreshold)
+	assert.Equal(int32(37), stsStartupProbe.FailureThreshold)
+	assert.Nil(stsStartupProbe.HTTPGet)
+	assert.Equal("/bin/bash", stsStartupProbe.Exec.Command[0])
+	assert.Equal("-c", stsStartupProbe.Exec.Command[1])
+	assert.Equal("if [ -f 'test-liveness-script.sh' ]; then test-liveness-script.sh; else curl --fail http://127.0.0.1:9990/health/live; fi", stsStartupProbe.Exec.Command[2])
+}
+
+func TestWildFlyServerWithExplicitHttpGetProbes(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	assert := testifyAssert.New(t)
+
+	livenessScriptName := "test-liveness-script.sh"
+	readinessScriptName := "test-readiness-script.sh"
+	os.Setenv("SERVER_LIVENESS_SCRIPT", livenessScriptName)
+	os.Setenv("SERVER_READINESS_SCRIPT", readinessScriptName)
+
+	livenessHeaders := []corev1.HTTPHeader{
+		{
+			Name:  "h-name-liveness-1",
+			Value: "h-value-liveness-1",
+		},
+		{
+			Name:  "h-name-liveness-2",
+			Value: "h-value-liveness-2",
+		},
+	}
+
+	livenessProbe := &wildflyv1alpha1.ProbeSpec{
+		ProbeHandler: wildflyv1alpha1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:        "/test/liveness",
+				Port:        intstr.FromString("0"),
+				Host:        "host-liveness",
+				Scheme:      "HTTP",
+				HTTPHeaders: livenessHeaders,
+			},
+		},
+	}
+
+	readinessHeaders := []corev1.HTTPHeader{
+		{
+			Name:  "h-name-readiness-1",
+			Value: "h-value-readiness-1",
+		},
+		{
+			Name:  "h-name-readiness-2",
+			Value: "h-value-readiness-2",
+		},
+	}
+	readinessProbe := &wildflyv1alpha1.ProbeSpec{
+		ProbeHandler: wildflyv1alpha1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:        "/test/readiness",
+				Port:        intstr.FromString("1"),
+				Host:        "host-readiness",
+				Scheme:      "HTTP",
+				HTTPHeaders: readinessHeaders,
+			},
+		},
+	}
+
+	startupHeaders := []corev1.HTTPHeader{
+		{
+			Name:  "h-name-startup-1",
+			Value: "h-value-startup-1",
+		},
+		{
+			Name:  "h-name-startup-2",
+			Value: "h-value-startup-2",
+		},
+	}
+	startupProbe := &wildflyv1alpha1.ProbeSpec{
+		ProbeHandler: wildflyv1alpha1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:        "/test/startup",
+				Port:        intstr.FromString("2"),
+				Host:        "host-startup",
+				Scheme:      "HTTPS",
+				HTTPHeaders: startupHeaders,
+			},
+		},
+	}
+
+	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			ApplicationImage: applicationImage,
+			Replicas:         replicas,
+			LivenessProbe:    livenessProbe,
+			ReadinessProbe:   readinessProbe,
+			StartupProbe:     startupProbe,
+		},
+	}
+
+	// Objects to track in the fake client.
+	objs := []runtime.Object{
+		wildflyServer,
+	}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(wildflyv1alpha1.GroupVersion, wildflyServer)
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewClientBuilder().WithRuntimeObjects(objs...).Build()
+
+	// Create a WildFlyServerReconciler object with the scheme and fake client.
+	r := &WildFlyServerReconciler{
+		Client: cl,
+		Scheme: s,
+		Log:    ctrl.Log.WithName("test").WithName("WildFlyServer"),
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	// Creating StatefulSet and loop waiting for reconcile to end
+	_, err := reconcileUntilDone(t, r, req, 4)
+
+	// Check if stateful set has been created and has the correct size.
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+	assert.Equal(replicas, *statefulSet.Spec.Replicas)
+	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+
+	// check the Probes values
+	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
+	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsLivenessProbe.FailureThreshold)
+	assert.Equal("/test/liveness", stsLivenessProbe.HTTPGet.Path)
+	assert.Equal("0", stsLivenessProbe.HTTPGet.Port.StrVal)
+	assert.Equal("host-liveness", stsLivenessProbe.HTTPGet.Host)
+	assert.Equal(corev1.URIScheme("HTTP"), stsLivenessProbe.HTTPGet.Scheme)
+	assert.True(reflect.DeepEqual(livenessHeaders, stsLivenessProbe.HTTPGet.HTTPHeaders))
+	assert.Nil(stsLivenessProbe.Exec)
+
+	stsReadinessProbe := statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
+	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsReadinessProbe.FailureThreshold)
+	assert.Equal("/test/readiness", stsReadinessProbe.HTTPGet.Path)
+	assert.Equal("1", stsReadinessProbe.HTTPGet.Port.StrVal)
+	assert.Equal("host-readiness", stsReadinessProbe.HTTPGet.Host)
+	assert.Equal(corev1.URIScheme("HTTP"), stsReadinessProbe.HTTPGet.Scheme)
+	assert.True(reflect.DeepEqual(readinessHeaders, stsReadinessProbe.HTTPGet.HTTPHeaders))
+	assert.Nil(stsReadinessProbe.Exec)
+
+	stsStartupProbe := statefulSet.Spec.Template.Spec.Containers[0].StartupProbe
+	assert.Equal(int32(0), stsStartupProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsStartupProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsStartupProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsStartupProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsStartupProbe.FailureThreshold)
+	assert.Equal("/test/startup", stsStartupProbe.HTTPGet.Path)
+	assert.Equal("2", stsStartupProbe.HTTPGet.Port.StrVal)
+	assert.Equal("host-startup", stsStartupProbe.HTTPGet.Host)
+	assert.Equal(corev1.URIScheme("HTTPS"), stsStartupProbe.HTTPGet.Scheme)
+	assert.True(reflect.DeepEqual(startupHeaders, stsStartupProbe.HTTPGet.HTTPHeaders))
+	assert.Nil(stsStartupProbe.Exec)
+}
+
+func TestWildFlyServerWithExplicitHttpExecProbes(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	assert := testifyAssert.New(t)
+
+	livenessScriptName := "test-liveness-script.sh"
+	readinessScriptName := "test-readiness-script.sh"
+	os.Setenv("SERVER_LIVENESS_SCRIPT", livenessScriptName)
+	os.Setenv("SERVER_READINESS_SCRIPT", readinessScriptName)
+
+	livenessExec := []string{
+		"/bin/sh",
+		"-c",
+		"exec liveness probe",
+	}
+	livenessProbe := &wildflyv1alpha1.ProbeSpec{
+		ProbeHandler: wildflyv1alpha1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: livenessExec,
+			},
+		},
+	}
+
+	readinessExec := []string{
+		"/bin/sh",
+		"-c",
+		"exec readiness probe",
+	}
+	readinessProbe := &wildflyv1alpha1.ProbeSpec{
+		ProbeHandler: wildflyv1alpha1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: readinessExec,
+			},
+		},
+	}
+
+	startupExec := []string{
+		"/bin/sh",
+		"-c",
+		"exec readiness probe",
+	}
+	startupProbe := &wildflyv1alpha1.ProbeSpec{
+		ProbeHandler: wildflyv1alpha1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: startupExec,
+			},
+		},
+	}
+
+	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			ApplicationImage: applicationImage,
+			Replicas:         replicas,
+			LivenessProbe:    livenessProbe,
+			ReadinessProbe:   readinessProbe,
+			StartupProbe:     startupProbe,
+		},
+	}
+
+	// Objects to track in the fake client.
+	objs := []runtime.Object{
+		wildflyServer,
+	}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(wildflyv1alpha1.GroupVersion, wildflyServer)
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewClientBuilder().WithRuntimeObjects(objs...).Build()
+
+	// Create a WildFlyServerReconciler object with the scheme and fake client.
+	r := &WildFlyServerReconciler{
+		Client: cl,
+		Scheme: s,
+		Log:    ctrl.Log.WithName("test").WithName("WildFlyServer"),
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	// Creating StatefulSet and loop waiting for reconcile to end
+	_, err := reconcileUntilDone(t, r, req, 4)
+
+	// Check if stateful set has been created and has the correct size.
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+	assert.Equal(replicas, *statefulSet.Spec.Replicas)
+	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+
+	// check the Probes values
+	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
+	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsLivenessProbe.FailureThreshold)
+	assert.True(reflect.DeepEqual(livenessExec, stsLivenessProbe.Exec.Command))
+	assert.Nil(stsLivenessProbe.HTTPGet)
+
+	stsReadinessProbe := statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
+	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsReadinessProbe.FailureThreshold)
+	assert.True(reflect.DeepEqual(readinessExec, stsReadinessProbe.Exec.Command))
+	assert.Nil(stsReadinessProbe.HTTPGet)
+
+	stsStartupProbe := statefulSet.Spec.Template.Spec.Containers[0].StartupProbe
+	assert.Equal(int32(0), stsStartupProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsStartupProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsStartupProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsStartupProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsStartupProbe.FailureThreshold)
+	assert.True(reflect.DeepEqual(startupExec, stsStartupProbe.Exec.Command))
+	assert.Nil(stsStartupProbe.HTTPGet)
+}
+
+func TestWildFlyServerWithExecAndHttpProbes(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	assert := testifyAssert.New(t)
+
+	livenessScriptName := "test-liveness-script.sh"
+	readinessScriptName := "test-readiness-script.sh"
+	os.Setenv("SERVER_LIVENESS_SCRIPT", livenessScriptName)
+	os.Setenv("SERVER_READINESS_SCRIPT", readinessScriptName)
+
+	livenessExec := &corev1.ExecAction{
+		Command: []string{
+			"/bin/sh",
+			"-c",
+			"exec liveness probe",
+		},
+	}
+
+	livenessHttp := &corev1.HTTPGetAction{
+		Path:   "/test/liveness",
+		Port:   intstr.FromString("0"),
+		Host:   "host-liveness",
+		Scheme: "HTTP",
+	}
+
+	livenessProbe := &wildflyv1alpha1.ProbeSpec{
+		ProbeHandler: wildflyv1alpha1.ProbeHandler{
+			Exec:    livenessExec,
+			HTTPGet: livenessHttp,
+		},
+	}
+
+	wildflyServer := &wildflyv1alpha1.WildFlyServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: wildflyv1alpha1.WildFlyServerSpec{
+			ApplicationImage: applicationImage,
+			Replicas:         replicas,
+			LivenessProbe:    livenessProbe,
+		},
+	}
+
+	// Objects to track in the fake client.
+	objs := []runtime.Object{
+		wildflyServer,
+	}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(wildflyv1alpha1.GroupVersion, wildflyServer)
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewClientBuilder().WithRuntimeObjects(objs...).Build()
+
+	// Create a WildFlyServerReconciler object with the scheme and fake client.
+	r := &WildFlyServerReconciler{
+		Client: cl,
+		Scheme: s,
+		Log:    ctrl.Log.WithName("test").WithName("WildFlyServer"),
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	// Creating StatefulSet and loop waiting for reconcile to end
+	_, err := reconcileUntilDone(t, r, req, 4)
+
+	// Check if stateful set has been created and has the correct size.
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	require.NoError(t, err)
+	assert.Equal(replicas, *statefulSet.Spec.Replicas)
+	assert.Equal(applicationImage, statefulSet.Spec.Template.Spec.Containers[0].Image)
+
+	// check the Probes values. Exec should win against http
+	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
+	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
+	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
+	assert.Equal(int32(0), stsLivenessProbe.FailureThreshold)
+	assert.True(reflect.DeepEqual(livenessExec.Command, stsLivenessProbe.Exec.Command))
+	assert.Nil(stsLivenessProbe.HTTPGet)
+}
+
+func reconcileUntilDone(t *testing.T, r *WildFlyServerReconciler, req reconcile.Request, maxLoop int) (ctrl.Result, error) {
+	res, err := r.Reconcile(context.TODO(), req)
+	for max := 1; res.Requeue; max++ {
+		require.NoError(t, err)
+		if max > maxLoop {
+			t.Error("Reconcile loop exceeded")
+			t.FailNow()
+		}
+		res, err = r.Reconcile(context.TODO(), req)
+	}
+	return res, err
 }

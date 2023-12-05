@@ -163,7 +163,11 @@ build: manifests generate openapi fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate openapi fmt vet ## Run a controller from your host.
-	go run ./main.go
+	JBOSS_HOME=/wildfly \
+JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data \
+OPERATOR_NAME=wildfly-operator \
+JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server \
+go run ./main.go
 
 .PHONY: docker-build
 docker-build: unit-test ## Build docker image with the manager.

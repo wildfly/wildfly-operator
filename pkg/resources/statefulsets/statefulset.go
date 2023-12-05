@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"strconv"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
@@ -109,6 +110,8 @@ func NewStatefulSet(w *wildflyv1alpha1.WildFlyServer, labels map[string]string, 
 						LivenessProbe: createLivenessProbe(w),
 						// Readiness Probe is optional
 						ReadinessProbe: createReadinessProbe(w),
+						// StartupProbe Probe is optional
+						StartupProbe: createStartupProbe(w),
 						// Resources
 						Resources: createResources(w.Spec.Resources),
 						// SecurityContext
@@ -287,61 +290,198 @@ func createResources(r *corev1.ResourceRequirements) corev1.ResourceRequirements
 }
 
 // createLivenessProbe create an Exec probe if the SERVER_LIVENESS_SCRIPT env var is present
-// *and* the application is not using Bootable Jar.
+// *and* the application is not using Bootable Jar *and* the liveness probe action has not been explicitly configured.
 // Otherwise, it creates a HTTPGet probe that checks the /health/live endpoint on the admin port.
 //
 // If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
 // complies to the Kubernetes probes requirements.
+// If SERVER_LIVENESS_SCRIPT script does not exist, then the Probe will execute the script defined by SERVER_LIVENESS_SCRIPT_FALLBACK
+// If this script does not exist, the probe will execute and http get by using curl.
+//
+// If the liveness probe action, either Exec or HTTPGet, has been explicitly configured, then the Operator will create
+// the action configured by the user. When both actions are configured at the same time, the Exec configuration will win
+// and HTTPGet will be ignored.
 func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
-	if defined && !w.Spec.BootableJar {
-		return &corev1.Probe{
-			ProbeHandler: corev1.ProbeHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{"/bin/bash", "-c", livenessProbeScript},
-				},
-			},
-			InitialDelaySeconds: 60,
+
+	var initialDelaySeconds int32 = 60
+	var timeoutSeconds int32
+	var periodSeconds int32
+	var successThreshold int32
+	var failureThreshold int32
+	var probeHandler wildflyv1alpha1.ProbeHandler
+
+	if w.Spec.LivenessProbe != nil {
+		if w.Spec.LivenessProbe.InitialDelaySeconds != 0 {
+			initialDelaySeconds = w.Spec.LivenessProbe.InitialDelaySeconds
 		}
+		timeoutSeconds = w.Spec.LivenessProbe.TimeoutSeconds
+		periodSeconds = w.Spec.LivenessProbe.PeriodSeconds
+		successThreshold = w.Spec.LivenessProbe.SuccessThreshold
+		failureThreshold = w.Spec.LivenessProbe.FailureThreshold
+		probeHandler = w.Spec.LivenessProbe.ProbeHandler
 	}
-	return &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: "/health/live",
-				Port: intstr.FromString("admin"),
-			},
-		},
-		InitialDelaySeconds: 60,
-	}
+
+	return createLivenessStartupCommonProbe(defined, w.Spec.BootableJar, livenessProbeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, probeHandler)
 }
 
 // createReadinessProbe create an Exec probe if the SERVER_READINESS_SCRIPT env var is present
-// *and* the application is not using Bootable Jar.
+// *and* the application is not using Bootable Jar *and* the readiness probe action has not been explicitly configured.
 //
 // If defined, the SERVER_READINESS_SCRIPT env var must be the path of a shell script that
 // complies to the Kubernetes probes requirements.
+// If SERVER_READINESS_SCRIPT script does not exist, then the Probe will execute the script defined by SERVER_READINESS_SCRIPT_FALLBACK
+// If this script does not exist, the probe will execute and http get by using curl.
+//
+// If the readiness probe action, either Exec or HTTPGet, has been explicitly configured, then the Operator will create
+// the action configured by the user. When both actions are configured at the same time, the Exec configuration will win
+// and HTTPGet will be ignored.
 func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
-	if defined && !w.Spec.BootableJar {
-		return &corev1.Probe{
-			ProbeHandler: corev1.ProbeHandler{
+
+	var initialDelaySeconds int32 = 10
+	var timeoutSeconds int32
+	var periodSeconds int32
+	var successThreshold int32
+	var failureThreshold int32
+	var probeHandler wildflyv1alpha1.ProbeHandler
+
+	if w.Spec.ReadinessProbe != nil {
+		if w.Spec.ReadinessProbe.InitialDelaySeconds != 0 {
+			initialDelaySeconds = w.Spec.ReadinessProbe.InitialDelaySeconds
+		}
+		timeoutSeconds = w.Spec.ReadinessProbe.TimeoutSeconds
+		periodSeconds = w.Spec.ReadinessProbe.PeriodSeconds
+		successThreshold = w.Spec.ReadinessProbe.SuccessThreshold
+		failureThreshold = w.Spec.ReadinessProbe.FailureThreshold
+		probeHandler = w.Spec.ReadinessProbe.ProbeHandler
+	}
+
+	var action corev1.ProbeHandler
+	if probeHandler.Exec == nil && probeHandler.HTTPGet == nil {
+		if defined && !w.Spec.BootableJar {
+			readinessProbeScriptFallback, definedFallback := os.LookupEnv("SERVER_READINESS_SCRIPT_FALLBACK")
+			if !definedFallback {
+				readinessProbeScriptFallback = "curl --fail http://127.0.0.1:" + strconv.Itoa(int(resources.HTTPManagementPort)) + "/health/ready"
+			}
+			probeScript := "if [ -f '" + readinessProbeScript + "' ]; then " + readinessProbeScript + "; else " + readinessProbeScriptFallback + "; fi"
+			action = corev1.ProbeHandler{
 				Exec: &corev1.ExecAction{
-					Command: []string{"/bin/bash", "-c", readinessProbeScript},
+					Command: []string{"/bin/bash", "-c", probeScript},
 				},
-			},
-			InitialDelaySeconds: 30,
-			FailureThreshold:    6,
+			}
+		} else {
+			action = corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: "/health/ready",
+					Port: intstr.FromString("admin"),
+				},
+			}
+		}
+	} else {
+		if probeHandler.Exec != nil {
+			action.Exec = &corev1.ExecAction{
+				Command: probeHandler.Exec.Command,
+			}
+		} else {
+			action.HTTPGet = &corev1.HTTPGetAction{
+				Path:        probeHandler.HTTPGet.Path,
+				Port:        probeHandler.HTTPGet.Port,
+				Host:        probeHandler.HTTPGet.Host,
+				Scheme:      probeHandler.HTTPGet.Scheme,
+				HTTPHeaders: probeHandler.HTTPGet.HTTPHeaders,
+			}
 		}
 	}
+
 	return &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: "/health/ready",
+		ProbeHandler:        action,
+		InitialDelaySeconds: initialDelaySeconds,
+		TimeoutSeconds:      timeoutSeconds,
+		PeriodSeconds:       periodSeconds,
+		SuccessThreshold:    successThreshold,
+		FailureThreshold:    failureThreshold,
+	}
+}
+
+// createStartupProbe create an Exec probe if the SERVER_LIVENESS_SCRIPT env var is present
+// *and* the application is not using Bootable Jar *and* the startup probe action has not been explicitly configured.
+// Otherwise, it creates a HTTPGet probe that checks the /health/live endpoint on the admin port.
+//
+// If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
+// complies to the Kubernetes probes requirements.
+// If SERVER_LIVENESS_SCRIPT script does not exist, then the Probe will execute the script defined by SERVER_LIVENESS_SCRIPT_FALLBACK
+// If this script does not exist, the probe will execute and http get by using curl.
+//
+// If the startup probe action, either Exec or HTTPGet, has been explicitly configured, then the Operator will create
+// the action configured by the user. When both actions are configured at the same time, the Exec configuration will win
+// and HTTPGet will be ignored.
+func createStartupProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
+	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
+
+	var initialDelaySeconds int32
+	var timeoutSeconds int32
+	var periodSeconds int32
+	var successThreshold int32
+	var failureThreshold int32
+	var probeHandler wildflyv1alpha1.ProbeHandler
+
+	if w.Spec.StartupProbe != nil {
+		initialDelaySeconds = w.Spec.StartupProbe.InitialDelaySeconds
+		timeoutSeconds = w.Spec.StartupProbe.TimeoutSeconds
+		periodSeconds = w.Spec.StartupProbe.PeriodSeconds
+		successThreshold = w.Spec.StartupProbe.SuccessThreshold
+		failureThreshold = w.Spec.StartupProbe.FailureThreshold
+		probeHandler = w.Spec.StartupProbe.ProbeHandler
+
+		//Only if StartupProbe was defined by the user
+		return createLivenessStartupCommonProbe(defined, w.Spec.BootableJar, livenessProbeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, probeHandler)
+	}
+
+	return nil
+}
+
+// creates the common parts for the Linevess and Startup Probes
+func createLivenessStartupCommonProbe(scriptDefined bool, bootableJar bool, livenessProbeScript string, initialDelaySeconds int32, timeoutSeconds int32, periodSeconds int32, successThreshold int32, failureThreshold int32, probeHandler wildflyv1alpha1.ProbeHandler) *corev1.Probe {
+	var action corev1.ProbeHandler
+
+	if probeHandler.Exec == nil && probeHandler.HTTPGet == nil {
+		if scriptDefined && !bootableJar {
+			livenessProbeScriptFallback, definedFallback := os.LookupEnv("SERVER_LIVENESS_SCRIPT_FALLBACK")
+			if !definedFallback {
+				livenessProbeScriptFallback = "curl --fail http://127.0.0.1:" + strconv.Itoa(int(resources.HTTPManagementPort)) + "/health/live"
+			}
+			probeScript := "if [ -f '" + livenessProbeScript + "' ]; then " + livenessProbeScript + "; else " + livenessProbeScriptFallback + "; fi"
+			action.Exec = &corev1.ExecAction{
+				Command: []string{"/bin/bash", "-c", probeScript},
+			}
+		} else {
+			action.HTTPGet = &corev1.HTTPGetAction{
+				Path: "/health/live",
 				Port: intstr.FromString("admin"),
-			},
-		},
-		InitialDelaySeconds: 30,
-		FailureThreshold:    6,
+			}
+		}
+	} else if probeHandler.Exec != nil {
+		action.Exec = &corev1.ExecAction{
+			Command: probeHandler.Exec.Command,
+		}
+	} else {
+		action.HTTPGet = &corev1.HTTPGetAction{
+			Path:        probeHandler.HTTPGet.Path,
+			Port:        probeHandler.HTTPGet.Port,
+			Host:        probeHandler.HTTPGet.Host,
+			Scheme:      probeHandler.HTTPGet.Scheme,
+			HTTPHeaders: probeHandler.HTTPGet.HTTPHeaders,
+		}
+	}
+
+	return &corev1.Probe{
+		ProbeHandler:        action,
+		InitialDelaySeconds: initialDelaySeconds,
+		TimeoutSeconds:      timeoutSeconds,
+		PeriodSeconds:       periodSeconds,
+		SuccessThreshold:    successThreshold,
+		FailureThreshold:    failureThreshold,
 	}
 }
 
