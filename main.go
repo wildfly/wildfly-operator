@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/RHsyseng/operator-utils/pkg/utils/openshift"
+	"go.uber.org/zap/zapcore"
 	"os"
 	goruntime "runtime"
 
@@ -74,7 +75,7 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	opts := zap.Options{
-		//	Development: true,      // Commented out to use default production options
+		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
