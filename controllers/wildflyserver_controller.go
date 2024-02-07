@@ -124,6 +124,14 @@ func (r *WildFlyServerReconciler) Reconcile(ctx context.Context, request ctrl.Re
 	numberOfDeployedPods := int32(len(podList.Items))
 	numberOfPodsToScaleDown := statefulsetSpecSize - wildflyServerSpecSize // difference between desired pod count and the current number of pods
 
+	// If there are pods clean and have been removed, remove the status now
+	if updated, err := r.cleanUpPodStatus(wildflyServer, podList); err != nil {
+		log.Error(err, "Failed to clean up pod status after scaling down", "WildFlyServer.Name", wildflyServer.Name)
+		return reconcile.Result{}, err
+	} else if updated {
+		return reconcile.Result{Requeue: true}, nil
+	}
+
 	// if the number of desired replica size (aka. WildflyServer.Spec.Replicas) is different from the number of active pods
 	//  and the statefulset replica size was already changed to follow the value defined by the wildflyserver spec then wait for sts to reconcile
 	if statefulsetSpecSize == wildflyServerSpecSize && numberOfDeployedPods != wildflyServerSpecSize {
@@ -547,4 +555,38 @@ func hasServiceMonitor() bool {
 		Version: monitoringv1.Version,
 		Kind:    monitoringv1.ServiceMonitorsKind,
 	})
+}
+
+// cleanUpPodStatus clean up the pod status for pods that have been scaled down to be consistent with the current list of pods read from the cluster
+func (r *WildFlyServerReconciler) cleanUpPodStatus(w *wildflyv1alpha1.WildFlyServer, podList *corev1.PodList) (bool, error) {
+	var result []wildflyv1alpha1.PodStatus
+Outer:
+	for _, v := range w.Status.Pods {
+		if v.State == wildflyv1alpha1.PodStateScalingDownClean {
+			for _, pv := range podList.Items {
+				if pv.Name == v.Name {
+					result = append(result, v)
+					continue Outer
+				}
+			}
+		} else {
+			result = append(result, v)
+		}
+	}
+	if len(result) != len(w.Status.Pods) {
+		patch := client.MergeFrom(w.DeepCopy())
+		w.Status.Pods = result
+		if w.Status.Replicas > 0 {
+			w.Status.Replicas--
+		}
+		if w.Status.ScalingdownPods > 0 {
+			w.Status.ScalingdownPods--
+		}
+
+		if err := r.Client.Status().Patch(context.Background(), w, patch); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
 }
