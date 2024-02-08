@@ -24,7 +24,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	"os"
 	goruntime "runtime"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -107,6 +106,7 @@ func main() {
 		Namespace:              namespace,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         false,
+		Logger:                 ctrl.Log.WithName("manager"),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
