@@ -573,20 +573,25 @@ Outer:
 			result = append(result, v)
 		}
 	}
-	if len(result) != len(w.Status.Pods) {
+	totalOld := len(w.Status.Pods)
+	totalNew := len(result)
+	if totalOld != totalNew {
 		patch := client.MergeFrom(w.DeepCopy())
 		w.Status.Pods = result
-		if w.Status.Replicas > 0 {
-			w.Status.Replicas--
-		}
-		if w.Status.ScalingdownPods > 0 {
-			w.Status.ScalingdownPods--
-		}
-
+		delta := totalOld - totalNew
+		w.Status.Replicas = Max(w.Status.Replicas-int32(delta), 0)
+		w.Status.ScalingdownPods = Max(w.Status.ScalingdownPods-int32(delta), 0)
 		if err := r.Client.Status().Patch(context.Background(), w, patch); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
 	return false, nil
+}
+
+func Max(x, y int32) int32 {
+	if x < y {
+		return y
+	}
+	return x
 }
