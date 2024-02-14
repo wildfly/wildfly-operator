@@ -1,8 +1,10 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
+  creationTimestamp: null
   name: wildflyservers.wildfly.org
 spec:
   group: wildfly.org
@@ -213,6 +215,21 @@ spec:
                 description: LivenessProbe defines the periodic probe of container
                   liveness. Container will be restarted if the probe fails.
                 properties:
+                  exec:
+                    description: Exec specifies a command action to take.
+                    properties:
+                      command:
+                        description: Command is the command line to execute inside
+                          the container, the working directory for the command  is
+                          root ('/') in the container's filesystem. The command is
+                          simply exec'd, it is not run inside a shell, so traditional
+                          shell instructions ('|', etc) won't work. To use a shell,
+                          you need to explicitly call out to that shell. Exit status
+                          of 0 is treated as live/healthy and non-zero is unhealthy.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   failureThreshold:
                     description: Minimum consecutive failures for the probe to be
                       considered failed after having succeeded. Defaults to 3. Minimum
@@ -220,17 +237,49 @@ spec:
                     format: int32
                     minimum: 1
                     type: integer
-                  http:
-                    description: Depending on the kind of base application image,
-                      the Operator will configure an HTTP or Exec probe. For example,
-                      to keep compatibility mode with legacy servers, all non-Bootable
-                      JAR based application images will be configured to use Exec
-                      probes by default. This flag allows you to force switching the
-                      probe configuration to use an HTTP request instead of executing
-                      a script. Notice this flag works in one way only, configuring
-                      http:false does not imply the probe will be forced to switch
-                      to an Exec probe instead of HTTP one.
-                    type: boolean
+                  httpGet:
+                    description: HTTPGet specifies the http request to perform.
+                    properties:
+                      host:
+                        description: Host name to connect to, defaults to the pod
+                          IP. You probably want to set "Host" in httpHeaders instead.
+                        type: string
+                      httpHeaders:
+                        description: Custom headers to set in the request. HTTP allows
+                          repeated headers.
+                        items:
+                          description: HTTPHeader describes a custom header to be
+                            used in HTTP probes
+                          properties:
+                            name:
+                              description: The header field name
+                              type: string
+                            value:
+                              description: The header field value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        description: Path to access on the HTTP server.
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Name or number of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                      scheme:
+                        description: Scheme to use for connecting to the host. Defaults
+                          to HTTP.
+                        type: string
+                    required:
+                    - port
+                    type: object
                   initialDelaySeconds:
                     description: Number of seconds after the container has started
                       before probes are initiated. It defaults to 60 seconds for liveness
@@ -264,6 +313,21 @@ spec:
                   service readiness. Container will be removed from service endpoints
                   if the probe fails.
                 properties:
+                  exec:
+                    description: Exec specifies a command action to take.
+                    properties:
+                      command:
+                        description: Command is the command line to execute inside
+                          the container, the working directory for the command  is
+                          root ('/') in the container's filesystem. The command is
+                          simply exec'd, it is not run inside a shell, so traditional
+                          shell instructions ('|', etc) won't work. To use a shell,
+                          you need to explicitly call out to that shell. Exit status
+                          of 0 is treated as live/healthy and non-zero is unhealthy.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   failureThreshold:
                     description: Minimum consecutive failures for the probe to be
                       considered failed after having succeeded. Defaults to 3. Minimum
@@ -271,17 +335,49 @@ spec:
                     format: int32
                     minimum: 1
                     type: integer
-                  http:
-                    description: Depending on the kind of base application image,
-                      the Operator will configure an HTTP or Exec probe. For example,
-                      to keep compatibility mode with legacy servers, all non-Bootable
-                      JAR based application images will be configured to use Exec
-                      probes by default. This flag allows you to force switching the
-                      probe configuration to use an HTTP request instead of executing
-                      a script. Notice this flag works in one way only, configuring
-                      http:false does not imply the probe will be forced to switch
-                      to an Exec probe instead of HTTP one.
-                    type: boolean
+                  httpGet:
+                    description: HTTPGet specifies the http request to perform.
+                    properties:
+                      host:
+                        description: Host name to connect to, defaults to the pod
+                          IP. You probably want to set "Host" in httpHeaders instead.
+                        type: string
+                      httpHeaders:
+                        description: Custom headers to set in the request. HTTP allows
+                          repeated headers.
+                        items:
+                          description: HTTPHeader describes a custom header to be
+                            used in HTTP probes
+                          properties:
+                            name:
+                              description: The header field name
+                              type: string
+                            value:
+                              description: The header field value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        description: Path to access on the HTTP server.
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Name or number of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                      scheme:
+                        description: Scheme to use for connecting to the host. Defaults
+                          to HTTP.
+                        type: string
+                    required:
+                    - port
+                    type: object
                   initialDelaySeconds:
                     description: Number of seconds after the container has started
                       before probes are initiated. It defaults to 60 seconds for liveness
@@ -540,6 +636,21 @@ spec:
                   when it might take a long time to load data or warm a cache, than
                   during steady-state operation.
                 properties:
+                  exec:
+                    description: Exec specifies a command action to take.
+                    properties:
+                      command:
+                        description: Command is the command line to execute inside
+                          the container, the working directory for the command  is
+                          root ('/') in the container's filesystem. The command is
+                          simply exec'd, it is not run inside a shell, so traditional
+                          shell instructions ('|', etc) won't work. To use a shell,
+                          you need to explicitly call out to that shell. Exit status
+                          of 0 is treated as live/healthy and non-zero is unhealthy.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   failureThreshold:
                     description: Minimum consecutive failures for the probe to be
                       considered failed after having succeeded. Defaults to 3. Minimum
@@ -547,17 +658,49 @@ spec:
                     format: int32
                     minimum: 1
                     type: integer
-                  http:
-                    description: Depending on the kind of base application image,
-                      the Operator will configure an HTTP or Exec probe. For example,
-                      to keep compatibility mode with legacy servers, all non-Bootable
-                      JAR based application images will be configured to use Exec
-                      probes by default. This flag allows you to force switching the
-                      probe configuration to use an HTTP request instead of executing
-                      a script. Notice this flag works in one way only, configuring
-                      http:false does not imply the probe will be forced to switch
-                      to an Exec probe instead of HTTP one.
-                    type: boolean
+                  httpGet:
+                    description: HTTPGet specifies the http request to perform.
+                    properties:
+                      host:
+                        description: Host name to connect to, defaults to the pod
+                          IP. You probably want to set "Host" in httpHeaders instead.
+                        type: string
+                      httpHeaders:
+                        description: Custom headers to set in the request. HTTP allows
+                          repeated headers.
+                        items:
+                          description: HTTPHeader describes a custom header to be
+                            used in HTTP probes
+                          properties:
+                            name:
+                              description: The header field name
+                              type: string
+                            value:
+                              description: The header field value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        description: Path to access on the HTTP server.
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Name or number of the port to access on the container.
+                          Number must be in the range 1 to 65535. Name must be an
+                          IANA_SVC_NAME.
+                        x-kubernetes-int-or-string: true
+                      scheme:
+                        description: Scheme to use for connecting to the host. Defaults
+                          to HTTP.
+                        type: string
+                    required:
+                    - port
+                    type: object
                   initialDelaySeconds:
                     description: Number of seconds after the container has started
                       before probes are initiated. It defaults to 60 seconds for liveness
@@ -961,10 +1104,4 @@ spec:
         labelSelectorPath: .status.selector
         specReplicasPath: .spec.replicas
         statusReplicasPath: .status.replicas
-      status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: null
-  storedVersions: null
+      status: { }
