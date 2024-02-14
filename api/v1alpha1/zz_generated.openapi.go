@@ -30,6 +30,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"./api/v1alpha1.PodStatus":               schema__api_v1alpha1_PodStatus(ref),
+		"./api/v1alpha1.ProbeSpec":               schema__api_v1alpha1_ProbeSpec(ref),
 		"./api/v1alpha1.StandaloneConfigMapSpec": schema__api_v1alpha1_StandaloneConfigMapSpec(ref),
 		"./api/v1alpha1.StorageSpec":             schema__api_v1alpha1_StorageSpec(ref),
 		"./api/v1alpha1.WildFlyServer":           schema__api_v1alpha1_WildFlyServer(ref),
@@ -71,6 +72,68 @@ func schema__api_v1alpha1_PodStatus(ref common.ReferenceCallback) common.OpenAPI
 				Required: []string{"name", "podIP", "state"},
 			},
 		},
+	}
+}
+
+func schema__api_v1alpha1_ProbeSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ProbeSpec describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic. The Operator will configure the exec/httpGet fields if they are not explicitly defined in the probe.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"exec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Exec specifies a command action to take.",
+							Ref:         ref("k8s.io/api/core/v1.ExecAction"),
+						},
+					},
+					"httpGet": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HTTPGet specifies the http request to perform.",
+							Ref:         ref("k8s.io/api/core/v1.HTTPGetAction"),
+						},
+					},
+					"initialDelaySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of seconds after the container has started before probes are initiated. It defaults to 60 seconds for liveness probe. It defaults to 10 seconds for readiness probe. It defaults to 0 seconds for startup probe. Minimum value is 0.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"timeoutSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"periodSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"successThreshold": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"failureThreshold": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.ExecAction", "k8s.io/api/core/v1.HTTPGetAction"},
 	}
 }
 
@@ -327,12 +390,30 @@ func schema__api_v1alpha1_WildFlyServerSpec(ref common.ReferenceCallback) common
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
 						},
 					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LivenessProbe defines the periodic probe of container liveness. Container will be restarted if the probe fails.",
+							Ref:         ref("./api/v1alpha1.ProbeSpec"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadinessProbe defines the periodic probe of container service readiness. Container will be removed from service endpoints if the probe fails.",
+							Ref:         ref("./api/v1alpha1.ProbeSpec"),
+						},
+					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupProbe indicates that the Pod has successfully initialized. If specified, no other probes are executed until this completes successfully. If this probe fails, the Pod will be restarted, just as if the livenessProbe failed. This can be used to provide different probe parameters at the beginning of a Pod's lifecycle, when it might take a long time to load data or warm a cache, than during steady-state operation.",
+							Ref:         ref("./api/v1alpha1.ProbeSpec"),
+						},
+					},
 				},
 				Required: []string{"applicationImage", "replicas"},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.StandaloneConfigMapSpec", "./api/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext"},
+			"./api/v1alpha1.ProbeSpec", "./api/v1alpha1.StandaloneConfigMapSpec", "./api/v1alpha1.StorageSpec", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext"},
 	}
 }
 
