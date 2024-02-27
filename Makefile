@@ -336,7 +336,7 @@ catalog-push: ## Push a catalog image.
 .PHONY: openapi-gen
 openapi-gen: $(OPENAPI_GEN) ## Download envtest-setup locally if necessary.
 $(OPENAPI_GEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/openapi-gen || GOBIN=$(LOCALBIN) go install k8s.io/kube-openapi/cmd/openapi-gen@latest
+	test -s $(LOCALBIN)/openapi-gen || GOBIN=$(LOCALBIN) go install k8s.io/kube-openapi/cmd/openapi-gen@649db6989aaecdd64cc4ea16b76e0d0067664001
 
 .PHONY: dlv
 dlv: $(DLV) ## Download envtest-setup locally if necessary.
