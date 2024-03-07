@@ -91,7 +91,7 @@ func main() {
 	setupLog.Info("Watching namespace", "namespace", namespace)
 
 	if enableLeaderElection {
-		err = leader.Become(context.TODO(), "wildfly-operator-lock")
+		err = leader.Become(context.TODO(), "t3dv81741s.wildfly-operator-lock")
 		if err != nil {
 			setupLog.Error(err, "Failed to retry for leader lock")
 			os.Exit(1)
