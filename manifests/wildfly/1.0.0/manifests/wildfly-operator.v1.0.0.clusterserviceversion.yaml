@@ -19,7 +19,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Application Runtime
     certified: 'false'
-    containerImage: quay.io/wildfly/wildfly-operator:0.5.6
+    containerImage: quay.io/wildfly/wildfly-operator:1.0.0
     createdAt: '2022-03-08T08:00:00Z'
     description: Operator that deploys and manages Java applications running on WildFly.
     operators.operatorframework.io/builder: operator-sdk-v1.22.0
