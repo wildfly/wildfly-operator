@@ -19,12 +19,14 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Application Runtime
     certified: "false"
-    containerImage: quay.io/wildfly/wildfly-operator:0.5.6
+    containerImage: quay.io/wildfly/wildfly-operator:1.0.0
     createdAt: "2022-03-08T08:00:00Z"
     description: Operator that deploys and manages Java applications running on WildFly.
+    operators.operatorframework.io/builder: operator-sdk-v1.22.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/wildfly/wildfly-operator
     support: WildFlyServer
-  name: wildfly-operator.Dev
+  name: wildfly-operator.v1.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -237,6 +239,7 @@ spec:
           - configmaps
           - secrets
           - services/finalizers
+          - nodes
           verbs:
           - create
           - delete
@@ -339,4 +342,4 @@ spec:
   selector:
     matchLabels:
       operated-by: wildfly-operator
-  version: 0.5.6
+  version: 1.0.0

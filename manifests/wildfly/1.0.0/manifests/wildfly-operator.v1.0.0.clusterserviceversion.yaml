@@ -343,6 +343,7 @@ spec:
           - configmaps
           - secrets
           - services/finalizers
+          - nodes
           verbs:
           - create
           - delete
