@@ -17,19 +17,19 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"github.com/RHsyseng/operator-utils/pkg/utils/openshift"
 	"go.uber.org/zap/zapcore"
 	"os"
 	goruntime "runtime"
+	"time"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	route "github.com/openshift/api/route/v1"
-	"github.com/operator-framework/operator-lib/leader"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	wildflyv1alpha1 "github.com/wildfly/wildfly-operator/api/v1alpha1"
 	"github.com/wildfly/wildfly-operator/controllers"
@@ -90,13 +90,8 @@ func main() {
 	}
 	setupLog.Info("Watching namespace", "namespace", namespace)
 
-	if enableLeaderElection {
-		err = leader.Become(context.TODO(), "t3dv81741s.wildfly-operator-lock")
-		if err != nil {
-			setupLog.Error(err, "Failed to retry for leader lock")
-			os.Exit(1)
-		}
-	}
+	leaseDuration := 30 * time.Second
+	renewDeadline := 20 * time.Second
 
 	setupLog.Info("Starting the Manager")
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -105,7 +100,10 @@ func main() {
 		Port:                   9443,
 		Namespace:              namespace,
 		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         false,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "8kr4rta7hq.wildfly-operator-lock",
+		LeaseDuration:          &leaseDuration,
+		RenewDeadline:          &renewDeadline,
 		Logger:                 ctrl.Log.WithName("manager"),
 	})
 	if err != nil {

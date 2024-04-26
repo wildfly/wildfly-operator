@@ -46,14 +46,19 @@ var _ = Describe("WildFly Server tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			log.Printf("Creating the Role")
-			roleHolder := role.DeepCopy()
-			err = k8sClient.Create(ctx, roleHolder)
-			Expect(err).ToNot(HaveOccurred())
+			for _, role := range roles {
+				log.Printf("Creating the Role %s", role.Name)
+				roleHolder := role.DeepCopy()
+				err = k8sClient.Create(ctx, roleHolder)
+				Expect(err).ToNot(HaveOccurred())
+			}
 
-			log.Printf("Creating the Role Binding")
-			rbHolder := roleBinding.DeepCopy()
-			err = k8sClient.Create(ctx, rbHolder)
-			Expect(err).ToNot(HaveOccurred())
+			for _, roleBindings := range roleBindings {
+				log.Printf("Creating the Role Binding %s", roleBindings.Name)
+				rbHolder := roleBindings.DeepCopy()
+				err = k8sClient.Create(ctx, rbHolder)
+				Expect(err).ToNot(HaveOccurred())
+			}
 
 			log.Printf("Creating the operator")
 			opHolder := operator.DeepCopy()
@@ -97,6 +102,7 @@ var _ = Describe("WildFly Server tests", func() {
 
 		log.Printf("Creating %s resource", server.Name)
 		Expect(k8sClient.Create(ctx, server)).Should(Succeed())
+
 		WaitUntilReady(ctx, k8sClient, server)
 
 		log.Printf("Scalling the server to 2 replicas")

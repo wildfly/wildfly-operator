@@ -165,8 +165,6 @@ github.com/openshift/api/console/v1
 github.com/openshift/api/route/v1
 # github.com/operator-framework/operator-lib v0.11.0
 ## explicit; go 1.17
-github.com/operator-framework/operator-lib/internal/utils
-github.com/operator-framework/operator-lib/leader
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
