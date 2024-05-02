@@ -344,17 +344,20 @@ The `WildFlyServer.Status.Pods[].State` can be one of the following values:
 | The pod is active and processing requests.
 
 | SCALING_DOWN_RECOVERY_INVESTIGATION
-| The pod is about to be scaled down. The scale-down process is under investigation about the state of transactions in WildFly.
+| The pod is under investigation to find out if there are transactions that did not complete their lifecycle successfully.
 
-| SCALING_DOWN_RECOVERY_DIRTY
-| The WildFly contains some unfinished transactions. The pod cannot be terminated until they are cleaned.
-  The transaction recovery is periodically run at WildFly and it waits the transactions are finished eventually.
+| SCALING_DOWN_RECOVERY_PROCESSING
+| There are in-doubt transactions in the log store. The pod cannot be terminated until these transactions are either completed or cleaned.
+
+| SCALING_DOWN_RECOVERY_HEURISTICS
+| There are heuristic transactions in the log store. The pod cannot be terminated until these transactions are either completed or cleaned.
 
 | SCALING_DOWN_CLEAN
 | The pod was processed by transaction scaled down processing and is marked as clean to be removed from the cluster.
 
 |===
 
+For pods in the `SCALING_DOWN_RECOVERY_PROCESSING` status, each recovery cycle is tracked using the `RecoveryCounter` (accessible via `WildFlyServer.Status.Pods[].RecoveryCounter`). This field monitors the operator's recovery attempts until all in-doubt transactions are successfully completed.
 
 You can observe the overall state of the active and no-active pods by looking at the
 `WildFlyServer.Status.'Scalingdown Pods'` and `WildFlyServer.Status.Replicas` fields.
@@ -368,6 +371,12 @@ If there are no pods in scaledown process the numbers of `WildFlyServer.Status.R
 This feature is not supported by a Bootable JAR application image. The transaction recovery facility will be ignored for Bootable JAR application images.
 ====
 
+[WARNING]
+====
+It's feasible to disable transaction recovery during scale-down by configuring the property `WildFlyServerSpec.DeactivateTransactionRecovery` to `true` (by default, it's set to `false`). When `DeactivateTransactionRecovery` is enabled, in-doubt and heuristic transactions won't be finalized or reported.
+Consequently, this could lead to potential data inconsistency or loss when distributed transactions are employed.
+====
+
 === Transaction scaledown special cases
 
 ==== Heuristics transactions
@@ -375,7 +384,7 @@ This feature is not supported by a Bootable JAR application image. The transacti
 As it's well-known the transaction may finish either with commit or roll-back.
 Unfortunately there is a third outcome which is _unknown_.
 It’s a state when there is no way of automatic transaction recovery and human intervention is needed.
-If the transaction is in state of heuristics the pod is marked as `SCALING_DOWN_RECOVERY_DIRTY`
+If the transaction is in state of heuristics the pod is marked as `SCALING_DOWN_RECOVERY_HEURISTICS`
 and the administrator needs to manually connect with the `jboss-cli` to the particular WildFly instance
 and to resolve the heuristic transaction.
 
@@ -388,7 +397,7 @@ There is a special case coming from the design of the `StatefulSet` that ensures
 (it does not change on the pod restart). The `StatefulSet` depends on ordering of the pods. The pod are named by the defined order.
 The `StatefulSet` then requires the pod-0 not being terminated before the pod-1. First pod-1 is terminated and then pod-0.
 
-From that rule we can observe that if the pod-1 is in state `SCALING_DOWN_RECOVERY_DIRTY` (contains some unfinished, e.g. heuristic transactions)
+From that rule we can observe that if the pod-1 is in state `SCALING_DOWN_RECOVERY_HEURISTICS` (e.g. contains some heuristic transactions)
 then if pod-0 is in the state of `SCALING_DOWN_CLEAN` in will be lingering at that state until the pod-1 is terminated.
 
 But even the pod is in state `SCALING_DOWN_CLEAN` the pod is not receiving any new requests

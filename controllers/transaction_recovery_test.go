@@ -35,7 +35,7 @@ const (
 )
 
 var (
-	// variables to be setup and re-used in the method over the file
+	// Variables to be used in the testing methods
 	assert *testifyAssert.Assertions
 	cl     client.Client
 	r      *WildFlyServerReconciler
@@ -345,6 +345,35 @@ func TestSkipRecoveryScaleDownWhenEmptyDirStorage(t *testing.T) {
 	assert.Equal(wildflyv1alpha1.PodStateScalingDownClean, wildflyServer.Status.Pods[0].State)
 	// expecting the Execute method processed all mock responses
 	assert.Empty(remoteOpsMock.ExecuteMockReturn)
+}
+
+func TestSkipRecoveryScaleDownWhenDeactivateTransactionRecoveryIsTrue(t *testing.T) {
+	wildflyServer := defaultWildflyServerDefinition.DeepCopy()
+	// Deactivate the Transaction Recovery feature
+	wildflyServer.Spec.DeactivateTransactionRecovery = true
+	setupBeforeScaleDown(t, wildflyServer, 1)
+
+	log := ctrl.Log.WithName("TestSkipRecoveryScaleDownWhenDeactivateTransactionRecoveryIsTrue")
+
+	log.Info("WildFly server was reconciled, let's scale it down.", "WildflyServer", wildflyServer)
+	wildflyServer.Spec.Replicas = 0
+	err := cl.Update(context.TODO(), wildflyServer)
+
+	// Reconcile for the scale down - updating the pod labels
+	_, err = r.Reconcile(context.TODO(), req)
+	require.NoError(t, err)
+
+	// Reconcile to start the scale down procesing - recovery skipped
+	_, err = r.Reconcile(context.TODO(), req)
+	require.NoError(t, err)
+	// StatefulSet needs to be updated
+	statefulSet := &appsv1.StatefulSet{}
+	err = cl.Get(context.TODO(), req.NamespacedName, statefulSet)
+	assert.Equal(int32(0), *statefulSet.Spec.Replicas)
+	// WildFlyServer status needs to be updated in sclaed down manner
+	err = cl.Get(context.TODO(), req.NamespacedName, wildflyServer)
+	require.NoError(t, err)
+	assert.Equal(wildflyv1alpha1.PodStateScalingDownClean, wildflyServer.Status.Pods[0].State)
 }
 
 // --
