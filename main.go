@@ -101,7 +101,7 @@ func main() {
 		Namespace:              namespace,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "8kr4rta7hq.wildfly-operator-lock",
+		LeaderElectionID:       "wildfly-operator-election-lock",
 		LeaseDuration:          &leaseDuration,
 		RenewDeadline:          &renewDeadline,
 		Logger:                 ctrl.Log.WithName("manager"),
