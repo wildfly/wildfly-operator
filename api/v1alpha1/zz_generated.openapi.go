@@ -68,6 +68,13 @@ func schema__api_v1alpha1_PodStatus(ref common.ReferenceCallback) common.OpenAPI
 							Format:      "",
 						},
 					},
+					"recoveryCounter": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Counts the recovery attempts when there are in-doubt/heuristic transactions",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 				Required: []string{"name", "podIP", "state"},
 			},
@@ -279,6 +286,13 @@ func schema__api_v1alpha1_WildFlyServerSpec(ref common.ReferenceCallback) common
 					"disableHTTPRoute": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DisableHTTPRoute disables the creation a route to the HTTP port of the application service (false if omitted)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"deactivateTransactionRecovery": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DeactivateTransactionRecovery disables the process of recovering transactions (false if omitted)",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
