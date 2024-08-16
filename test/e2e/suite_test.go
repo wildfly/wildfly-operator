@@ -150,7 +150,7 @@ var _ = BeforeSuite(func() {
 
 		cfg, k8sClient = initialSetup()
 
-		os.Setenv("JBOSS_HOME", "/wildfly")
+		os.Setenv("JBOSS_HOME", "/opt/wildfly")
 		os.Setenv("JBOSS_BOOTABLE_DATA_DIR", "/opt/jboss/container/wildfly-bootable-jar-data")
 		os.Setenv("OPERATOR_NAME", "wildfly-operator")
 		os.Setenv("JBOSS_BOOTABLE_HOME", "/opt/jboss/container/wildfly-bootable-jar-server")

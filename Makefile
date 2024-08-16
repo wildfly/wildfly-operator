@@ -163,7 +163,7 @@ build: manifests generate openapi fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate openapi fmt vet ## Run a controller from your host.
-	JBOSS_HOME=/wildfly \
+	JBOSS_HOME=/opt/wildfly \
 JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data \
 OPERATOR_NAME=wildfly-operator \
 JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server \
@@ -183,7 +183,7 @@ vendor:  tidy ## Add missing and remove unused modules and make vendored copy of
 
 # Run the manager with debug enabled
 debug: dlv build
-	JBOSS_HOME=/wildfly JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data \
+	JBOSS_HOME=/opt/wildfly JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data \
 JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server OPERATOR_NAME=wildfly-operator  \
 ./bin/dlv --listen=:2345 --headless=true --api-version=2 --accept-multiclient exec bin/manager
 
