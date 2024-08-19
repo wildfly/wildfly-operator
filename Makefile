@@ -48,7 +48,7 @@ endif
 
 # Set the Operator SDK version to use. By default, what is installed on the system is used.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
-OPERATOR_SDK_VERSION ?= v1.25.0
+OPERATOR_SDK_VERSION ?= v1.25.4
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/wildfly/wildfly-operator:latest
@@ -118,14 +118,18 @@ vet: ## Run go vet against code.
 
 .PHONY: unit-test
 unit-test: generate openapi fmt vet ## Run unit-tests.
-	go test -v $(shell go list ./... | grep -v /test/)
+	go test -v $(shell go list ./... | grep -v /test/) -coverprofile cover.out
 
-.PHONY: test
-test: manifests generate fmt vet controller-gen envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -v ./test/e2e/... -coverprofile cover.out
+.PHONY: test # Needs a cluster running and with a admin user logged in
+test: clean manifests generate fmt vet controller-gen ## Run tests.
+	go test -v ./test/e2e/... -v -ginkgo.v
+
+.PHONY: debug-test # Needs a cluster running and with a admin user logged in
+debug-test: clean manifests generate fmt vet controller-gen dlv ## Run tests.
+	./bin/dlv test --listen=:2345 --headless=true --api-version=2 --accept-multiclient ./test/e2e/...
 
 .PHONY: test-e2e
-test-e2e: prepare-test-e2e run-test-e2e ## Run E2E tests running the Operator as a Deployment inside the cluster.
+test-e2e: prepare-test-e2e run-test-e2e ## Used By CI.
 
 ## Run E2E tests running the Operator as a Deployment inside a local minikube cluster installation.
 .PHONY: test-e2e-minikube
@@ -134,7 +138,7 @@ test-e2e-minikube: prepare-test-e2e
 	IMG="localhost:5000/wildfly-operator:latest" make docker-build docker-push run-test-e2e
 
 .PHONY: prepare-test-e2e
-prepare-test-e2e: manifests generate fmt vet envtest kustomize
+prepare-test-e2e: manifests generate fmt vet kustomize
 
 .PHONY: run-test-e2e
 run-test-e2e:
@@ -142,7 +146,7 @@ run-test-e2e:
 	$(KUSTOMIZE) build config/rbac | kubectl apply -f -
 	mkdir -p dry-run
 	$(KUSTOMIZE) build config/tests > dry-run/test-resources.yaml
-	LOCAL_MANAGER=0 go test -timeout 20m -v ./test/e2e/... -coverprofile cover.out
+	LOCAL_MANAGER=0 go test -timeout 20m ./test/e2e/... -v -ginkgo.v
 	$(KUSTOMIZE) build config/rbac | kubectl delete --ignore-not-found=true -f -
 
 .PHONY: clean

@@ -360,7 +360,7 @@ as a local application:
 
 [source,shell]
 ----
-$ make local-test
+$ make test
 ----
 
 The test suite creates the resources for each test under the `wildfly-op-test-ns` namespace.
@@ -369,13 +369,6 @@ You can monitor the resources created by the test suite in a different terminal 
 [source,shell]
 ----
 $ kubectl get pods -w -n wildfly-op-test-ns
-----
-
-If you stop the execution or if a test fails, you have to clean any resource left in your cluster before running the tests again:
-
-[source,shell]
-----
-$ make clean
 ----
 
 Note: Transaction recovery tests will be skipped under this mode since they cannot run outside the cluster.
@@ -405,13 +398,6 @@ You can monitor the resources created by the test suite in a different terminal 
 [source,shell]
 ----
 $ oc get pods -w -n wildfly-op-test-ns
-----
-
-If a test fails or if you stop the testsuite before it finish normally, clean up the resources before starting it again
-
-[source,shell]
-----
-$ make clean
 ----
 
 ### OLM installation
