@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/utils/ptr"
 	"log"
 	"os"
@@ -88,6 +89,12 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 	ctx := context.TODO()
+
+	// Set the environment variables required by the operator tests
+	os.Setenv("JBOSS_HOME", "/opt/wildfly")
+	os.Setenv("JBOSS_BOOTABLE_DATA_DIR", "/opt/jboss/container/wildfly-bootable-jar-data")
+	os.Setenv("OPERATOR_NAME", "wildfly-operator")
+	os.Setenv("JBOSS_BOOTABLE_HOME", "/opt/jboss/container/wildfly-bootable-jar-server")
 
 	By("bootstrapping test environment")
 	if os.Getenv("LOCAL_MANAGER") == "0" {
@@ -149,11 +156,6 @@ var _ = BeforeSuite(func() {
 		}
 
 		cfg, k8sClient = initialSetup()
-
-		os.Setenv("JBOSS_HOME", "/wildfly")
-		os.Setenv("JBOSS_BOOTABLE_DATA_DIR", "/opt/jboss/container/wildfly-bootable-jar-data")
-		os.Setenv("OPERATOR_NAME", "wildfly-operator")
-		os.Setenv("JBOSS_BOOTABLE_HOME", "/opt/jboss/container/wildfly-bootable-jar-server")
 
 		// start the manager and reconcile
 		k8sManager, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -385,4 +387,93 @@ func GetLogs(server *wildflyv1alpha1.WildFlyServer, podName string) (string, err
 	}
 	logs := buf.String()
 	return logs, nil
+}
+
+// GetExistingStatefulSet returns the WildFlyServer resource with the given name and namespace
+func GetExistingStatefulSet(ctx context.Context, k8sClient client.Client, server *wildflyv1alpha1.WildFlyServer) (*appsv1.StatefulSet, error) {
+	name := server.Name
+	ns := server.Namespace
+
+	stsLookupKey := types.NamespacedName{Name: name, Namespace: ns}
+	statefulSet := &appsv1.StatefulSet{}
+
+	err := k8sClient.Get(ctx, stsLookupKey, statefulSet)
+	if err != nil {
+		log.Fatalf("Resource %s not found.", name)
+		return nil, err
+	}
+	return statefulSet, nil
+}
+
+// ListPodsByStatefulSet lists the pods that are owned by the given StatefulSet
+func ListPodsByStatefulSet(ctx context.Context, k8sClient client.Client, statefulSet *appsv1.StatefulSet) ([]corev1.Pod, error) {
+	podList := &corev1.PodList{}
+	listOptions := []client.ListOption{
+		client.InNamespace(statefulSet.Namespace),
+	}
+	if err := k8sClient.List(ctx, podList, listOptions...); err != nil {
+		return nil, err
+	}
+
+	var pods []corev1.Pod
+	for _, pod := range podList.Items {
+		for _, ownerRef := range pod.OwnerReferences {
+			if ownerRef.Kind == "StatefulSet" && ownerRef.Name == statefulSet.Name {
+				pods = append(pods, pod)
+				break
+			}
+		}
+	}
+
+	return pods, nil
+}
+
+// CheckDirectoryExists checks if a specific directory exists in the pod's container
+func CheckDirectoryExists(pod *corev1.Pod, directory string) (bool, error) {
+	clientSet, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return false, fmt.Errorf("error creating client")
+	}
+
+	cmd := []string{
+		"/bin/sh",
+		"-c",
+		"test -d " + directory + " && echo $?",
+	}
+
+	req := clientSet.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(pod.Name).
+		Namespace(pod.Namespace).
+		SubResource("exec")
+
+	req.VersionedParams(&corev1.PodExecOptions{
+		Container: pod.Spec.Containers[0].Name,
+		Command:   cmd,
+		Stdout:    true,
+		Stderr:    true,
+	}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
+	if err != nil {
+		return false, err
+	}
+
+	var execOut, execErr bytes.Buffer
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: &execOut,
+		Stderr: &execErr,
+		Tty:    false,
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	if execErr.Len() > 0 || execOut.String() == "" {
+		return false, fmt.Errorf("error checking directory '%s' : %s", directory, execErr.String())
+	}
+
+	log.Printf(" Directory %s exists: %s", directory, execOut.String())
+	return strings.TrimSpace(execOut.String()) == "0", nil
 }

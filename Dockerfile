@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.21.3 as builder
+FROM golang:1.21.13 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager 
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 ENV OPERATOR=/usr/local/bin/wildfly-operator \
-    JBOSS_HOME=/wildfly \
+    JBOSS_HOME=/opt/wildfly \
     JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server \
     JBOSS_BOOTABLE_DATA_DIR=/opt/jboss/container/wildfly-bootable-jar-data \
     USER_UID=1001 \

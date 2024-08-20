@@ -205,4 +205,45 @@ var _ = Describe("WildFly Server tests", func() {
 
 		WaitUntilServerDeleted(ctx, k8sClient, serverCpy)
 	})
+
+	It("WildFlyServer Data directory from JBOSS_HOME environment value contains tx-object-store directory", func() {
+		applicationImage := "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0"
+		name := "example-wildfly"
+		ctx := context.Background()
+
+		server := MakeBasicWildFlyServer(namespace, name, applicationImage, 1, false)
+
+		log.Printf("Creating %s resource", server.Name)
+		Expect(k8sClient.Create(ctx, server)).Should(Succeed())
+
+		WaitUntilReady(ctx, k8sClient, server)
+
+		statefulSet, err := GetExistingStatefulSet(ctx, k8sClient, server)
+		if err != nil {
+			log.Printf("Failed to get the StatefulSet to verify the server home directory")
+			log.Print(err)
+			Fail("Failed to get the StatefulSet to verify the server home directory")
+		}
+
+		pods, err := ListPodsByStatefulSet(ctx, k8sClient, statefulSet)
+		if err != nil {
+			log.Printf("Failed to get the Pods to verify the server home directory")
+			log.Print(err)
+			Fail("Failed to get the Pods to verify the server home directory")
+		}
+
+		// Verify the server home directory exists
+		jbossHome := os.Getenv("JBOSS_HOME") + "/standalone/data/tx-object-store"
+		for _, pod := range pods {
+			exists, err := CheckDirectoryExists(&pod, jbossHome)
+			if err != nil || !exists {
+				log.Printf("Failed to verify the server home directory for the pod: %s. exists: %t", pod.Name, exists)
+				log.Print(err)
+				Fail("Failed to verify the server home directory for the pod: " + pod.Name)
+			}
+		}
+
+		WaitUntilReady(ctx, k8sClient, server)
+		WaitUntilServerDeleted(ctx, k8sClient, server)
+	})
 })
