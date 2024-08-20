@@ -19,14 +19,14 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Application Runtime
     certified: "false"
-    containerImage: quay.io/wildfly/wildfly-operator:1.0.0
-    createdAt: "2022-03-08T08:00:00Z"
+    containerImage: quay.io/wildfly/wildfly-operator:1.1.0
+    createdAt: "2024-05-10T00:00:00Z"
     description: Operator that deploys and manages Java applications running on WildFly.
-    operators.operatorframework.io/builder: operator-sdk-v1.22.0
+    operators.operatorframework.io/builder: operator-sdk-v1.25.4
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/wildfly/wildfly-operator
     support: WildFlyServer
-  name: wildfly-operator.v1.0.0
+  name: wildfly-operator.v1.1.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -191,7 +191,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: wildfly-operator
-                image: quay.io/wildfly/wildfly-operator:1.0.0
+                image: quay.io/wildfly/wildfly-operator:1.1.0
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -226,6 +226,27 @@ spec:
               terminationGracePeriodSeconds: 10
       permissions:
       - rules:
+        - apiGroups:
+          - ""
+          - coordination.k8s.io
+          resources:
+          - configmaps
+          - leases
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - patch
         - apiGroups:
           - ""
           resources:
@@ -335,11 +356,11 @@ spec:
   - email: wildfly-dev@lists.jboss.org
     name: WildFly Community
   maturity: alpha
-  minKubeVersion: 1.24.0
+  minKubeVersion: 1.25.0
   provider:
     name: WildFly
-  replaces: wildfly-operator.v0.5.6
+  replaces: wildfly-operator.v1.0.0
   selector:
     matchLabels:
       operated-by: wildfly-operator
-  version: 1.0.0
+  version: 1.1.0

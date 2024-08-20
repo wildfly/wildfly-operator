@@ -22,7 +22,7 @@ metadata:
     containerImage: quay.io/wildfly/wildfly-operator:1.1.0
     createdAt: '2024-05-10T00:00:00Z'
     description: Operator that deploys and manages Java applications running on WildFly.
-    operators.operatorframework.io/builder: operator-sdk-v1.25.0
+    operators.operatorframework.io/builder: operator-sdk-v1.25.4
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/wildfly/wildfly-operator
     support: WildFlyServer
