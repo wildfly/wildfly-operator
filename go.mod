@@ -5,10 +5,9 @@ go 1.20
 require (
 	github.com/RHsyseng/operator-utils v1.4.13
 	github.com/go-logr/logr v1.2.4
-	github.com/onsi/ginkgo/v2 v2.1.4
-	github.com/onsi/gomega v1.19.0
+	github.com/onsi/ginkgo/v2 v2.1.6
+	github.com/onsi/gomega v1.20.1
 	github.com/openshift/api v0.0.0-20211209135129-c58d9f695577
-	github.com/operator-framework/operator-lib v0.11.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.67.1
 	github.com/stretchr/testify v1.8.2
 	github.com/tevino/abool v1.2.0
@@ -19,6 +18,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20230525220651-2546d827e515
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	sigs.k8s.io/controller-runtime v0.15.0
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
@@ -67,11 +67,11 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.13.0 // indirect
-	golang.org/x/net v0.15.0 // indirect
+	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
-	golang.org/x/term v0.12.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
@@ -85,12 +85,11 @@ require (
 	k8s.io/klog/v2 v2.100.1 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.3.0 // indirect
-	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
 replace (
-	k8s.io/api => k8s.io/api v0.25.0
-	k8s.io/apimachinery => k8s.io/apimachinery v0.25.0
-	k8s.io/client-go => k8s.io/client-go v0.25.0
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.13.0
+	k8s.io/api => k8s.io/api v0.25.15
+	k8s.io/apimachinery => k8s.io/apimachinery v0.25.15
+	k8s.io/client-go => k8s.io/client-go v0.25.15
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.13.2
 )
