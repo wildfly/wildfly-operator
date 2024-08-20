@@ -235,8 +235,8 @@ $ curl "http://$(oc get route quickstart-loadbalancer --template='{{ .spec.host 
 
 ## System Requirements
 
-* https://github.com/golang/go[go] with `$GOPATH` set to `$HOME/go`
-* Docker
+* Go 1.21
+* Podman/Docker
 * Either https://github.com/minishift/minishift[Minishift] or https://kubernetes.io/docs/setup/minikube/[Minikube]    
 
 ### Building the WildFly Operator
