@@ -19,7 +19,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Application Runtime
     certified: "false"
-    containerImage: quay.io/wildfly/wildfly-operator:1.1.0
+    containerImage: quay.io/wildfly/wildfly-operator:1.2.0
     createdAt: "2024-05-10T00:00:00Z"
     description: Operator that deploys and manages Java applications running on WildFly.
     operators.operatorframework.io/builder: operator-sdk-v1.25.4
@@ -359,8 +359,8 @@ spec:
   minKubeVersion: 1.25.0
   provider:
     name: WildFly
-  replaces: wildfly-operator.v1.0.0
+  replaces: wildfly-operator.v1.1.0
   selector:
     matchLabels:
       operated-by: wildfly-operator
-  version: 1.1.0
+  version: 1.2.0
