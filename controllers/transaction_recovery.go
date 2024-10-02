@@ -19,6 +19,7 @@ import (
 
 var (
 	recoveryErrorRegExp = regexp.MustCompile("ERROR.*Periodic Recovery")
+	heuristic_types     = [5]string{"HEURISTIC", "HEURISTIC_ROLLBACK", "HEURISTIC_COMMIT", "HEURISTIC_MIXED", "HEURISTIC_HAZARD"}
 )
 
 const (
@@ -152,24 +153,30 @@ func (r *WildFlyServerReconciler) checkRecovery(reqLogger logr.Logger, scaleDown
 	}
 	// Is the number of in-doubt transactions equal to zero?
 	transactions := jsonResult["result"]
-	txnMap, isMap := transactions.(map[string]interface{}) // typing the variable to be a map of interfaces
+	// typing the variable to be a map of interfaces
+	txnMap, isMap := transactions.(map[string]interface{})
 	if isMap && len(txnMap) > 0 {
 
 		// Check for HEURISTIC transactions
-		jsonResult, err := wfly.ExecuteMgmtOp(scaleDownPod, wfly.MgmtOpTxnReadHeuristic)
-		if err != nil {
-			return genericError, "", fmt.Errorf("Cannot read HEURISTIC transactions from the log store of the pod %v, error: %v", scaleDownPodName, err)
-		}
-		if !wfly.IsMgmtOutcomeSuccesful(jsonResult) {
-			return genericError, "", fmt.Errorf("Cannot read HEURISTIC transactions from the log store of the pod %v", scaleDownPodName)
-		}
-		// Is the number of HEURISTIC transactions equal to zero?
-		transactions := jsonResult["result"]
-		heuristicTxnArray, isArray := transactions.([]interface{}) // typing the variable to be an array of interfaces
-		if isArray && len(heuristicTxnArray) > 0 {
-			retString := fmt.Sprintf("There are HEURISTIC transactions in the log store of the pod %v. Please, resolve them manually, "+
-				"transaction list: %v", scaleDownPodName, heuristicTxnArray)
-			return heuristic, retString, nil
+		for _, heuristic_type := range heuristic_types {
+			jsonResult, err := wfly.ExecuteMgmtOp(scaleDownPod, fmt.Sprintf(wfly.MgmtOpTxnReadHeuristicPattern, heuristic_type))
+			if err != nil {
+				return genericError, "", fmt.Errorf("Cannot read %s transactions from the log store of the pod %v, error: %v", heuristic_type, scaleDownPodName, err)
+			}
+			if !wfly.IsMgmtOutcomeSuccesful(jsonResult) {
+				return genericError, "", fmt.Errorf("Cannot read %s transactions from the log store of the pod %v", heuristic_type, scaleDownPodName)
+			}
+
+			// Is the number of HEURISTIC transactions equal to zero?
+			transactions := jsonResult["result"]
+			// typing the variable to be an array of interfaces
+			heuristicTxnArray, isArray := transactions.([]interface{})
+
+			if isArray && len(heuristicTxnArray) > 0 {
+				retString := fmt.Sprintf("There are %s transactions in the log store of the pod %v. Please, resolve them manually, "+
+					"transaction list: %v", heuristic_type, scaleDownPodName, heuristicTxnArray)
+				return heuristic, retString, nil
+			}
 		}
 
 		retString := fmt.Sprintf("A recovery scan is needed as the log store of the pod %v is not empty, "+
