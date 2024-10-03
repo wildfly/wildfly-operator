@@ -31,7 +31,7 @@ var (
 	// MgmtOpTxnRead is a JBoss CLI command for reading transaction log store
 	MgmtOpTxnRead = "/subsystem=transactions/log-store=log-store:read-children-resources(child-type=transactions,recursive=true,include-runtime=true)"
 	// MgmtOpTxnReadHeuristic is a JBoss CLI command for scanning the log store in search of transactions in HEURISTIC status
-	MgmtOpTxnReadHeuristic = "/subsystem=transactions/log-store=log-store/transactions=*/participants=*:query(where={\"status\"=\"HEURISTIC\"}"
+	MgmtOpTxnReadHeuristicPattern = "/subsystem=transactions/log-store=log-store/transactions=*/participants=*:query(where={\"status\"=\"%s\"}"
 	// MgmtOpTxnRecoverySocketBindingRead is a JBoss CLI command for reading name of recovery socket binding
 	MgmtOpTxnRecoverySocketBindingRead = "/subsystem=transactions:read-attribute(name=socket-binding)"
 	// MgmtOpSocketBindingRead is a JBoss CLI command for reading all data on the socket binding group
