@@ -5,6 +5,27 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 1.2.0
 
+# The higher Go version expected to be used
+REQUIRED_GO_MAJOR_VERSION := 1
+REQUIRED_GO_MINOR_VERSION := 21
+REQUIRED_GO_VERSION := $(REQUIRED_GO_MAJOR_VERSION).$(REQUIRED_GO_MINOR_VERSION)
+
+# Check if Go is installed
+ifeq (, $(shell which go))
+$(error "Go is not installed. Please install Go $(REQUIRED_GO_VERSION).")
+endif
+
+CURRENT_GO_MAJOR_VERSION := $(shell go version | sed -n 's/^go version go\([0-9]*\).*/\1/p')
+CURRENT_GO_MINOR_VERSION := $(shell go version | sed -n 's/^go version go$(CURRENT_GO_MAJOR_VERSION).\([0-9]*\).*/\1/p')
+CURRENT_GO_VERSION := $(CURRENT_GO_MAJOR_VERSION).$(CURRENT_GO_MINOR_VERSION)
+$(info Using Go version $(CURRENT_GO_VERSION))
+ifeq ($(shell expr $(CURRENT_GO_MAJOR_VERSION) \> $(REQUIRED_GO_MAJOR_VERSION)), 1)
+$(error "Go $(REQUIRED_GO_VERSION) or below is required. Current version is: $(CURRENT_GO_VERSION)")
+endif
+ifeq ($(shell expr $(CURRENT_GO_MINOR_VERSION) \> $(REQUIRED_GO_MINOR_VERSION)), 1)
+$(error "Go $(REQUIRED_GO_VERSION) or below is required. Current version is: $(CURRENT_GO_VERSION)")
+endif
+
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
