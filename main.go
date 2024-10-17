@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/RHsyseng/operator-utils/pkg/utils/openshift"
 	"go.uber.org/zap/zapcore"
+	"k8s.io/klog/v2"
 	"os"
 	goruntime "runtime"
 	"time"
@@ -73,13 +74,16 @@ func main() {
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+
 	opts := zap.Options{
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	logger := zap.New(zap.UseFlagOptions(&opts))
+	ctrl.SetLogger(logger)
+	klog.SetLogger(logger)
 
 	printVersion()
 
