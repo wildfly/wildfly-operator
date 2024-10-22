@@ -2,5 +2,5 @@ package version
 
 var (
 	// Version represents the software version of the WildFly Operator
-	Version = "1.2.0"
+	Version = "1.1.1"
 )
