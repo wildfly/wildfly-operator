@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.21.13 as builder
+FROM mirror.gcr.io/golang:1.21.13 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -21,7 +21,7 @@ ARG GO_LDFLAGS=""
 RUN echo "FLAGS: $GO_LDFLAGS"
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager -ldflags="${GO_LDFLAGS}" main.go
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 ENV OPERATOR=/usr/local/bin/wildfly-operator \
     JBOSS_HOME=/opt/wildfly \
     JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server \
