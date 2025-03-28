@@ -29,6 +29,7 @@ metadata:
   name: wildfly-operator.v1.1.2
   namespace: placeholder
 spec:
+  apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
     - description: An application running on WildFly application runtime.
