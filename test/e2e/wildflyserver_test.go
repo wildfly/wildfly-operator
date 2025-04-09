@@ -94,7 +94,7 @@ var _ = Describe("WildFly Server tests", func() {
 	})
 
 	It("WildFlyServer can be created and scaled up", func() {
-		applicationImage := "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0"
+		applicationImage := "wildfly/wildfly-test-image:0.0"
 		name := "example-wildfly"
 		ctx := context.Background()
 
@@ -114,7 +114,7 @@ var _ = Describe("WildFly Server tests", func() {
 	})
 
 	It("WildFlyServer packaged as a Bootable JAR can be created and scaled up", func() {
-		applicationImage := "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:bootable-21.0"
+		applicationImage := "wildfly/bootable-jar-test-image:0.0"
 		name := "example-wildfly-bootable-jar"
 		ctx := context.Background()
 
@@ -133,7 +133,7 @@ var _ = Describe("WildFly Server tests", func() {
 	})
 
 	It("WildFlyServer can form a cluster", func() {
-		applicationImage := "quay.io/wildfly-quickstarts/clusterbench:latest"
+		applicationImage := "wildfly/clusterbench-test-image:0.0"
 		name := "cluster-bench"
 		ctx := context.Background()
 
@@ -173,7 +173,7 @@ var _ = Describe("WildFly Server tests", func() {
 			Skip("Skipping this test. It cannot be tested with local manager.")
 		}
 
-		applicationImage := "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0"
+		applicationImage := "wildfly/wildfly-test-image:0.0"
 		name := "wildfly-server-scale-down"
 		ctx := context.Background()
 
@@ -206,8 +206,8 @@ var _ = Describe("WildFly Server tests", func() {
 		WaitUntilServerDeleted(ctx, k8sClient, serverCpy)
 	})
 
-	It("WildFlyServer Data directory from JBOSS_HOME environment value contains tx-object-store directory", func() {
-		applicationImage := "quay.io/wildfly-quickstarts/wildfly-operator-quickstart:18.0"
+	It("WildFlyServer Data directory from JBOSS_HOME environment value contains kernel directory", func() {
+		applicationImage := "wildfly/wildfly-test-image:0.0"
 		name := "example-wildfly"
 		ctx := context.Background()
 
@@ -233,7 +233,7 @@ var _ = Describe("WildFly Server tests", func() {
 		}
 
 		// Verify the server home directory exists
-		jbossHome := os.Getenv("JBOSS_HOME") + "/standalone/data/tx-object-store"
+		jbossHome := os.Getenv("JBOSS_HOME") + "/standalone/data/kernel"
 		for _, pod := range pods {
 			exists, err := CheckDirectoryExists(&pod, jbossHome)
 			if err != nil || !exists {

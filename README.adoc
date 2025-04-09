@@ -353,6 +353,15 @@ $ make unit-test
 
 To run the e2e tests you need to have a cluster accessible from your local machine and have logged in as kubeadmin.
 
+The testsuite uses several images that need to be available in the cluster. You can create this images by executing the following script:
+
+[source,shell]
+----
+$ config/tests/build-test-images.sh
+----
+
+The script will clone the application repositories used by the tests and will build the images from there. These images will be installed in your local container registry. These images should be later pushed to the internal registry of your cluster so the test can find them.
+
 #### Run end-to-end (e2e) tests in local mode
 This is useful for development since you don’t need to build and push the Operator image to a docker registry.
 The Operator will be deployed as a local application. Execute the following to run the test suite deploying the Operator

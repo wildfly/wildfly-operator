@@ -338,7 +338,8 @@ func WaitUntilServerDeleted(ctx context.Context, k8sClient client.Client, server
 
 // WaitUntilClusterIsFormed wait until a cluster is formed with all the podNames
 func WaitUntilClusterIsFormed(server *wildflyv1alpha1.WildFlyServer, podName1 string, podName2 string) {
-	pattern := fmt.Sprintf(".*ISPN000094: Received new cluster view.*(.*%s, .*%s|.*%[2]s, .*%[1]s).*", podName1, podName2)
+	pattern := fmt.Sprintf(".*WFLYCLJG0033: Connected 'ee' channel.*'.*' joined cluster 'ee' with view: \\[.*%s.*%s.*\\]|\\[.*%s.*%s.*\\]",
+		podName1, podName2, podName2, podName1)
 	Eventually(func() bool {
 		var clusterFormed bool
 		for _, podName := range []string{podName1, podName2} {
