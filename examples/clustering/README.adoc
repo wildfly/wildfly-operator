@@ -1,13 +1,13 @@
-# Clustered application
+= Clustered application
 
 This example shows how to install and deploy a clustered application built with WildFly S2I on Kubernetes or OpenShift.
 
-# Prerequisites
+== Prerequisites
 
 * Install minishift or minikube
 * Install the WildFly Operator as explained in the https://github.com/wildfly/wildfly-operator#install-the-operator-and-associate-resources[README].
 
-# Deploy the application
+== Deploy the application
 
 The application is named https://github.com/clusterbench/clusterbench[clusterbench] and will be deployed with a Docker image built with https://github.com/wildfly/wildfly-s2i[WildFly S2I] and published at https://quay.io/repository/wildfly-quickstarts/clusterbench-ee7[quay.io/wildfly-quickstarts/clusterbench:latest] that deploys the EE8 variant of the application.
 
@@ -87,7 +87,7 @@ $ oc expose svc/clusterbench-loadbalancer
 route.route.openshift.io/clusterbench-loadbalancer exposed
 ----
 
-The external address can be found by running: 
+The external address can be found by running:
 
 [source,shell]
 ----
