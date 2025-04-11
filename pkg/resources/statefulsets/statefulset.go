@@ -422,25 +422,25 @@ func createStartupProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	var failureThreshold int32 = 36
 	var probeHandler wildflyv1alpha1.ProbeHandler
 
-	if w.Spec.StartupProbe != nil {
-		if w.Spec.StartupProbe.InitialDelaySeconds != 0 {
-			initialDelaySeconds = w.Spec.StartupProbe.InitialDelaySeconds
-		}
-		timeoutSeconds = w.Spec.StartupProbe.TimeoutSeconds
-		if w.Spec.StartupProbe.PeriodSeconds != 0 {
-			periodSeconds = w.Spec.StartupProbe.PeriodSeconds
-		}
-		successThreshold = w.Spec.StartupProbe.SuccessThreshold
-		if w.Spec.StartupProbe.FailureThreshold != 0 {
-			failureThreshold = w.Spec.StartupProbe.FailureThreshold
-		}
-		probeHandler = w.Spec.StartupProbe.ProbeHandler
-
-		//Only if StartupProbe was defined by the user
-		return createLivenessStartupCommonProbe(defined, w.Spec.BootableJar, livenessProbeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, probeHandler)
+	if w.Spec.StartupProbe == nil {
+		w.Spec.StartupProbe = &wildflyv1alpha1.ProbeSpec{}
 	}
 
-	return nil
+	if w.Spec.StartupProbe.InitialDelaySeconds != 0 {
+		initialDelaySeconds = w.Spec.StartupProbe.InitialDelaySeconds
+	}
+	timeoutSeconds = w.Spec.StartupProbe.TimeoutSeconds
+	if w.Spec.StartupProbe.PeriodSeconds != 0 {
+		periodSeconds = w.Spec.StartupProbe.PeriodSeconds
+	}
+	successThreshold = w.Spec.StartupProbe.SuccessThreshold
+	if w.Spec.StartupProbe.FailureThreshold != 0 {
+		failureThreshold = w.Spec.StartupProbe.FailureThreshold
+	}
+	probeHandler = w.Spec.StartupProbe.ProbeHandler
+
+	//Only if StartupProbe was defined by the user
+	return createLivenessStartupCommonProbe(defined, w.Spec.BootableJar, livenessProbeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, probeHandler)
 }
 
 // creates the common parts for the Linevess and Startup Probes

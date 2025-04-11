@@ -659,7 +659,7 @@ func TestWildFlyServerWithDefaultHttpProbes(t *testing.T) {
 	assert.Equal("admin", stsReadinessProbe.HTTPGet.Port.StrVal)
 
 	// By default, Startup probe is not defined in the StatefulSet
-	assert.Nil(statefulSet.Spec.Template.Spec.Containers[0].StartupProbe)
+	assert.NotNil(statefulSet.Spec.Template.Spec.Containers[0].StartupProbe)
 
 	// Update the CR adding just an StartupProbe Configuration
 	startupProbe := &wildflyv1alpha1.ProbeSpec{
@@ -862,7 +862,7 @@ func TestWildFlyServerWithDefaultProbesScript(t *testing.T) {
 	assert.Equal("-c", stsReadinessProbe.Exec.Command[1])
 	assert.Equal("if [ -f 'test-readiness-script.sh' ]; then test-readiness-script.sh; else curl --fail http://127.0.0.1:9990/health/ready; fi", stsReadinessProbe.Exec.Command[2])
 
-	assert.Nil(statefulSet.Spec.Template.Spec.Containers[0].StartupProbe)
+	assert.NotNil(statefulSet.Spec.Template.Spec.Containers[0].StartupProbe)
 
 	// Update the CR configuring values for the Probes
 	livenessProbe := &wildflyv1alpha1.ProbeSpec{
