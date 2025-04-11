@@ -88,7 +88,7 @@ type ProbeSpec struct {
 	// The action taken to determine the health of a container
 	ProbeHandler `json:",inline,omitempty" protobuf:"bytes,1,opt,name=handler"`
 	// Number of seconds after the container has started before probes are initiated.
-	// It defaults to 60 seconds for liveness probe. It defaults to 10 seconds for readiness probe. It defaults to 0 seconds for startup probe.
+	// It defaults to 0 seconds for liveness and readiness probes and 5 seconds for startup probe. Minimum value is 0.
 	// Minimum value is 0.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
@@ -100,17 +100,17 @@ type ProbeSpec struct {
 	// +optional
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 	// How often (in seconds) to perform the probe.
-	// Default to 10 seconds. Minimum value is 1.
+	// Default to 10 seconds for liveness and readiness probes and 5 seconds for startup probe. Minimum value is 1.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	PeriodSeconds int32 `json:"periodSeconds,omitempty"`
 	// Minimum consecutive successes for the probe to be considered successful after having failed.
-	// Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1.
+	// Defaults to 1. Minimum value is 1.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	SuccessThreshold int32 `json:"successThreshold,omitempty"`
 	// Minimum consecutive failures for the probe to be considered failed after having succeeded.
-	// Defaults to 3. Minimum value is 1.
+	// Defaults to 3 for liveness and readiness probes and 36 seconds for startup probe. Minimum value is 1.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	FailureThreshold int32 `json:"failureThreshold,omitempty"`

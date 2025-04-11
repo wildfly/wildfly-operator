@@ -304,7 +304,7 @@ func createResources(r *corev1.ResourceRequirements) corev1.ResourceRequirements
 func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
 
-	var initialDelaySeconds int32 = 60
+	var initialDelaySeconds int32
 	var timeoutSeconds int32
 	var periodSeconds int32
 	var successThreshold int32
@@ -312,9 +312,7 @@ func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	var probeHandler wildflyv1alpha1.ProbeHandler
 
 	if w.Spec.LivenessProbe != nil {
-		if w.Spec.LivenessProbe.InitialDelaySeconds != 0 {
-			initialDelaySeconds = w.Spec.LivenessProbe.InitialDelaySeconds
-		}
+		initialDelaySeconds = w.Spec.LivenessProbe.InitialDelaySeconds
 		timeoutSeconds = w.Spec.LivenessProbe.TimeoutSeconds
 		periodSeconds = w.Spec.LivenessProbe.PeriodSeconds
 		successThreshold = w.Spec.LivenessProbe.SuccessThreshold
@@ -339,7 +337,7 @@ func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
 
-	var initialDelaySeconds int32 = 10
+	var initialDelaySeconds int32
 	var timeoutSeconds int32
 	var periodSeconds int32
 	var successThreshold int32
@@ -347,9 +345,7 @@ func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	var probeHandler wildflyv1alpha1.ProbeHandler
 
 	if w.Spec.ReadinessProbe != nil {
-		if w.Spec.ReadinessProbe.InitialDelaySeconds != 0 {
-			initialDelaySeconds = w.Spec.ReadinessProbe.InitialDelaySeconds
-		}
+		initialDelaySeconds = w.Spec.ReadinessProbe.InitialDelaySeconds
 		timeoutSeconds = w.Spec.ReadinessProbe.TimeoutSeconds
 		periodSeconds = w.Spec.ReadinessProbe.PeriodSeconds
 		successThreshold = w.Spec.ReadinessProbe.SuccessThreshold
@@ -419,19 +415,25 @@ func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 func createStartupProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
 
-	var initialDelaySeconds int32
+	var initialDelaySeconds int32 = 5
 	var timeoutSeconds int32
-	var periodSeconds int32
+	var periodSeconds int32 = 5
 	var successThreshold int32
-	var failureThreshold int32
+	var failureThreshold int32 = 36
 	var probeHandler wildflyv1alpha1.ProbeHandler
 
 	if w.Spec.StartupProbe != nil {
-		initialDelaySeconds = w.Spec.StartupProbe.InitialDelaySeconds
+		if w.Spec.StartupProbe.InitialDelaySeconds != 0 {
+			initialDelaySeconds = w.Spec.StartupProbe.InitialDelaySeconds
+		}
 		timeoutSeconds = w.Spec.StartupProbe.TimeoutSeconds
-		periodSeconds = w.Spec.StartupProbe.PeriodSeconds
+		if w.Spec.StartupProbe.PeriodSeconds != 0 {
+			periodSeconds = w.Spec.StartupProbe.PeriodSeconds
+		}
 		successThreshold = w.Spec.StartupProbe.SuccessThreshold
-		failureThreshold = w.Spec.StartupProbe.FailureThreshold
+		if w.Spec.StartupProbe.FailureThreshold != 0 {
+			failureThreshold = w.Spec.StartupProbe.FailureThreshold
+		}
 		probeHandler = w.Spec.StartupProbe.ProbeHandler
 
 		//Only if StartupProbe was defined by the user
