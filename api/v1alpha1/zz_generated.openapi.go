@@ -103,7 +103,7 @@ func schema__api_v1alpha1_ProbeSpec(ref common.ReferenceCallback) common.OpenAPI
 					},
 					"initialDelaySeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Number of seconds after the container has started before probes are initiated. It defaults to 60 seconds for liveness probe. It defaults to 10 seconds for readiness probe. It defaults to 0 seconds for startup probe. Minimum value is 0.",
+							Description: "Number of seconds after the container has started before probes are initiated. It defaults to 0 seconds for liveness and readiness probes and 5 seconds for startup probe. Minimum value is 0. Minimum value is 0.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -117,21 +117,21 @@ func schema__api_v1alpha1_ProbeSpec(ref common.ReferenceCallback) common.OpenAPI
 					},
 					"periodSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1.",
+							Description: "How often (in seconds) to perform the probe. Default to 10 seconds for liveness and readiness probes and 5 seconds for startup probe. Minimum value is 1.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"successThreshold": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1.",
+							Description: "Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Minimum value is 1.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"failureThreshold": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
+							Description: "Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3 for liveness and readiness probes and 36 seconds for startup probe. Minimum value is 1.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

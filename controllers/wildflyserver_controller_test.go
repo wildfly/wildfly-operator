@@ -641,7 +641,7 @@ func TestWildFlyServerWithDefaultHttpProbes(t *testing.T) {
 
 	// check the Probes values
 	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
-	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
@@ -650,7 +650,7 @@ func TestWildFlyServerWithDefaultHttpProbes(t *testing.T) {
 	assert.Equal("admin", stsLivenessProbe.HTTPGet.Port.StrVal)
 
 	stsReadinessProbe := statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
-	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
@@ -685,7 +685,7 @@ func TestWildFlyServerWithDefaultHttpProbes(t *testing.T) {
 
 	// check the Probes values
 	stsLivenessProbe = statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
-	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
@@ -694,7 +694,7 @@ func TestWildFlyServerWithDefaultHttpProbes(t *testing.T) {
 	assert.Equal("admin", stsLivenessProbe.HTTPGet.Port.StrVal)
 
 	stsReadinessProbe = statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
-	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
@@ -841,7 +841,7 @@ func TestWildFlyServerWithDefaultProbesScript(t *testing.T) {
 
 	// check the Probes values
 	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
-	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
@@ -852,7 +852,7 @@ func TestWildFlyServerWithDefaultProbesScript(t *testing.T) {
 	assert.Equal("if [ -f 'test-liveness-script.sh' ]; then test-liveness-script.sh; else curl --fail http://127.0.0.1:9990/health/live; fi", stsLivenessProbe.Exec.Command[2])
 
 	stsReadinessProbe := statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
-	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
@@ -1069,7 +1069,7 @@ func TestWildFlyServerWithExplicitHttpGetProbes(t *testing.T) {
 
 	// check the Probes values
 	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
-	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
@@ -1082,7 +1082,7 @@ func TestWildFlyServerWithExplicitHttpGetProbes(t *testing.T) {
 	assert.Nil(stsLivenessProbe.Exec)
 
 	stsReadinessProbe := statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
-	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
@@ -1095,11 +1095,11 @@ func TestWildFlyServerWithExplicitHttpGetProbes(t *testing.T) {
 	assert.Nil(stsReadinessProbe.Exec)
 
 	stsStartupProbe := statefulSet.Spec.Template.Spec.Containers[0].StartupProbe
-	assert.Equal(int32(0), stsStartupProbe.InitialDelaySeconds)
+	assert.Equal(int32(5), stsStartupProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsStartupProbe.TimeoutSeconds)
-	assert.Equal(int32(0), stsStartupProbe.PeriodSeconds)
+	assert.Equal(int32(5), stsStartupProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsStartupProbe.SuccessThreshold)
-	assert.Equal(int32(0), stsStartupProbe.FailureThreshold)
+	assert.Equal(int32(36), stsStartupProbe.FailureThreshold)
 	assert.Equal("/test/startup", stsStartupProbe.HTTPGet.Path)
 	assert.Equal("2", stsStartupProbe.HTTPGet.Port.StrVal)
 	assert.Equal("host-startup", stsStartupProbe.HTTPGet.Host)
@@ -1210,7 +1210,7 @@ func TestWildFlyServerWithExplicitHttpExecProbes(t *testing.T) {
 
 	// check the Probes values
 	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
-	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
@@ -1219,7 +1219,7 @@ func TestWildFlyServerWithExplicitHttpExecProbes(t *testing.T) {
 	assert.Nil(stsLivenessProbe.HTTPGet)
 
 	stsReadinessProbe := statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe
-	assert.Equal(int32(10), stsReadinessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsReadinessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsReadinessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsReadinessProbe.SuccessThreshold)
@@ -1228,11 +1228,11 @@ func TestWildFlyServerWithExplicitHttpExecProbes(t *testing.T) {
 	assert.Nil(stsReadinessProbe.HTTPGet)
 
 	stsStartupProbe := statefulSet.Spec.Template.Spec.Containers[0].StartupProbe
-	assert.Equal(int32(0), stsStartupProbe.InitialDelaySeconds)
+	assert.Equal(int32(5), stsStartupProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsStartupProbe.TimeoutSeconds)
-	assert.Equal(int32(0), stsStartupProbe.PeriodSeconds)
+	assert.Equal(int32(5), stsStartupProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsStartupProbe.SuccessThreshold)
-	assert.Equal(int32(0), stsStartupProbe.FailureThreshold)
+	assert.Equal(int32(36), stsStartupProbe.FailureThreshold)
 	assert.True(reflect.DeepEqual(startupExec, stsStartupProbe.Exec.Command))
 	assert.Nil(stsStartupProbe.HTTPGet)
 }
@@ -1320,7 +1320,7 @@ func TestWildFlyServerWithExecAndHttpProbes(t *testing.T) {
 
 	// check the Probes values. Exec should win against http
 	stsLivenessProbe := statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe
-	assert.Equal(int32(60), stsLivenessProbe.InitialDelaySeconds)
+	assert.Equal(int32(0), stsLivenessProbe.InitialDelaySeconds)
 	assert.Equal(int32(0), stsLivenessProbe.TimeoutSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.PeriodSeconds)
 	assert.Equal(int32(0), stsLivenessProbe.SuccessThreshold)
