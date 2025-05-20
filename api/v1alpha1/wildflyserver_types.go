@@ -88,29 +88,29 @@ type ProbeSpec struct {
 	// The action taken to determine the health of a container
 	ProbeHandler `json:",inline,omitempty" protobuf:"bytes,1,opt,name=handler"`
 	// Number of seconds after the container has started before probes are initiated.
-	// It defaults to 0 seconds for liveness and readiness probes and 5 seconds for startup probe. Minimum value is 0.
+	// It defaults to 0 seconds for liveness and 10 seconds for readiness and startup probes. Minimum value is 0.
 	// Minimum value is 0.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
-	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
+	InitialDelaySeconds *int32 `json:"initialDelaySeconds,omitempty"`
 	// Number of seconds after which the probe times out.
-	// Defaults to 1 second. Minimum value is 1.
+	// Defaults to 1 second for liveness, readiness and startup probes. Minimum value is 1.
 	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 	// How often (in seconds) to perform the probe.
-	// Default to 10 seconds for liveness and readiness probes and 5 seconds for startup probe. Minimum value is 1.
+	// Default to 10 seconds for liveness, readiness and startup probes. Minimum value is 1.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	PeriodSeconds int32 `json:"periodSeconds,omitempty"`
 	// Minimum consecutive successes for the probe to be considered successful after having failed.
-	// Defaults to 1. Minimum value is 1.
+	// Defaults to 1 second for liveness, readiness and startup probes. Minimum value is 1.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	SuccessThreshold int32 `json:"successThreshold,omitempty"`
 	// Minimum consecutive failures for the probe to be considered failed after having succeeded.
-	// Defaults to 3 for liveness and readiness probes and 36 seconds for startup probe. Minimum value is 1.
+	// Defaults to 3 for liveness and readiness probes and 11 seconds for startup probe. Minimum value is 1.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	FailureThreshold int32 `json:"failureThreshold,omitempty"`
