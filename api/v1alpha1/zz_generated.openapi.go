@@ -103,35 +103,35 @@ func schema__api_v1alpha1_ProbeSpec(ref common.ReferenceCallback) common.OpenAPI
 					},
 					"initialDelaySeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Number of seconds after the container has started before probes are initiated. It defaults to 0 seconds for liveness and readiness probes and 5 seconds for startup probe. Minimum value is 0. Minimum value is 0.",
+							Description: "Number of seconds after the container has started before probes are initiated. It defaults to 0 seconds for liveness and 10 seconds for readiness and startup probes. Minimum value is 0. Minimum value is 0.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"timeoutSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+							Description: "Number of seconds after which the probe times out. Defaults to 1 second for liveness, readiness and startup probes. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"periodSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "How often (in seconds) to perform the probe. Default to 10 seconds for liveness and readiness probes and 5 seconds for startup probe. Minimum value is 1.",
+							Description: "How often (in seconds) to perform the probe. Default to 10 seconds for liveness, readiness and startup probes. Minimum value is 1.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"successThreshold": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Minimum value is 1.",
+							Description: "Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1 second for liveness, readiness and startup probes. Minimum value is 1.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"failureThreshold": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3 for liveness and readiness probes and 36 seconds for startup probe. Minimum value is 1.",
+							Description: "Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3 for liveness and readiness probes and 11 seconds for startup probe. Minimum value is 1.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

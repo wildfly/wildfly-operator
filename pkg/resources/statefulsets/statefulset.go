@@ -33,7 +33,8 @@ func GetOrCreateNewStatefulSet(w *wildflyv1alpha1.WildFlyServer, client client.C
 	statefulSet := &appsv1.StatefulSet{}
 	if err := resources.Get(w, types.NamespacedName{Name: w.Name, Namespace: w.Namespace}, client, statefulSet); err != nil {
 		if errors.IsNotFound(err) {
-			if err := resources.Create(w, client, scheme, NewStatefulSet(w, labels, desiredReplicaSize, isOpenShift)); err != nil {
+			statefulSet = NewStatefulSet(w, labels, desiredReplicaSize, isOpenShift)
+			if err := resources.Create(w, client, scheme, statefulSet); err != nil {
 				return nil, err
 			}
 			return nil, nil
@@ -302,25 +303,36 @@ func createResources(r *corev1.ResourceRequirements) corev1.ResourceRequirements
 // the action configured by the user. When both actions are configured at the same time, the Exec configuration will win
 // and HTTPGet will be ignored.
 func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
-	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
+	probeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
 
-	var initialDelaySeconds int32
-	var timeoutSeconds int32
-	var periodSeconds int32
-	var successThreshold int32
-	var failureThreshold int32
+	var initialDelaySeconds int32 = 0
+	var timeoutSeconds int32 = 1
+	var periodSeconds int32 = 10
+	var successThreshold int32 = 1
+	var failureThreshold int32 = 3
 	var probeHandler wildflyv1alpha1.ProbeHandler
 
-	if w.Spec.LivenessProbe != nil {
-		initialDelaySeconds = w.Spec.LivenessProbe.InitialDelaySeconds
-		timeoutSeconds = w.Spec.LivenessProbe.TimeoutSeconds
-		periodSeconds = w.Spec.LivenessProbe.PeriodSeconds
-		successThreshold = w.Spec.LivenessProbe.SuccessThreshold
-		failureThreshold = w.Spec.LivenessProbe.FailureThreshold
-		probeHandler = w.Spec.LivenessProbe.ProbeHandler
+	if w.Spec.LivenessProbe == nil {
+		w.Spec.LivenessProbe = &wildflyv1alpha1.ProbeSpec{}
 	}
+	if w.Spec.LivenessProbe.InitialDelaySeconds != nil {
+		initialDelaySeconds = *w.Spec.LivenessProbe.InitialDelaySeconds
+	}
+	if w.Spec.LivenessProbe.TimeoutSeconds != 0 {
+		timeoutSeconds = w.Spec.LivenessProbe.TimeoutSeconds
+	}
+	if w.Spec.LivenessProbe.PeriodSeconds != 0 {
+		periodSeconds = w.Spec.LivenessProbe.PeriodSeconds
+	}
+	if w.Spec.LivenessProbe.SuccessThreshold != 0 {
+		successThreshold = w.Spec.LivenessProbe.SuccessThreshold
+	}
+	if w.Spec.LivenessProbe.FailureThreshold != 0 {
+		failureThreshold = w.Spec.LivenessProbe.FailureThreshold
+	}
+	probeHandler = w.Spec.LivenessProbe.ProbeHandler
 
-	return createLivenessStartupCommonProbe(defined, w.Spec.BootableJar, livenessProbeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, probeHandler)
+	return createCommonProbe(defined, w.Spec.BootableJar, probeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, probeHandler, "/health/live", "SERVER_LIVENESS_SCRIPT_FALLBACK")
 }
 
 // createReadinessProbe create an Exec probe if the SERVER_READINESS_SCRIPT env var is present
@@ -335,74 +347,41 @@ func createLivenessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 // the action configured by the user. When both actions are configured at the same time, the Exec configuration will win
 // and HTTPGet will be ignored.
 func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
-	readinessProbeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
+	probeScript, defined := os.LookupEnv("SERVER_READINESS_SCRIPT")
 
-	var initialDelaySeconds int32
-	var timeoutSeconds int32
-	var periodSeconds int32
-	var successThreshold int32
-	var failureThreshold int32
+	var initialDelaySeconds int32 = 10
+	var timeoutSeconds int32 = 1
+	var periodSeconds int32 = 10
+	var successThreshold int32 = 1
+	var failureThreshold int32 = 3
 	var probeHandler wildflyv1alpha1.ProbeHandler
 
-	if w.Spec.ReadinessProbe != nil {
-		initialDelaySeconds = w.Spec.ReadinessProbe.InitialDelaySeconds
+	if w.Spec.ReadinessProbe == nil {
+		w.Spec.ReadinessProbe = &wildflyv1alpha1.ProbeSpec{}
+	}
+	if w.Spec.ReadinessProbe.InitialDelaySeconds != nil {
+		initialDelaySeconds = *w.Spec.ReadinessProbe.InitialDelaySeconds
+	}
+	if w.Spec.ReadinessProbe.TimeoutSeconds != 0 {
 		timeoutSeconds = w.Spec.ReadinessProbe.TimeoutSeconds
+	}
+	if w.Spec.ReadinessProbe.PeriodSeconds != 0 {
 		periodSeconds = w.Spec.ReadinessProbe.PeriodSeconds
+	}
+	if w.Spec.ReadinessProbe.SuccessThreshold != 0 {
 		successThreshold = w.Spec.ReadinessProbe.SuccessThreshold
+	}
+	if w.Spec.ReadinessProbe.FailureThreshold != 0 {
 		failureThreshold = w.Spec.ReadinessProbe.FailureThreshold
-		probeHandler = w.Spec.ReadinessProbe.ProbeHandler
 	}
+	probeHandler = w.Spec.ReadinessProbe.ProbeHandler
 
-	var action corev1.ProbeHandler
-	if probeHandler.Exec == nil && probeHandler.HTTPGet == nil {
-		if defined && !w.Spec.BootableJar {
-			readinessProbeScriptFallback, definedFallback := os.LookupEnv("SERVER_READINESS_SCRIPT_FALLBACK")
-			if !definedFallback {
-				readinessProbeScriptFallback = "curl --fail http://127.0.0.1:" + strconv.Itoa(int(resources.HTTPManagementPort)) + "/health/ready"
-			}
-			probeScript := "if [ -f '" + readinessProbeScript + "' ]; then " + readinessProbeScript + "; else " + readinessProbeScriptFallback + "; fi"
-			action = corev1.ProbeHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{"/bin/bash", "-c", probeScript},
-				},
-			}
-		} else {
-			action = corev1.ProbeHandler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path: "/health/ready",
-					Port: intstr.FromString("admin"),
-				},
-			}
-		}
-	} else {
-		if probeHandler.Exec != nil {
-			action.Exec = &corev1.ExecAction{
-				Command: probeHandler.Exec.Command,
-			}
-		} else {
-			action.HTTPGet = &corev1.HTTPGetAction{
-				Path:        probeHandler.HTTPGet.Path,
-				Port:        probeHandler.HTTPGet.Port,
-				Host:        probeHandler.HTTPGet.Host,
-				Scheme:      probeHandler.HTTPGet.Scheme,
-				HTTPHeaders: probeHandler.HTTPGet.HTTPHeaders,
-			}
-		}
-	}
-
-	return &corev1.Probe{
-		ProbeHandler:        action,
-		InitialDelaySeconds: initialDelaySeconds,
-		TimeoutSeconds:      timeoutSeconds,
-		PeriodSeconds:       periodSeconds,
-		SuccessThreshold:    successThreshold,
-		FailureThreshold:    failureThreshold,
-	}
+	return createCommonProbe(defined, w.Spec.BootableJar, probeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, probeHandler, "/health/ready", "SERVER_READINESS_SCRIPT_FALLBACK")
 }
 
 // createStartupProbe create an Exec probe if the SERVER_LIVENESS_SCRIPT env var is present
 // *and* the application is not using Bootable Jar *and* the startup probe action has not been explicitly configured.
-// Otherwise, it creates a HTTPGet probe that checks the /health/live endpoint on the admin port.
+// Otherwise, it creates a HTTPGet probe that checks the /health/started endpoint on the admin port.
 //
 // If defined, the SERVER_LIVENESS_SCRIPT env var must be the path of a shell script that
 // complies to the Kubernetes probes requirements.
@@ -413,53 +392,55 @@ func createReadinessProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
 // the action configured by the user. When both actions are configured at the same time, the Exec configuration will win
 // and HTTPGet will be ignored.
 func createStartupProbe(w *wildflyv1alpha1.WildFlyServer) *corev1.Probe {
-	livenessProbeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
+	probeScript, defined := os.LookupEnv("SERVER_LIVENESS_SCRIPT")
 
-	var initialDelaySeconds int32 = 5
-	var timeoutSeconds int32
-	var periodSeconds int32 = 5
-	var successThreshold int32
-	var failureThreshold int32 = 36
+	var initialDelaySeconds int32 = 10
+	var timeoutSeconds int32 = 1
+	var periodSeconds int32 = 10
+	var successThreshold int32 = 1
+	var failureThreshold int32 = 11
 	var probeHandler wildflyv1alpha1.ProbeHandler
 
 	if w.Spec.StartupProbe == nil {
 		w.Spec.StartupProbe = &wildflyv1alpha1.ProbeSpec{}
 	}
-
-	if w.Spec.StartupProbe.InitialDelaySeconds != 0 {
-		initialDelaySeconds = w.Spec.StartupProbe.InitialDelaySeconds
+	if w.Spec.StartupProbe.InitialDelaySeconds != nil {
+		initialDelaySeconds = *w.Spec.StartupProbe.InitialDelaySeconds
 	}
-	timeoutSeconds = w.Spec.StartupProbe.TimeoutSeconds
+	if w.Spec.StartupProbe.TimeoutSeconds != 0 {
+		timeoutSeconds = w.Spec.StartupProbe.TimeoutSeconds
+	}
 	if w.Spec.StartupProbe.PeriodSeconds != 0 {
 		periodSeconds = w.Spec.StartupProbe.PeriodSeconds
 	}
-	successThreshold = w.Spec.StartupProbe.SuccessThreshold
+	if w.Spec.StartupProbe.SuccessThreshold != 0 {
+		successThreshold = w.Spec.StartupProbe.SuccessThreshold
+	}
 	if w.Spec.StartupProbe.FailureThreshold != 0 {
 		failureThreshold = w.Spec.StartupProbe.FailureThreshold
 	}
 	probeHandler = w.Spec.StartupProbe.ProbeHandler
 
-	//Only if StartupProbe was defined by the user
-	return createLivenessStartupCommonProbe(defined, w.Spec.BootableJar, livenessProbeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, probeHandler)
+	return createCommonProbe(defined, w.Spec.BootableJar, probeScript, initialDelaySeconds, timeoutSeconds, periodSeconds, successThreshold, failureThreshold, probeHandler, "/health/live", "SERVER_LIVENESS_SCRIPT_FALLBACK")
 }
 
-// creates the common parts for the Linevess and Startup Probes
-func createLivenessStartupCommonProbe(scriptDefined bool, bootableJar bool, livenessProbeScript string, initialDelaySeconds int32, timeoutSeconds int32, periodSeconds int32, successThreshold int32, failureThreshold int32, probeHandler wildflyv1alpha1.ProbeHandler) *corev1.Probe {
+// creates the common parts for the Probes
+func createCommonProbe(scriptDefined, bootableJar bool, probeScript string, initialDelaySeconds, timeoutSeconds int32, periodSeconds int32, successThreshold int32, failureThreshold int32, probeHandler wildflyv1alpha1.ProbeHandler, endPoint string, fallbackEnvProbe string) *corev1.Probe {
 	var action corev1.ProbeHandler
 
 	if probeHandler.Exec == nil && probeHandler.HTTPGet == nil {
 		if scriptDefined && !bootableJar {
-			livenessProbeScriptFallback, definedFallback := os.LookupEnv("SERVER_LIVENESS_SCRIPT_FALLBACK")
+			livenessProbeScriptFallback, definedFallback := os.LookupEnv(fallbackEnvProbe)
 			if !definedFallback {
-				livenessProbeScriptFallback = "curl --fail http://127.0.0.1:" + strconv.Itoa(int(resources.HTTPManagementPort)) + "/health/live"
+				livenessProbeScriptFallback = "curl --fail http://127.0.0.1:" + strconv.Itoa(int(resources.HTTPManagementPort)) + endPoint
 			}
-			probeScript := "if [ -f '" + livenessProbeScript + "' ]; then " + livenessProbeScript + "; else " + livenessProbeScriptFallback + "; fi"
+			probeScript := "if [ -f '" + probeScript + "' ]; then " + probeScript + "; else " + livenessProbeScriptFallback + "; fi"
 			action.Exec = &corev1.ExecAction{
 				Command: []string{"/bin/bash", "-c", probeScript},
 			}
 		} else {
 			action.HTTPGet = &corev1.HTTPGetAction{
-				Path: "/health/live",
+				Path: endPoint,
 				Port: intstr.FromString("admin"),
 			}
 		}
@@ -476,6 +457,13 @@ func createLivenessStartupCommonProbe(scriptDefined bool, bootableJar bool, live
 			HTTPHeaders: probeHandler.HTTPGet.HTTPHeaders,
 		}
 	}
+
+	log.Info("Creating probe",
+		"initialDelaySeconds", initialDelaySeconds,
+		"timeoutSeconds", timeoutSeconds,
+		"periodSeconds", periodSeconds,
+		"successThreshold", successThreshold,
+		"failureThreshold", failureThreshold)
 
 	return &corev1.Probe{
 		ProbeHandler:        action,
