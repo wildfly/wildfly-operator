@@ -105,12 +105,12 @@ type ProbeSpec struct {
 	// +optional
 	PeriodSeconds int32 `json:"periodSeconds,omitempty"`
 	// Minimum consecutive successes for the probe to be considered successful after having failed.
-	// Defaults to 1 second for liveness, readiness and startup probes. Minimum value is 1.
+	// Defaults to 1 for liveness, readiness and startup probes. Minimum value is 1.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	SuccessThreshold int32 `json:"successThreshold,omitempty"`
 	// Minimum consecutive failures for the probe to be considered failed after having succeeded.
-	// Defaults to 3 for liveness and readiness probes and 11 seconds for startup probe. Minimum value is 1.
+	// Defaults to 3 for liveness and readiness probes and 11 for startup probe. Minimum value is 1.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	FailureThreshold int32 `json:"failureThreshold,omitempty"`
