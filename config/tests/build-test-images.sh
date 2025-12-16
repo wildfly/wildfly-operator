@@ -43,7 +43,7 @@ echo "Building bootable JAR image"
 cp "${BOOTABLE_JAR_REPO_DIR}/${BOOTABLE_JAR}/target/microprofile-config-bootable.jar" "${WORKDIR}"
 cd "${WORKDIR}"
 cat << EOF > "${WORKDIR}/Dockerfile"
-FROM openjdk:17
+FROM mirror.gcr.io/eclipse-temurin:17
 EXPOSE 8080 8778 9779
 ENV AB_PROMETHEUS_OFF=true AB_JOLOKIA_OFF=true JAVA_OPTIONS=-Djava.net.preferIPv4Stack=true AB_OFF=true
 WORKDIR /deployments
