@@ -7,7 +7,7 @@ echo "WORKDIR: ${WORKDIR}"
 
 QUICKSTART_REPO_URL=https://github.com/wildfly/quickstart.git
 QUICKSTART_REPO_DIR="${WORKDIR}/wildfly-operator-quickstart"
-QUICKSTART_BRANCH=${1:-"35.0.1.Final"}
+QUICKSTART_BRANCH=${1:-"38.0.1.Final"}
 QUICKSTART=helloworld
 
 BOOTABLE_JAR_REPO_URL=https://github.com/wildfly-extras/wildfly-jar-maven-plugin.git
@@ -26,7 +26,7 @@ git clone ${QUICKSTART_REPO_URL} "${QUICKSTART_REPO_DIR}"
 cd "${QUICKSTART_REPO_DIR}" && git checkout ${QUICKSTART_BRANCH}
 
 echo "Building quickstart image"
-cd "${QUICKSTART_REPO_DIR}"/${QUICKSTART} && mvn -Popenshift package wildfly:image \
+cd "${QUICKSTART_REPO_DIR}"/${QUICKSTART} && mvn -U -Popenshift package wildfly:image \
 -Dwildfly.image.name=wildfly/wildfly-test-image \
 -Dwildfly.image.tag=0.0
 
@@ -37,7 +37,7 @@ cd "${BOOTABLE_JAR_REPO_DIR}" && git checkout ${BOOTABLE_JAR_BRANCH}
 
 echo "Building Bootable JAR repo"
 cd "${BOOTABLE_JAR_REPO_DIR}" && git checkout ${BOOTABLE_JAR_BRANCH}
-cd "${BOOTABLE_JAR_REPO_DIR}"/${BOOTABLE_JAR} && mvn -Popenshift package
+cd "${BOOTABLE_JAR_REPO_DIR}"/${BOOTABLE_JAR} && mvn -U -Popenshift package
 
 echo "Building bootable JAR image"
 cp "${BOOTABLE_JAR_REPO_DIR}/${BOOTABLE_JAR}/target/microprofile-config-bootable.jar" "${WORKDIR}"
@@ -59,6 +59,6 @@ cd "${CLUSTER_BENCH_REPO_DIR}" && git checkout ${CLUSTER_BENCH_BRANCH}
 
 echo "Building Clusterbench repo"
 cd "${CLUSTER_BENCH_REPO_DIR}" && git checkout ${CLUSTER_BENCH_BRANCH}
-cd "${CLUSTER_BENCH_REPO_DIR}/${CLUSTER_BENCH}" && mvn -Popenshift package wildfly:image \
+cd "${CLUSTER_BENCH_REPO_DIR}/${CLUSTER_BENCH}" && mvn -U -Popenshift package wildfly:image \
 -Dwildfly.image.name=wildfly/clusterbench-test-image \
 -Dwildfly.image.tag=0.0
