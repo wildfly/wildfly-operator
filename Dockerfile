@@ -38,9 +38,14 @@ ENV OPERATOR=/usr/local/bin/wildfly-operator \
 WORKDIR /
 COPY --from=builder /workspace/manager ${OPERATOR}
 
-COPY build/bin /usr/local/bin
+COPY --chmod=0755 build/bin /usr/local/bin
 RUN  /usr/local/bin/user_setup
 
 USER ${USER_UID}
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
+
+LABEL name="Wildfly Operator" \
+      vendor="Red Hat" \
+      summary="A Kubernetes Operator for Wildfly" \
+      description="This operator manages Wildfly instances on Kubernetes"
