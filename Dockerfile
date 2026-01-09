@@ -22,6 +22,10 @@ RUN echo "FLAGS: $GO_LDFLAGS"
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager -ldflags="${GO_LDFLAGS}" main.go
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+
+RUN microdnf update -y --nodocs --setopt=install_weak_deps=0 && \
+    microdnf clean all
+
 ENV OPERATOR=/usr/local/bin/wildfly-operator \
     JBOSS_HOME=/opt/wildfly \
     JBOSS_BOOTABLE_HOME=/opt/jboss/container/wildfly-bootable-jar-server \
