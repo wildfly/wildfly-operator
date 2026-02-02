@@ -1,6 +1,8 @@
 #!/bin/bash
 
 set -e
+# Workaround https://github.com/docker/cli/issues/2533
+export DOCKER_API_VERSION=1.43
 
 WORKDIR=$(readlink -f "$(dirname "$0")/../../bin/test_repos")
 echo "WORKDIR: ${WORKDIR}"
