@@ -184,7 +184,7 @@ func (r *WildFlyServerReconciler) checkRecovery(reqLogger logr.Logger, scaleDown
 		return recovery, retString, nil
 	}
 	// Verification of the unfinished data of the WildFly transaction client (verification of the directory content)
-	lsCommand := fmt.Sprintf(`ls ${JBOSS_HOME}/%s/%s/ 2> /dev/null || true`, resources.StandaloneServerDataDirRelativePath, wftcDataDirName)
+	lsCommand := []string{"/bin/sh", "-c", fmt.Sprintf(`ls ${JBOSS_HOME}/%s/%s/ 2> /dev/null || true`, resources.StandaloneServerDataDirRelativePath, wftcDataDirName)}
 	commandResult, err := wfly.RemoteOps.Execute(scaleDownPod, lsCommand)
 	if err != nil {
 		return genericError, "", fmt.Errorf("Cannot query the filesystem of the pod %v to check existing remote transactions. "+
@@ -234,7 +234,7 @@ func (r *WildFlyServerReconciler) setupRecoveryPropertiesAndRestart(reqLogger lo
 		}
 
 		reqLogger.Info("Setting system property 'org.wildfly.internal.cli.boot.hook.marker.dir' at '/tmp/markerdir/wf-cli-shutdown-initiated'", "Pod Name", scaleDownPodName)
-		wfly.RemoteOps.Execute(scaleDownPod, "mkdir /tmp/markerdir && touch /tmp/markerdir/wf-cli-shutdown-initiated || true")
+		wfly.RemoteOps.Execute(scaleDownPod, []string{"/bin/sh", "-c", "mkdir /tmp/markerdir && touch /tmp/markerdir/wf-cli-shutdown-initiated || true"})
 		wfly.ExecuteMgmtOp(scaleDownPod, "/system-property=org.wildfly.internal.cli.boot.hook.marker.dir:add(value=/tmp/markerdir)")
 
 		reqLogger.Info("Restarting application server to apply the env properties", "Pod Name", scaleDownPodName)

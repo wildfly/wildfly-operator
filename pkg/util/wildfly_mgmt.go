@@ -58,7 +58,8 @@ func IsMgmtOutcomeSuccesful(jsonBody map[string]interface{}) bool {
 //	the execution runs as shh remote command with jboss-cli.sh executed on the pod
 //	returns the JSON as the return value from the operation
 func ExecuteMgmtOp(pod *corev1.Pod, mgmtOpString string) (map[string]interface{}, error) {
-	jbossCliCommand := fmt.Sprintf("${JBOSS_HOME}/bin/jboss-cli.sh --output-json -c --commands='%s'", mgmtOpString)
+	// Use positional argument for the mgmtOpString so that it isn't parsed for shell metacharacters (such a single quote, backticks, etc.)
+	jbossCliCommand := []string{"/bin/sh", "-c", `$JBOSS_HOME/bin/jboss-cli.sh --output-json -c "--commands=$1"`, "_", mgmtOpString}
 	resString, err := RemoteOps.Execute(pod, jbossCliCommand)
 	if err != nil && resString == "" {
 		return nil, fmt.Errorf("Cannot execute JBoss CLI command %s at pod %v. Cause: %v", jbossCliCommand, pod.Name, err)

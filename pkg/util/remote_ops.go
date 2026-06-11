@@ -35,7 +35,7 @@ var (
 )
 
 type RemoteOperationsInterface interface {
-	Execute(pod *corev1.Pod, command string) (string, error)
+	Execute(pod *corev1.Pod, command []string) (string, error)
 	SocketConnect(hostname string, port int32, command string) (string, error)
 	VerifyLogContainsRegexp(pod *corev1.Pod, logFromTime *time.Time, regexpLineCheck *regexp.Regexp) (string, error)
 	ObtainLogLatestTimestamp(pod *corev1.Pod) (*time.Time, error)
@@ -49,7 +49,7 @@ func init() {
 }
 
 // Execute executes a command inside the remote pod
-func (RemoteOperationsStruct) Execute(pod *corev1.Pod, command string) (string, error) {
+func (RemoteOperationsStruct) Execute(pod *corev1.Pod, command []string) (string, error) {
 	var (
 		execOut bytes.Buffer
 		execErr bytes.Buffer
@@ -79,7 +79,7 @@ func (RemoteOperationsStruct) Execute(pod *corev1.Pod, command string) (string, 
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: pod.Spec.Containers[0].Name,
-			Command:   []string{"/bin/sh", "-c", command},
+			Command:   command,
 			// Stdin:     true,
 			Stdout: true,
 			Stderr: true,

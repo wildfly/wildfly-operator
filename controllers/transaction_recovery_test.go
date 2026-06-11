@@ -399,19 +399,20 @@ type remoteOpsMock struct {
 	ExecuteMockReturn [][]string
 }
 
-func (rops *remoteOpsMock) Execute(pod *corev1.Pod, command string) (string, error) {
+func (rops *remoteOpsMock) Execute(pod *corev1.Pod, command []string) (string, error) {
 	stringToReturn := ""
+	commandStr := strings.Join(command, " ")
 	if len(rops.ExecuteMockReturn) > 0 {
 		stringToReturn = rops.ExecuteMockReturn[0][0]
 		if len(rops.ExecuteMockReturn[0]) > 1 {
 			stringToVerify := rops.ExecuteMockReturn[0][1]
-			if !strings.Contains(command, stringToVerify) {
-				panic(fmt.Sprintf("The command string '%v' does not contain required string '%v'", command, stringToVerify))
+			if !strings.Contains(commandStr, stringToVerify) {
+				panic(fmt.Sprintf("The command string '%v' does not contain required string '%v'", commandStr, stringToVerify))
 			}
 		}
 		rops.ExecuteMockReturn = rops.ExecuteMockReturn[1:] // dequeuing, removal of the first item
 	}
-	ctrl.Log.Info("remoteOpsMock.Execute command:'" + command + "',  returns: '" + stringToReturn + "'")
+	ctrl.Log.Info("remoteOpsMock.Execute command:'" + commandStr + "',  returns: '" + stringToReturn + "'")
 	return stringToReturn, nil
 }
 func (rops remoteOpsMock) SocketConnect(hostname string, port int32, command string) (string, error) {
